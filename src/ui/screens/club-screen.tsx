@@ -1,6 +1,7 @@
-import { motion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useMemo, useState } from 'react';
 import type { ClubId } from '../../engine/core/ids';
+import type { Position } from '../../engine/model/player';
 import { formatDate } from '../../engine/core/calendar';
 import { formatUSD } from '../../engine/core/money';
 import type { ClubView, OfficialView, PlayerRow } from '../../engine/views';
@@ -17,6 +18,8 @@ export function ClubScreen({ id }: { id: ClubId }) {
   const club = useEngineQuery(() => engine.getClub(id), [id]);
   const navigate = useGame((s) => s.navigate);
   const searchFor = useGame((s) => s.searchFor);
+  const pool = useEngineQuery(() => engine.getPool(), []);
+  const [browse, setBrowse] = useState<Position>();
   if (!club) return <Loading label="Entering the stadium" />;
   // Turn needs into a search: the position(s), a rating that beats the average, what the club can pay, in its country.
   const searchNeeds = (needs: typeof club.needs) =>
@@ -30,6 +33,9 @@ export function ClubScreen({ id }: { id: ClubId }) {
     });
   const topNeeds = club.needs.filter((n) => n.severity >= 0.2).slice(0, 3);
   const openPlayer = (pid: string) => navigate({ screen: 'player', id: pid as PlayerRow['id'] });
+  // Your pool by position, minus players already at this club.
+  const poolAt = (pos: Position) => (pool ?? []).filter((p) => p.position === pos && p.club?.id !== club.id);
+  const browseNeed = club.needs.find((n) => n.position === browse);
 
   return (
     <div className="flex flex-col gap-4">
@@ -94,6 +100,19 @@ export function ClubScreen({ id }: { id: ClubId }) {
                     <PosBadge pos={n.position} />
                     <span className="text-[11px] text-mist-400 group-hover:text-grass-300">⌕</span>
                   </button>
+                  <button
+                    onClick={() => setBrowse(browse === n.position ? undefined : n.position)}
+                    className={`num shrink-0 rounded-md border px-1.5 py-0.5 text-[11px] font-semibold transition-colors ${
+                      browse === n.position
+                        ? 'border-grass-400/70 bg-grass-500/20 text-grass-200'
+                        : poolAt(n.position).length
+                          ? 'border-grass-400/30 text-grass-300 hover:bg-grass-500/10'
+                          : 'border-white/10 text-mist-400 hover:bg-white/[0.05]'
+                    }`}
+                    title={`Browse the ${n.position}s in your player pool`}
+                  >
+                    ☰ {poolAt(n.position).length}
+                  </button>
                   <div className="flex-1">
                     <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
                       <motion.div
@@ -119,6 +138,19 @@ export function ClubScreen({ id }: { id: ClubId }) {
                 </motion.div>
               ))}
             </div>
+            <AnimatePresence initial={false}>
+              {browseNeed && (
+                <PoolBrowser
+                  key={browseNeed.position}
+                  need={browseNeed}
+                  club={club}
+                  players={poolAt(browseNeed.position)}
+                  onOpen={openPlayer}
+                  onExpand={() => searchNeeds([browseNeed])}
+                  onClose={() => setBrowse(undefined)}
+                />
+              )}
+            </AnimatePresence>
           </Panel>
 
           <OfficialCard official={club.coach} club={club} />
@@ -186,7 +218,6 @@ function ClubHero({ club }: { club: ClubView }) {
             {club.leaguePosition && <span className="chip border-flood-500/40 text-flood-300">{ordinal(club.leaguePosition)} place</span>}
             <span className="chip">Rep {club.reputation}</span>
             <TravelHere cityId={club.city.id} cityName={club.city.name} clubId={club.id} clubName={club.name} />
-            <RecommendHere clubId={club.id} />
             {club.work && (
               <span
                 className={`chip ${club.work.status === 'none' ? '' : club.work.status === 'employer' ? 'border-flood-400/50 text-flood-300' : 'border-grass-400/50 text-grass-300'}`}
@@ -200,6 +231,7 @@ function ClubHero({ club }: { club: ClubView }) {
             {club.city.name}, {club.country.name} · Founded {club.founded} · {club.stadium} ({club.capacity.toLocaleString('en-US')})
           </div>
         </div>
+        <RecommendHere clubId={club.id} />
       </div>
     </motion.header>
   );
@@ -474,6 +506,93 @@ function FixturesPanel({ club }: { club: ClubView }) {
   );
 }
 
+type PoolPlayer = PlayerRow & { starred: boolean };
+
+/** Your pool at one needed position: who beats the bar and fits the budget, with a quick pitch, or a search for more. */
+function PoolBrowser({
+  need,
+  club,
+  players,
+  onOpen,
+  onExpand,
+  onClose,
+}: {
+  need: ClubView['needs'][number];
+  club: ClubView;
+  players: PoolPlayer[];
+  onOpen: (id: string) => void;
+  onExpand: () => void;
+  onClose: () => void;
+}) {
+  const openRecommend = useGame((s) => s.openRecommend);
+  const bar = (need.positionalAverage || 0) + 1;
+  const rows = [...players].sort((a, b) => Number(b.ovr >= bar) - Number(a.ovr >= bar) || b.ovr - a.ovr);
+  const fits = rows.filter((p) => p.ovr >= bar).length;
+  return (
+    <motion.div
+      initial={{ height: 0, opacity: 0 }}
+      animate={{ height: 'auto', opacity: 1 }}
+      exit={{ height: 0, opacity: 0 }}
+      className="overflow-hidden border-t border-grass-400/20 bg-grass-500/[0.03]"
+    >
+      <div className="flex flex-wrap items-center gap-2 px-4 pt-3">
+        <PosBadge pos={need.position} />
+        <span className="text-sm font-semibold">Your pool</span>
+        <span className="text-[11px] text-mist-400">
+          {rows.length ? `${rows.length} player${rows.length > 1 ? 's' : ''} · ${fits} at ${bar}+ (beats the average)` : 'Nobody yet'}
+        </span>
+        <button className="ml-auto text-[11px] text-mist-400 hover:text-mist-100" onClick={onClose}>
+          Close
+        </button>
+      </div>
+      {rows.length === 0 ? (
+        <div className="px-4 py-4 text-sm text-mist-400">You have no {need.position}s in your pool. Search to find some.</div>
+      ) : (
+        <ul className="mt-2 max-h-72 overflow-y-auto">
+          {rows.map((p) => {
+            const beats = p.ovr >= bar;
+            const affordable = club.transferBudget <= 0 || p.value <= club.transferBudget;
+            return (
+              <li key={p.id} className="flex items-center gap-3 border-b border-white/[0.04] px-4 py-2 last:border-0 hover:bg-white/[0.03]">
+                <OvrBadge ovr={p.ovr} range={p.ovrRange} size="sm" />
+                <button className="min-w-0 flex-1 text-left" onClick={() => onOpen(p.id)}>
+                  <div className="truncate text-sm font-semibold hover:text-grass-300">
+                    {p.starred && <span className="mr-1 text-flood-400">★</span>}
+                    {p.name}
+                  </div>
+                  <div className="truncate text-[11px] text-mist-400">
+                    {p.age} · {p.club?.name ?? 'Free agent'}
+                  </div>
+                </button>
+                <span className={`hidden text-[11px] sm:inline ${beats ? 'text-grass-300' : 'text-mist-400'}`} title={`The bar here is ${bar}`}>
+                  {beats ? '✓ beats avg' : `below ${bar}`}
+                </span>
+                <span className={`num w-16 text-right text-[12px] ${affordable ? 'text-mist-200' : 'text-alert-400'}`} title={affordable ? 'Within the transfer budget' : 'Over the transfer budget'}>
+                  {formatUSD(p.value, { compact: true })}
+                </span>
+                <button
+                  className={`${beats ? 'btn-primary' : 'btn-ghost'} shrink-0 px-2.5 py-1 text-[11px]`}
+                  onClick={() => openRecommend({ playerId: p.id, clubId: club.id })}
+                >
+                  Recommend
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <div className="flex flex-wrap items-center gap-3 border-t border-white/[0.05] px-4 py-2.5 text-[12px]">
+        <span className="min-w-0 flex-1 text-mist-400">
+          Want more options? Search for {need.position}s rated {bar}+ that {club.name} can afford.
+        </span>
+        <button className="btn-ghost border-grass-400/40 px-3 py-1 text-xs text-grass-200" onClick={onExpand}>
+          ⌕ Expand the pool →
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
 /** "You're here" or a one-click trip to the club's city. */
 function TravelHere({ cityId, cityName, clubId, clubName }: { cityId: ClubView['city']['id']; cityName: string; clubId: ClubView['id']; clubName: string }) {
   const { scout, openTravel, advancing } = useGame();
@@ -494,8 +613,13 @@ function RecommendHere({ clubId }: { clubId: ClubView['id'] }) {
   const { scout, openRecommend } = useGame();
   if (!scout) return null;
   return (
-    <button className="chip border-flood-400/40 text-flood-300 hover:bg-flood-500/10" onClick={() => openRecommend({ clubId })}>
+    <motion.button
+      whileHover={{ scale: 1.03 }}
+      whileTap={{ scale: 0.97 }}
+      className="btn shrink-0 bg-flood-400 px-6 py-3 text-base font-bold text-night-950 shadow-[0_0_32px_-6px_var(--color-flood-400)] hover:bg-flood-300"
+      onClick={() => openRecommend({ clubId })}
+    >
       ★ Recommend a player
-    </button>
+    </motion.button>
   );
 }
