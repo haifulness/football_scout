@@ -134,6 +134,26 @@ describe('meetings', () => {
     expect(w.scout!.rapport[pid]).toBe(r.after);
     expect(knowledgeLevel(w, w.players[pid]!)).toBeGreaterThan(before);
   });
+
+  it('charges the full price the first time, much less to catch up, and the price varies', () => {
+    const club = Object.values(w.clubs).find((c) => c.tier === 3 && c.countryId === eng && w.scout!.lastMet[c.headCoachId] === undefined)!;
+    const target = { kind: 'official' as const, id: club.headCoachId };
+    startTravel(w, club.cityId);
+    const first = meetingInfo(w, target);
+    expect(first.firstMeeting).toBe(true);
+    const money = w.scout!.money;
+    expect(meet(w, target).cost).toBe(first.cost); // the price you see is the price you pay
+    expect(w.scout!.money).toBe(money - first.cost);
+    const catchUps = new Set<number>();
+    for (let i = 0; i < 6; i++) {
+      advanceDays(w, 3);
+      const info = meetingInfo(w, target);
+      expect(info.firstMeeting).toBe(false);
+      expect(info.cost).toBeLessThan(first.cost * 0.7);
+      catchUps.add(info.cost);
+    }
+    expect(catchUps.size).toBeGreaterThan(1);
+  });
 });
 
 describe('save migration', () => {

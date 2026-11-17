@@ -54,7 +54,7 @@ import {
   proposeAgreement,
   resign,
 } from './systems/employment';
-import { clubPositionalAverage, formationPositions, pitch, pitchFee, signOffProbability, type PitchArgs, playerChance, wageCeiling } from './systems/deals';
+import { REMOTE_PITCH_TRUST, clubPositionalAverage, formationPositions, pitch, pitchFee, remotePitchCheck, signOffProbability, type PitchArgs, playerChance, wageCeiling } from './systems/deals';
 import { canAfford, offeredWage, transferFee, brokeredWage } from './systems/transfers';
 import type { Deal, Official, Placement } from './model/deal';
 import type { Mission } from './model/mission';
@@ -1657,7 +1657,7 @@ export class Engine {
 
   // ── Recommendations ──
 
-  /** Pitch a player in person to the Head Coach (one day). */
+  /** Pitch a player to the Head Coach, in person or by phone (one day). */
   pitch(args: PitchArgs): { deal: DealView; advance: AdvanceSummary } {
     this.assertActive();
     const deal = pitch(this.s, args);
@@ -1726,6 +1726,9 @@ export class Engine {
     const officialView = (role: Official): OfficialPitchView => {
       const o = s.officials[club.headCoachId]!;
       const prob = s.scout ? signOffProbability(s, o, p, club, pos, fee) : 0.5;
+      const remoteProb = s.scout ? signOffProbability(s, o, p, club, pos, fee, true) : 0.5;
+      const readOf = (x: number) => (x >= 0.62 ? 'good' : x >= 0.38 ? 'toss-up' : 'long-shot') as OfficialPitchView['read'];
+      const remote = s.scout ? remotePitchCheck(s, club.id) : { ok: false, trust: 0 };
       return {
         id: o.id,
         role,
@@ -1737,7 +1740,8 @@ export class Engine {
           .sort((a, b) => b[1] - a[1])
           .slice(0, 3)
           .map(([k]) => PRIORITY_LABELS[k] ?? k),
-        read: prob >= 0.62 ? 'good' : prob >= 0.38 ? 'toss-up' : 'long-shot',
+        read: readOf(prob),
+        remote: { ...remote, required: REMOTE_PITCH_TRUST, read: readOf(remoteProb) },
       };
     };
     const existing = s.deals.find(
@@ -2294,6 +2298,7 @@ export class Engine {
       allowed: m.allowed,
       recentlyMet: m.recentlyMet,
       colleague: m.colleague,
+      firstMeeting: m.firstMeeting,
     };
   }
 

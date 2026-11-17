@@ -10,14 +10,17 @@ import {
   clubPositionalAverage,
   formationPositions,
   gateCheck,
+  REMOTE_PITCH_TRUST,
   pitch,
   playerChance,
+  remotePitchCheck,
   resolveDeals,
   signOffProbability,
   wageCeiling,
 } from '../../src/engine/systems/deals';
 import { ovrAt } from '../../src/engine/systems/ratings';
 import { createCareer } from '../../src/engine/systems/scouting';
+import { clubTrust } from '../../src/engine/systems/employment';
 import { brokeredWage, executeTransfer, offeredWage, transferFee } from '../../src/engine/systems/transfers';
 import { advanceDays } from '../../src/engine/tick';
 import { CURRENT_SCHEMA_VERSION, migrate } from '../../src/persistence/save-format';
@@ -291,4 +294,57 @@ describe('wage offers', () => {
       return;
     }
   }, 60_000);
+});
+
+describe('pitching by phone', () => {
+  /** A client club that is not in your city, with a good-fit player. */
+  function away(w: GameState) {
+    const club = clubs(w, (c) => c.tier === 3)[0]!;
+    goTo(w, club);
+    w.scout!.location = Object.values(w.clubs).find((c) => c.cityId !== club.cityId && c.countryId === club.countryId)!.cityId;
+    return { club, ...goodFit(w, club)! };
+  }
+
+  it('is refused until the club trusts you enough', () => {
+    const w = setup();
+    const { club, p, pos } = away(w);
+    w.scout!.relationships[club.headCoachId] = 0;
+    expect(clubTrust(w, club.id)).toBeLessThan(REMOTE_PITCH_TRUST);
+    expect(remotePitchCheck(w, club.id).ok).toBe(false);
+    expect(() => pitch(w, { playerId: p.id, clubId: club.id, position: pos, to: 'coach', remote: true })).toThrow(/trust/);
+    // And in person still needs you there.
+    expect(() => pitch(w, { playerId: p.id, clubId: club.id, position: pos, to: 'coach' })).toThrow(/in person/);
+  });
+
+  it('works from anywhere once trusted, with no meeting fee', () => {
+    const w = setup();
+    const { club, p, pos } = away(w);
+    w.scout!.relationships[club.headCoachId] = 95;
+    expect(clubTrust(w, club.id)).toBeGreaterThanOrEqual(REMOTE_PITCH_TRUST);
+    const money = w.scout!.money;
+    const deal = pitch(w, { playerId: p.id, clubId: club.id, position: pos, to: 'coach', remote: true });
+    expect(deal.pitchedTo).toEqual(['coach']);
+    expect(deal.log[0]!.text).toMatch(/by phone/);
+    expect(w.scout!.money).toBe(money);
+  });
+
+  it('is only for clubs you work for', () => {
+    const w = setup();
+    const club = clubs(w, (c) => c.tier === 3)[0]!;
+    w.scout!.relationships[club.headCoachId] = 100;
+    expect(remotePitchCheck(w, club.id)).toMatchObject({ ok: false, reason: expect.stringMatching(/work for/) });
+  });
+
+  it('convinces a little less than pitching in person', () => {
+    const w = setup();
+    const club = clubs(w, (c) => c.tier === 3)[0]!;
+    const { p, pos } = goodFit(w, club)!;
+    const coach = w.officials[club.headCoachId]!;
+    w.scout!.relationships[coach.id] = 70;
+    const fee = transferFee(w, p);
+    const inPerson = signOffProbability(w, coach, p, club, pos, fee);
+    const byPhone = signOffProbability(w, coach, p, club, pos, fee, true);
+    expect(byPhone).toBeLessThan(inPerson);
+    expect(inPerson - byPhone).toBeLessThan(0.08);
+  });
 });

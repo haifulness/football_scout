@@ -119,6 +119,21 @@ export interface MeetingInfo {
   recentlyMet: boolean;
   /** An official at the club you work for full-time: free, always available, and easier to win over. */
   colleague: boolean;
+  /** Never met before: the first meeting is the full price, catch-ups after it are cheaper. */
+  firstMeeting: boolean;
+}
+
+/** A catch-up costs this share of a first meeting. */
+const CATCH_UP_SHARE = 0.4;
+
+/**
+ * Today's price to meet someone: the full price the first time, much less to catch up afterwards,
+ * and never quite the same (±20%, by person and day, so the price you see is the price you pay).
+ */
+function meetingPrice(state: GameState, id: string, base: number): USD {
+  const first = state.scout!.lastMet[id] === undefined;
+  const swing = Rng.derive(state.seed, `meeting-price:${id}:${state.date}`).float(0.8, 1.2);
+  return usd(Math.max(5, Math.round((base * (first ? 1 : CATCH_UP_SHARE) * swing) / 5) * 5));
 }
 
 function effectiveReputation(state: GameState): number {
@@ -141,7 +156,7 @@ export function meetingInfo(state: GameState, target: MeetTarget): MeetingInfo {
       role: 'player',
       name: `${p.firstName} ${p.lastName}`,
       level: scout.rapport[p.id] ?? 0,
-      cost: usd(Math.round((MEETING_COST.player[tier] * state.countries[country]!.costIndex) / 5) * 5),
+      cost: meetingPrice(state, p.id, MEETING_COST.player[tier] * state.countries[country]!.costIndex),
       city: club?.cityId,
       country,
       inPlace,
@@ -149,6 +164,7 @@ export function meetingInfo(state: GameState, target: MeetTarget): MeetingInfo {
       allowed: effectiveReputation(state) >= required,
       recentlyMet: recently(state, p.id),
       colleague: false,
+      firstMeeting: scout.lastMet[p.id] === undefined,
     };
   }
   const o = state.officials[target.id];
@@ -161,7 +177,7 @@ export function meetingInfo(state: GameState, target: MeetTarget): MeetingInfo {
     role: o.role,
     name: `${o.firstName} ${o.lastName}`,
     level: scout.relationships[o.id] ?? 0,
-    cost: colleague ? usd(0) : usd(Math.round((MEETING_COST.official[club.tier] * state.countries[club.countryId]!.costIndex) / 5) * 5),
+    cost: colleague ? usd(0) : meetingPrice(state, o.id, MEETING_COST.official[club.tier] * state.countries[club.countryId]!.costIndex),
     city: club.cityId,
     country: club.countryId,
     inPlace: scout.location === club.cityId,
@@ -169,6 +185,7 @@ export function meetingInfo(state: GameState, target: MeetTarget): MeetingInfo {
     allowed: colleague || effectiveReputation(state) >= required,
     recentlyMet: recently(state, o.id),
     colleague,
+    firstMeeting: scout.lastMet[o.id] === undefined,
   };
 }
 

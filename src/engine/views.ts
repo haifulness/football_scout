@@ -442,6 +442,8 @@ export interface MeetingView {
   recentlyMet: boolean;
   /** At the club you work for: free and easier. */
   colleague: boolean;
+  /** Never met: the full price. Catch-ups after the first meeting are cheaper. */
+  firstMeeting: boolean;
 }
 
 export interface LiveView {
@@ -506,6 +508,8 @@ export interface OfficialPitchView {
   topPriorities: string[];
   /** Your read of how they'll take it (banded, not exact). */
   read: 'good' | 'toss-up' | 'long-shot';
+  /** Pitching by phone: open once the club trusts you enough, and a little less convincing. */
+  remote: { ok: boolean; trust: number; required: number; reason?: string; read: 'good' | 'toss-up' | 'long-shot' };
 }
 
 export interface ReportView {

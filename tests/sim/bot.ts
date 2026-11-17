@@ -4,7 +4,7 @@ import { Engine } from '../../src/engine/index';
 import type { Club } from '../../src/engine/model/club';
 import type { Difficulty } from '../../src/engine/model/scout';
 import type { GameState } from '../../src/engine/model/world-state';
-import { clubPositionalAverage, formationPositions } from '../../src/engine/systems/deals';
+import { clubPositionalAverage, formationPositions, remotePitchCheck } from '../../src/engine/systems/deals';
 import { AGREEMENT_GATE, agreementCheck, clientSlots } from '../../src/engine/systems/employment';
 import { meetingInfo } from '../../src/engine/systems/fieldwork';
 import { estimate, fog } from '../../src/engine/systems/knowledge';
@@ -182,8 +182,10 @@ export function runBot(opts: { seed: number; seasons: number; difficulty: Diffic
         note(
           r ? (r.search.results.length ? (found.length ? 'found candidates' : 'results but none look good enough') : 'search found nobody') : 'search failed',
         );
+        // A club that trusts you takes the pitch by phone: no trip needed.
+        const byPhone = remotePitchCheck(s, club.id).ok;
         // Get to know the coach before asking him to sign anyone.
-        if (found.length) {
+        if (found.length && !byPhone) {
           goTo(club);
           const coach = { kind: 'official' as const, id: club.headCoachId };
           for (let i = 0; i < 2 && (scout().relationships[club.headCoachId] ?? 0) < 35; i++) safe(() => e.meet(coach), 'meet');
@@ -205,8 +207,9 @@ export function runBot(opts: { seed: number; seasons: number; difficulty: Diffic
             );
             continue;
           }
-          goTo(club);
-          const res = safe(() => e.pitch({ playerId: p.id, clubId: club.id, position: need.position, to: 'coach' }), 'pitch');
+          if (!byPhone) goTo(club);
+          const res = safe(() => e.pitch({ playerId: p.id, clubId: club.id, position: need.position, to: 'coach', remote: byPhone }), 'pitch');
+          if (res && byPhone) note('pitched by phone');
           if (res) {
             counters.pitches++;
             tally.pitches++;

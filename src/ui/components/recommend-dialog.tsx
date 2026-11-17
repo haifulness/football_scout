@@ -389,10 +389,10 @@ function PitchView({
       : preview.acceptance.atAsk;
   const deal = result ?? preview.existing;
 
-  const doPitch = async (to: Official) => {
+  const doPitch = async (to: Official, remote = false) => {
     setError(undefined);
     try {
-      setResult(await pitch({ playerId, clubId, position: preview.position, to, wage: usd(wageOffer) }));
+      setResult(await pitch({ playerId, clubId, position: preview.position, to, wage: usd(wageOffer), remote }));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'The pitch did not happen.');
     }
@@ -647,6 +647,7 @@ function PitchView({
         blockedReason={!preview.work.ok ? 'Not a client yet' : deal ? (deal.stage === 'rejected' ? 'Already decided' : 'Deal in progress') : undefined}
         inCity={preview.inCity}
         onPitch={() => void doPitch('coach')}
+        onPhone={() => void doPitch('coach', true)}
         onTravel={() => {
           closeRecommend();
           openTravel(preview.club.cityId, { label: `Pitch ${preview.player.name} to ${preview.club.name}`, recommend: { playerId, clubId } });
@@ -703,6 +704,7 @@ function OfficialPitchCard({
   blockedReason,
   inCity,
   onPitch,
+  onPhone,
   onTravel,
   cityName,
 }: {
@@ -711,6 +713,7 @@ function OfficialPitchCard({
   blockedReason?: string;
   inCity: boolean;
   onPitch: () => void;
+  onPhone: () => void;
   onTravel: () => void;
   cityName: string;
 }) {
@@ -733,14 +736,33 @@ function OfficialPitchCard({
         <div className="mt-3 text-[12px] text-mist-400">Pitching opens once they're a client.</div>
       ) : !o.meeting.allowed ? (
         <div className="mt-3 text-[12px] text-alert-400">Won't see you yet: needs reputation {o.meeting.requiredReputation}.</div>
-      ) : !inCity ? (
-        <button className="btn-ghost mt-3 w-full text-xs" onClick={onTravel}>
-          Travel to {cityName} to pitch in person
-        </button>
       ) : (
-        <button className="btn-primary mt-3 w-full text-xs" disabled={disabled} onClick={onPitch}>
-          {blockedReason ?? `Pitch to the ${role} · ${formatUSD(o.meeting.cost)} · 1 day`}
-        </button>
+        <div className="mt-3 flex flex-col gap-2">
+          {o.remote.ok && (
+            <button
+              className="btn w-full border border-sky-400/50 bg-sky-500/[0.12] text-xs font-semibold text-sky-100 hover:bg-sky-500/[0.22]"
+              disabled={disabled}
+              onClick={onPhone}
+              title="He trusts you enough to hear it over the phone. In person is a little more convincing."
+            >
+              {blockedReason ?? (
+                <>
+                  ☏ Pitch by phone · free · 1 day <span className={`ml-1 ${READ[o.remote.read].c}`}>({READ[o.remote.read].label.toLowerCase()})</span>
+                </>
+              )}
+            </button>
+          )}
+          {!inCity ? (
+            <button className="btn-ghost w-full text-xs" onClick={onTravel}>
+              Travel to {cityName} to pitch in person{o.remote.ok ? ' (a little more convincing)' : ''}
+            </button>
+          ) : (
+            <button className="btn-primary w-full text-xs" disabled={disabled} onClick={onPitch}>
+              {blockedReason ?? `Pitch in person · ${formatUSD(o.meeting.cost)} · 1 day`}
+            </button>
+          )}
+          {!o.remote.ok && o.remote.reason && <div className="text-[11px] text-mist-400">☏ {o.remote.reason}</div>}
+        </div>
       )}
     </div>
   );

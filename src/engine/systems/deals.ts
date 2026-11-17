@@ -9,7 +9,7 @@ import { FORMATIONS } from '../data/formations';
 import type { Club, ClubOfficial, OfficialPriorities } from '../model/club';
 import { emptyEarnings, type Deal, type DealEvent, type Official, type Placement } from '../model/deal';
 import { settleSigningBonuses } from './payouts';
-import { clubTrust, onSigningCompleted, recordWeakPitch } from './employment';
+import { canWorkWith, clubTrust, onSigningCompleted, recordWeakPitch } from './employment';
 import { onDealSecured, preferenceBonus } from './missions';
 import { onMandateSecured, payCommission, pitchRights } from './market';
 import type { Player, Position } from '../model/player';
@@ -94,7 +94,20 @@ function fitness(state: GameState, p: Player, club: Club, pos: Position, fee: US
 }
 
 /** Chance that this official signs off, 0–1. */
-export function signOffProbability(state: GameState, o: ClubOfficial, p: Player, club: Club, pos: Position, fee: USD): number {
+/** Trust a club needs in you before its Head Coach takes a pitch by phone. */
+export const REMOTE_PITCH_TRUST = 60;
+/** A call convinces a little less than sitting across the desk (on the sign-off odds' log scale: about 6 points at even odds). */
+const REMOTE_PITCH_PENALTY = 0.25;
+
+/** Whether you can pitch to this club by phone: only clubs you work for, once they trust you enough. */
+export function remotePitchCheck(state: GameState, clubId: ClubId): { ok: boolean; trust: number; reason?: string } {
+  const trust = clubTrust(state, clubId);
+  if (!canWorkWith(state, clubId).ok) return { ok: false, trust, reason: 'Only clubs you work for take pitches by phone.' };
+  if (trust < REMOTE_PITCH_TRUST) return { ok: false, trust, reason: `Pitching by phone opens at trust ${REMOTE_PITCH_TRUST} (now ${trust}).` };
+  return { ok: true, trust };
+}
+
+export function signOffProbability(state: GameState, o: ClubOfficial, p: Player, club: Club, pos: Position, fee: USD, remote = false): number {
   const fit = fitness(state, p, club, pos, fee);
   let num = 0;
   let den = 0;
@@ -117,7 +130,8 @@ export function signOffProbability(state: GameState, o: ClubOfficial, p: Player,
       brief +
       reportBonus(state, p.id, pos) +
       specialtyBonus(state, p, pos) +
-      (state.deadline ? DEADLINE_SIGNOFF_BONUS : 0),
+      (state.deadline ? DEADLINE_SIGNOFF_BONUS : 0) -
+      (remote ? REMOTE_PITCH_PENALTY : 0),
   );
 }
 
@@ -148,6 +162,8 @@ export interface PitchArgs {
   to: Official;
   /** Weekly wage to offer him: at least his demand, at most the club's ceiling. Defaults to his demand. */
   wage?: USD;
+  /** By phone instead of in person: no trip and no meeting fee, once the club trusts you (see remotePitchCheck). */
+  remote?: boolean;
 }
 
 const officialOf = (club: Club, _who: Official) => club.headCoachId;
@@ -174,7 +190,7 @@ export function pitchFee(state: GameState, p: Player, askingFee?: USD): USD {
   return state.deadline ? roundPrice(fee * DEADLINE_FEE_PREMIUM) : fee;
 }
 
-/** A one-day pitch meeting. Returns the deal (new, or the existing one for a second pitch). */
+/** A one-day pitch, in person or (for trusting clubs) by phone. Returns the deal (new, or the existing one for a second pitch). */
 export function pitch(state: GameState, args: PitchArgs): Deal {
   const scout = state.scout;
   if (!scout) throw new ScoutingError('Set up your scout first.');
@@ -194,10 +210,15 @@ export function pitch(state: GameState, args: PitchArgs): Deal {
   const o = state.officials[officialId]!;
   const info = meetingInfo(state, { kind: 'official', id: officialId });
   if (!info.allowed) throw new ScoutingError(`The ${roleName(args.to)} won't see a scout of your standing yet (needs reputation ${info.requiredReputation}).`);
-  if (!info.inPlace) throw new ScoutingError(`You need to be in ${state.cities[club.cityId]!.name} to pitch in person.`);
-  if (scout.money < info.cost) throw new ScoutingError(`The pitch meeting costs ${formatUSD(info.cost)} but you only have ${formatUSD(scout.money)}.`);
-
-  addLedger(state, { amount: usd(-info.cost), kind: 'meeting', label: `Pitch: ${p.firstName} ${p.lastName} to ${club.name} (${roleName(args.to)})` });
+  const remote = !!args.remote;
+  if (remote) {
+    const check = remotePitchCheck(state, club.id);
+    if (!check.ok) throw new ScoutingError(check.reason!);
+  } else {
+    if (!info.inPlace) throw new ScoutingError(`You need to be in ${state.cities[club.cityId]!.name} to pitch in person.`);
+    if (scout.money < info.cost) throw new ScoutingError(`The pitch meeting costs ${formatUSD(info.cost)} but you only have ${formatUSD(scout.money)}.`);
+    addLedger(state, { amount: usd(-info.cost), kind: 'meeting', label: `Pitch: ${p.firstName} ${p.lastName} to ${club.name} (${roleName(args.to)})` });
+  }
   scout.lastMet[officialId] = state.date;
 
   const deal: Deal = {
@@ -218,7 +239,7 @@ export function pitch(state: GameState, args: PitchArgs): Deal {
   };
   state.deals.unshift(deal);
   deal.pitchedTo.push(args.to);
-  log(deal, state.date, `Pitched ${p.firstName} ${p.lastName} as a ${args.position} to the ${roleName(args.to)}, ${o.firstName} ${o.lastName}.`);
+  log(deal, state.date, `Pitched ${p.firstName} ${p.lastName} as a ${args.position} to the ${roleName(args.to)}, ${o.firstName} ${o.lastName}${remote ? ', by phone' : ''}.`);
 
   // Club-level checks: ability (or potential) and money.
   const gate = gateCheck(state, p, club, args.position);
@@ -246,14 +267,15 @@ export function pitch(state: GameState, args: PitchArgs): Deal {
 
   // The official decides.
   const rng = Rng.derive(state.seed, `signoff:${deal.id}:${args.to}`);
-  const chance = signOffProbability(state, o, p, club, args.position, deal.fee);
+  const chance = signOffProbability(state, o, p, club, args.position, deal.fee, remote);
   if (rng.next() < chance) {
     deal.stage = 'negotiating';
     deal.reason = undefined;
     deal.signOff = { by: args.to, date: state.date };
     deal.resolvesOn = addDays(state.date, rng.int(7, 14));
     deal.chance = playerChance(state, deal);
-    scout.relationships[officialId] = clamp((scout.relationships[officialId] ?? 0) + 3, 0, 100);
+    // A yes in person builds the relationship more than one over the phone.
+    scout.relationships[officialId] = clamp((scout.relationships[officialId] ?? 0) + (remote ? 1 : 3), 0, 100);
     log(
       deal,
       state.date,
