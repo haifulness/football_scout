@@ -8,6 +8,24 @@ import type { PitchArgs } from '../../engine/systems/deals';
 import type { SaveStatus } from '../../worker/game-host';
 import { Comlink, engine } from './engine-client';
 import type { AttributeKey, Position } from '../../engine/model/player';
+import type { USD } from '../../engine/core/money';
+
+/** A club's brief: the pool picker shows only players who could meet it (until you choose to see everyone). */
+export interface RecommendBrief {
+  label: string;
+  position: Position;
+  minOvr: number;
+  minAge?: number;
+  maxAge?: number;
+  maxFee?: USD;
+  /** Readable terms for the banner, e.g. "rated 51+". */
+  summary: string[];
+}
+export interface RecommendRequest {
+  playerId?: PlayerId;
+  clubId?: ClubId;
+  brief?: RecommendBrief;
+}
 
 export interface SearchPrefill {
   positions?: Position[];
@@ -120,9 +138,9 @@ interface GameStore {
   consumeSearchPrefill: () => SearchPrefill | undefined;
   /** Career actions that don't move time. */
   careerAction: (fn: () => Promise<unknown>) => Promise<void>;
-  /** The open recommend dialog (player and/or club preselected). */
-  recommend?: { playerId?: PlayerId; clubId?: ClubId };
-  openRecommend: (r: { playerId?: PlayerId; clubId?: ClubId }) => void;
+  /** The open recommend dialog (player and/or club preselected, optionally a mission brief to filter the pool by). */
+  recommend?: RecommendRequest;
+  openRecommend: (r: RecommendRequest) => void;
   closeRecommend: () => void;
   /** Completed signings waiting for their "Here we go" reveal. */
   reveals: DealEventView[];

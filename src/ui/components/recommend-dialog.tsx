@@ -8,7 +8,7 @@ import type { DealView, OfficialPitchView } from '../../engine/views';
 import { Crest } from '../visuals/crest';
 import { Portrait } from '../visuals/portrait';
 import { engine } from '../store/engine-client';
-import { useEngineQuery, useGame } from '../store/game-store';
+import { useEngineQuery, useGame, type RecommendBrief } from '../store/game-store';
 import { DealStageBadge } from './deal-stage';
 import { RelationshipBar } from './relationship';
 import { OvrBadge, PosBadge, ratingColor, useCultureLookup } from './ui';
@@ -68,7 +68,7 @@ export function RecommendDialog() {
               </button>
             </header>
             {!playerId ? (
-              <PlayerPicker onPick={setPlayerId} />
+              <PlayerPicker onPick={setPlayerId} brief={recommend.brief} />
             ) : !clubId ? (
               <ClubPicker playerId={playerId} onPick={pickClub} browse={browse} onBrowse={setBrowse} lastClubId={lastClubId} />
             ) : (
@@ -102,8 +102,9 @@ const POOL_SORTS: { key: PoolSort; label: string }[] = [
 ];
 
 /** Pick from your pool: search by name or club, filter by position, sort. */
-function PlayerPicker({ onPick }: { onPick: (id: PlayerId) => void }) {
+function PlayerPicker({ onPick, brief }: { onPick: (id: PlayerId) => void; brief?: RecommendBrief }) {
   const pool = useEngineQuery(() => engine.getRecommendCandidates(), []);
+  const [useBrief, setUseBrief] = useState(!!brief);
   const cultureOf = useCultureLookup();
   const [query, setQuery] = useState('');
   const [posFilter, setPosFilter] = useState<string>('');
@@ -115,9 +116,20 @@ function PlayerPicker({ onPick }: { onPick: (id: PlayerId) => void }) {
 
   const q = query.trim().toLowerCase();
   const group = POSITION_GROUPS.find((g) => g.label === posFilter);
+  // Against the brief, on what you know: "fits" if your estimate clears the bar, "might fit" if the top of your range does.
+  const briefFit = (p: (typeof pool)[number]): 'yes' | 'maybe' | 'no' => {
+    if (!brief) return 'yes';
+    if (p.position !== brief.position) return 'no';
+    if (brief.minAge !== undefined && p.age < brief.minAge) return 'no';
+    if (brief.maxAge !== undefined && p.age > brief.maxAge) return 'no';
+    if (brief.maxFee !== undefined && p.value > brief.maxFee) return 'no';
+    return p.ovr >= brief.minOvr ? 'yes' : p.ovrRange[1] >= brief.minOvr ? 'maybe' : 'no';
+  };
+  const briefMatches = brief ? pool.filter((p) => briefFit(p) !== 'no').length : 0;
   const shown = pool
     .filter(
       (p) =>
+        (!useBrief || briefFit(p) !== 'no') &&
         (!q || p.name.toLowerCase().includes(q) || (p.club?.name ?? 'free agent').toLowerCase().includes(q)) &&
         (!posFilter || (group ? group.positions.includes(p.position) : p.position === posFilter)) &&
         (!starredOnly || p.starred) &&
@@ -127,6 +139,10 @@ function PlayerPicker({ onPick }: { onPick: (id: PlayerId) => void }) {
       // Players you are selling or representing always come first.
       const pinned = Number(!!b.tag) - Number(!!a.tag);
       if (pinned) return pinned;
+      if (useBrief) {
+        const fit = Number(briefFit(b) === 'yes') - Number(briefFit(a) === 'yes');
+        if (fit) return fit;
+      }
       const star = Number(b.starred) - Number(a.starred);
       if (sort === 'added') return b.addedOn - a.addedOn;
       if (sort === 'age') return a.age - b.age || b.ovr - a.ovr;
@@ -138,6 +154,25 @@ function PlayerPicker({ onPick }: { onPick: (id: PlayerId) => void }) {
 
   return (
     <div>
+      {brief && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-sky-400/20 bg-sky-500/[0.06] px-5 py-2.5">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-sky-300">Brief</span>
+          <span className="text-sm font-semibold">{brief.label}</span>
+          <span className="flex flex-wrap gap-1">
+            {brief.summary.map((x) => (
+              <span key={x} className="chip text-[11px] text-mist-200">
+                {x}
+              </span>
+            ))}
+          </span>
+          <span className="ml-auto flex items-center gap-2 text-[11px] text-mist-400">
+            {briefMatches ? `${briefMatches} in your pool could fit` : 'Nobody in your pool fits yet'}
+            <button className="btn-ghost px-2.5 py-1 text-[11px]" onClick={() => setUseBrief(!useBrief)}>
+              {useBrief ? 'Show whole pool' : 'Filter by brief'}
+            </button>
+          </span>
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-2 border-b border-white/[0.06] px-5 py-3">
         <input
           autoFocus
@@ -205,12 +240,22 @@ function PlayerPicker({ onPick }: { onPick: (id: PlayerId) => void }) {
                   {p.age} · {p.club?.name ?? 'Free agent'} · {formatUSD(p.value)}
                 </span>
               </span>
+              {useBrief && briefFit(p) === 'maybe' && (
+                <span className="text-[11px] text-flood-300" title="The top of your estimate clears the bar, the middle doesn't">
+                  Might fit
+                </span>
+              )}
+              {useBrief && briefFit(p) === 'yes' && <span className="text-[11px] text-grass-300">Fits</span>}
               <PosBadge pos={p.position} />
               <OvrBadge ovr={p.ovr} range={p.ovrRange} size="sm" />
             </button>
           </li>
         ))}
-        {!shown.length && <li className="px-5 py-8 text-center text-sm text-mist-400">No players in your pool match.</li>}
+        {!shown.length && (
+          <li className="px-5 py-8 text-center text-sm text-mist-400">
+            {useBrief ? 'Nobody in your pool fits this brief yet. Use "Search for this" on the mission to find some.' : 'No players in your pool match.'}
+          </li>
+        )}
       </ul>
     </div>
   );

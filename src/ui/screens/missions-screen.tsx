@@ -245,7 +245,15 @@ function MissionCard({ m, i }: { m: MissionView; i: number }) {
           >
             Search for this
           </button>
-          <button className="btn-primary flex-1 text-xs" onClick={() => openRecommend({ clubId: m.club.id as ClubId })}>
+          <button
+            className="btn-primary flex-1 text-xs"
+            onClick={() =>
+              openRecommend({
+                clubId: m.club.id as ClubId,
+                brief: { label: `${m.club.name}: ${m.position} brief`, position: m.position, minOvr: m.raw.minOvr, minAge, maxAge, maxFee, summary: m.requirements },
+              })
+            }
+          >
             {m.recommendations.length ? 'Recommend another' : 'Recommend a player'}
           </button>
         </div>
