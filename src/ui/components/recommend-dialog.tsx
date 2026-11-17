@@ -125,10 +125,13 @@ function PlayerPicker({ onPick, brief }: { onPick: (id: PlayerId) => void; brief
     if (brief.maxFee !== undefined && p.value > brief.maxFee) return 'no';
     return p.ovr >= brief.minOvr ? 'yes' : p.ovrRange[1] >= brief.minOvr ? 'maybe' : 'no';
   };
-  const briefMatches = brief ? pool.filter((p) => briefFit(p) !== 'no').length : 0;
+  // From a mission, players already under negotiation are out: you're working on them.
+  const negotiating = brief ? pool.filter((p) => p.openDeal).length : 0;
+  const briefMatches = brief ? pool.filter((p) => !p.openDeal && briefFit(p) !== 'no').length : 0;
   const shown = pool
     .filter(
       (p) =>
+        (!brief || !p.openDeal) &&
         (!useBrief || briefFit(p) !== 'no') &&
         (!q || p.name.toLowerCase().includes(q) || (p.club?.name ?? 'free agent').toLowerCase().includes(q)) &&
         (!posFilter || (group ? group.positions.includes(p.position) : p.position === posFilter)) &&
@@ -167,6 +170,7 @@ function PlayerPicker({ onPick, brief }: { onPick: (id: PlayerId) => void; brief
           </span>
           <span className="ml-auto flex items-center gap-2 text-[11px] text-mist-400">
             {briefMatches ? `${briefMatches} in your pool could fit` : 'Nobody in your pool fits yet'}
+            {negotiating > 0 && <span title="Players with a deal in progress are hidden">· {negotiating} under negotiation hidden</span>}
             <button className="btn-ghost px-2.5 py-1 text-[11px]" onClick={() => setUseBrief(!useBrief)}>
               {useBrief ? 'Show whole pool' : 'Filter by brief'}
             </button>
@@ -211,7 +215,7 @@ function PlayerPicker({ onPick, brief }: { onPick: (id: PlayerId) => void; brief
           </label>
         )}
         <span className="ml-auto text-[11px] text-mist-400">
-          {shown.length === pool.length ? `${pool.length} players` : `${shown.length} of ${pool.length}`}
+          {shown.length === pool.length - negotiating ? `${shown.length} players` : `${shown.length} of ${pool.length - negotiating}`}
         </span>
       </div>
       <ul className="max-h-[55vh] overflow-y-auto">
