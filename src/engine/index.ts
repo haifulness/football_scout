@@ -1966,7 +1966,7 @@ export class Engine {
   }
 
   /** Who you can put forward: your pool, plus players you are selling for a client or representing (pool or not). */
-  getRecommendCandidates(): (PlayerRow & { addedOn: number; starred: boolean; tag?: 'sale' | 'represented'; saleFor?: string })[] {
+  getRecommendCandidates(): (PlayerRow & { addedOn: number; starred: boolean; tag?: 'sale' | 'represented'; saleFor?: string; fee: USD })[] {
     const s = this.s;
     const rows = new Map(
       this.getPool().map((r) => [r.id, { ...r } as PlayerRow & { addedOn: number; starred: boolean; tag?: 'sale' | 'represented'; saleFor?: string }]),
@@ -1979,7 +1979,11 @@ export class Engine {
     };
     for (const id of s.scout?.represented ?? []) add(id, 'represented');
     for (const m of s.mandates) if (m.status === 'active') add(m.playerId, 'sale', s.clubs[m.clubId]?.name);
-    return [...rows.values()];
+    // The fee a buying club would pay today (what mission briefs are checked against), not just market value.
+    return [...rows.values()].map((r) => {
+      const mandate = s.mandates.find((m) => m.status === 'active' && m.playerId === r.id);
+      return { ...r, fee: pitchFee(s, s.players[r.id]!, mandate?.askingFee) };
+    });
   }
 
   getLocationTree(): LocationTree {

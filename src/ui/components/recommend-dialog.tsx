@@ -97,7 +97,7 @@ const POOL_SORTS: { key: PoolSort; label: string }[] = [
   { key: 'ovr', label: 'Rating' },
   { key: 'potential', label: 'Potential' },
   { key: 'age', label: 'Youngest' },
-  { key: 'value', label: 'Value' },
+  { key: 'value', label: 'Fee' },
   { key: 'added', label: 'Recently added' },
 ];
 
@@ -122,8 +122,9 @@ function PlayerPicker({ onPick, brief }: { onPick: (id: PlayerId) => void; brief
     if (p.position !== brief.position) return 'no';
     if (brief.minAge !== undefined && p.age < brief.minAge) return 'no';
     if (brief.maxAge !== undefined && p.age > brief.maxAge) return 'no';
-    if (brief.maxFee !== undefined && p.value > brief.maxFee) return 'no';
-    return p.ovr >= brief.minOvr ? 'yes' : p.ovrRange[1] >= brief.minOvr ? 'maybe' : 'no';
+    if (brief.maxFee !== undefined && p.fee > brief.maxFee) return 'no';
+    // Same test as the club's brief check: your whole range clears the bar, or only the top of it.
+    return p.ovrRange[0] >= brief.minOvr ? 'yes' : p.ovrRange[1] >= brief.minOvr ? 'maybe' : 'no';
   };
   // From a mission, players already under negotiation are out: you're working on them.
   const negotiating = brief ? pool.filter((p) => p.openDeal).length : 0;
@@ -149,7 +150,7 @@ function PlayerPicker({ onPick, brief }: { onPick: (id: PlayerId) => void; brief
       const star = Number(b.starred) - Number(a.starred);
       if (sort === 'added') return b.addedOn - a.addedOn;
       if (sort === 'age') return a.age - b.age || b.ovr - a.ovr;
-      if (sort === 'value') return b.value - a.value;
+      if (sort === 'value') return b.fee - a.fee;
       if (sort === 'potential') return (b.potential?.[1] ?? -1) - (a.potential?.[1] ?? -1) || b.ovr - a.ovr;
       return star || b.ovr - a.ovr;
     });
@@ -241,7 +242,10 @@ function PlayerPicker({ onPick, brief }: { onPick: (id: PlayerId) => void; brief
                   )}
                 </span>
                 <span className="block truncate text-[11px] text-mist-400">
-                  {p.age} · {p.club?.name ?? 'Free agent'} · {formatUSD(p.value)}
+                  {p.age} · {p.club?.name ?? 'Free agent'} ·{' '}
+                  <span className={brief?.maxFee !== undefined && p.fee > brief.maxFee ? 'text-alert-400' : ''} title={`Market value ${formatUSD(p.value)}`}>
+                    {p.fee ? `fee ${formatUSD(p.fee)}` : 'free transfer'}
+                  </span>
                 </span>
               </span>
               {useBrief && briefFit(p) === 'maybe' && (
