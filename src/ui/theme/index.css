@@ -1,0 +1,115 @@
+@import '@fontsource-variable/inter';
+@import '@fontsource/barlow-condensed/500.css';
+@import '@fontsource/barlow-condensed/600.css';
+@import '@fontsource/barlow-condensed/700.css';
+@import 'tailwindcss';
+
+/* "Stadium night": deep pitch-blacks, grass greens, floodlight amber. */
+@theme {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Barlow Condensed', 'Inter Variable', sans-serif;
+
+  --color-night-950: #05080a;
+  --color-night-900: #0a1014;
+  --color-night-850: #0e161b;
+  --color-night-800: #121c22;
+  --color-night-700: #1a2830;
+  --color-night-600: #24363f;
+  --color-night-500: #34505c;
+  --color-mist-400: #8aa2ad;
+  --color-mist-300: #a9bec7;
+  --color-mist-100: #e4eef2;
+
+  --color-grass-700: #0f5132;
+  --color-grass-500: #1f9d55;
+  --color-grass-400: #2fcf73;
+  --color-grass-300: #6ee7a0;
+
+  --color-flood-500: #f5b301;
+  --color-flood-400: #ffc933;
+  --color-flood-300: #ffe08a;
+  --color-flood-200: #fff0c2;
+
+  --color-alert-500: #ef4444;
+  --color-alert-400: #f87171;
+  --color-sky-400: #38bdf8;
+
+  --ease-broadcast: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-night-950 text-mist-100 font-sans antialiased;
+    font-feature-settings:
+      'tnum' 1,
+      'cv11' 1;
+  }
+  ::selection {
+    @apply bg-grass-500/40;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-night-600) transparent;
+  }
+}
+
+@utility panel {
+  @apply rounded-xl border border-white/[0.06] bg-night-900/70 backdrop-blur-md shadow-[0_8px_30px_-12px_rgba(0,0,0,0.6)];
+}
+@utility panel-title {
+  @apply font-display text-[13px] font-semibold uppercase tracking-[0.18em] text-mist-400;
+}
+@utility num {
+  @apply font-display tabular-nums;
+}
+@utility chip {
+  @apply inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[11px] font-medium text-mist-300;
+}
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all duration-200 ease-broadcast disabled:cursor-not-allowed disabled:opacity-40;
+}
+@utility btn-primary {
+  @apply btn bg-grass-500 text-night-950 shadow-[0_0_24px_-6px_var(--color-grass-400)] hover:bg-grass-400 hover:shadow-[0_0_32px_-4px_var(--color-grass-400)];
+}
+@utility btn-ghost {
+  @apply btn border border-white/10 bg-white/[0.03] text-mist-100 hover:bg-white/[0.08];
+}
+@utility data-row {
+  @apply cursor-pointer border-b border-white/[0.04] transition-colors hover:bg-white/[0.04];
+}
+
+/* Film grain + floodlight vignette over the whole app. */
+.app-atmosphere::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(1200px 600px at 15% -10%, rgba(255, 201, 51, 0.07), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(47, 207, 115, 0.06), transparent 60%),
+    radial-gradient(1000px 700px at 50% 120%, rgba(56, 189, 248, 0.04), transparent 60%);
+  z-index: 0;
+}
+.app-atmosphere::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  z-index: 50;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

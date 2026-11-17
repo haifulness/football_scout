@@ -1,0 +1,501 @@
+import { motion } from 'motion/react';
+import { useMemo, useState } from 'react';
+import type { ClubId } from '../../engine/core/ids';
+import { formatDate } from '../../engine/core/calendar';
+import { formatUSD } from '../../engine/core/money';
+import type { ClubView, OfficialView, PlayerRow } from '../../engine/views';
+import { FormationPitch } from '../components/formation-pitch';
+import { FixtureRow } from '../components/match';
+import { MeetingControls } from '../components/scouting-panel';
+import { Loading, Money, OvrBadge, Panel, PosBadge, StatTile, TierBadge, ratingColor, useCulture, useCultureLookup } from '../components/ui';
+import { Crest, darken } from '../visuals/crest';
+import { Portrait } from '../visuals/portrait';
+import { engine } from '../store/engine-client';
+import { useEngineQuery, useGame } from '../store/game-store';
+
+export function ClubScreen({ id }: { id: ClubId }) {
+  const club = useEngineQuery(() => engine.getClub(id), [id]);
+  const navigate = useGame((s) => s.navigate);
+  const searchFor = useGame((s) => s.searchFor);
+  if (!club) return <Loading label="Entering the stadium" />;
+  // Turn needs into a search: the position(s), a rating that beats the average, what the club can pay, in its country.
+  const searchNeeds = (needs: typeof club.needs) =>
+    searchFor({
+      positions: needs.map((n) => n.position),
+      // Each position has its own bar: a candidate must beat the average where he would play.
+      ratingFloors: Object.fromEntries(needs.map((n) => [n.position, (n.positionalAverage || 0) + 1])),
+      maxValue: club.transferBudget > 0 ? club.transferBudget : undefined,
+      countryId: club.country.id,
+      label: `${club.name}: ${needs.map((n) => n.position).join('/')}`,
+    });
+  const topNeeds = club.needs.filter((n) => n.severity >= 0.2).slice(0, 3);
+  const openPlayer = (pid: string) => navigate({ screen: 'player', id: pid as PlayerRow['id'] });
+
+  return (
+    <div className="flex flex-col gap-4">
+      <ClubHero club={club} />
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <StatTile label="Transfer budget" accent="#2fcf73">
+          <Money value={club.transferBudget} animated />
+        </StatTile>
+        <StatTile label="Wage budget" sub={`Bill ${formatUSD(club.wageBill)}/wk`} accent="#38bdf8">
+          <Money value={club.wageBudget} animated />
+          <span className="text-sm text-mist-400">/wk</span>
+        </StatTile>
+        <StatTile label="Squad value" accent="#ffc933">
+          <Money value={club.squadValue} animated />
+        </StatTile>
+        <StatTile label="Average age" accent="#a9bec7">
+          {club.averageAge}
+        </StatTile>
+        <StatTile label="Prospects" sub="Below-average youngsters" accent="#f87171">
+          <span className="text-xl">
+            {club.acceptsProspects === 'yes' ? 'Welcome' : club.acceptsProspects === 'prodigies' ? 'Prodigies only' : 'Not wanted'}
+          </span>
+        </StatTile>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[440px_1fr]">
+        <Panel title={`Best XI · ${club.formation}`} right={<span className="chip">Tap a player</span>}>
+          <div className="p-4">
+            <FormationPitch club={club} needs={club.needs} onPlayer={openPlayer} />
+          </div>
+        </Panel>
+
+        <div className="flex flex-col gap-4">
+          <Panel
+            title="Recruitment needs"
+            right={
+              <span className="flex items-center gap-3">
+                <span className="hidden text-[11px] text-mist-400 md:inline">A signing must beat the positional average</span>
+                {topNeeds.length > 0 && (
+                  <button className="btn-primary px-2.5 py-1 text-[11px]" onClick={() => searchNeeds(topNeeds)} title="Search for the most pressing needs">
+                    ⌕ Search top needs ({topNeeds.map((n) => n.position).join(', ')})
+                  </button>
+                )}
+              </span>
+            }
+          >
+            <div className="grid grid-cols-1 gap-x-6 gap-y-2 p-4 md:grid-cols-2">
+              {club.needs.map((n, i) => (
+                <motion.div
+                  key={n.position}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.04 }}
+                  className="flex items-center gap-3"
+                >
+                  <button
+                    onClick={() => searchNeeds([n])}
+                    className="group flex items-center gap-1 rounded-md"
+                    title={`Search for a ${n.position} rated ${(n.positionalAverage || 1) + 1}+ that ${club.name} can afford`}
+                  >
+                    <PosBadge pos={n.position} />
+                    <span className="text-[11px] text-mist-400 group-hover:text-grass-300">⌕</span>
+                  </button>
+                  <div className="flex-1">
+                    <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+                      <motion.div
+                        className="h-full rounded-full"
+                        style={{ background: n.severity >= 0.45 ? '#ef4444' : n.severity >= 0.2 ? '#f5b301' : '#2fcf73' }}
+                        initial={{ width: 0 }}
+                        animate={{ width: `${Math.max(6, n.severity * 100)}%` }}
+                        transition={{ duration: 0.8, delay: 0.2 + i * 0.04 }}
+                      />
+                    </div>
+                    <div className="mt-1 flex justify-between text-[11px] text-mist-400">
+                      <span>
+                        {n.severity >= 0.45 ? 'Urgent' : n.severity >= 0.2 ? 'Could improve' : 'Covered'} · depth {n.depth}
+                      </span>
+                      <span>
+                        avg{' '}
+                        <b className="num text-[13px]" style={{ color: ratingColor(n.positionalAverage) }}>
+                          {n.positionalAverage || '–'}
+                        </b>
+                      </span>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </Panel>
+
+          <OfficialCard official={club.coach} club={club} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_380px]">
+        <FixturesPanel club={club} />
+        <Panel title="Club history">
+          {club.history.length === 0 ? (
+            <div className="p-6 text-center text-sm text-mist-400">The first season is under way. Final positions are recorded here.</div>
+          ) : (
+            <table className="w-full text-sm">
+              <tbody>
+                {club.history.map((h) => (
+                  <tr key={h.season} className="border-b border-white/[0.04]">
+                    <td className="num py-2 pl-4 text-mist-300">{h.season}</td>
+                    <td className="text-mist-300">{h.leagueName}</td>
+                    <td className="num text-right font-bold" style={{ color: h.position === 1 ? '#ffc933' : undefined }}>
+                      {ordinal(h.position)}
+                    </td>
+                    <td className="num pr-4 text-right text-mist-400">{h.points} pts</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Panel>
+      </div>
+
+      <SquadTable club={club} onOpen={openPlayer} />
+    </div>
+  );
+}
+
+function ClubHero({ club }: { club: ClubView }) {
+  const { primary, secondary } = club.colors;
+  return (
+    <motion.header
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="relative overflow-hidden rounded-2xl border border-white/[0.06]"
+      style={{ background: `linear-gradient(115deg, ${darken(primary, 0.35)} 0%, ${darken(primary, 0.7)} 45%, #05080a 100%)` }}
+    >
+      {/* stadium floodlights + stands */}
+      <div className="absolute inset-0 bg-[radial-gradient(600px_220px_at_80%_-20%,rgba(255,236,170,0.28),transparent_70%)]" />
+      <div className="absolute inset-0 opacity-[0.07]" style={{ background: 'repeating-linear-gradient(0deg, #fff 0 1px, transparent 1px 7px)' }} />
+      <div
+        className="absolute -right-10 top-0 h-full w-1/2 opacity-20"
+        style={{ background: `repeating-linear-gradient(115deg, transparent 0 40px, ${secondary} 40px 52px)` }}
+      />
+      <div className="relative flex flex-wrap items-center gap-6 p-6">
+        <motion.div
+          initial={{ scale: 0.6, rotate: -8, opacity: 0 }}
+          animate={{ scale: 1, rotate: 0, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 180, damping: 14 }}
+          className="drop-shadow-[0_10px_25px_rgba(0,0,0,0.6)]"
+        >
+          <Crest club={club} size={96} />
+        </motion.div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <TierBadge tier={club.tier} />
+            <span className="chip">{club.league.name}</span>
+            {club.leaguePosition && <span className="chip border-flood-500/40 text-flood-300">{ordinal(club.leaguePosition)} place</span>}
+            <span className="chip">Rep {club.reputation}</span>
+            <TravelHere cityId={club.city.id} cityName={club.city.name} clubId={club.id} clubName={club.name} />
+            <RecommendHere clubId={club.id} />
+            {club.work && (
+              <span
+                className={`chip ${club.work.status === 'none' ? '' : club.work.status === 'employer' ? 'border-flood-400/50 text-flood-300' : 'border-grass-400/50 text-grass-300'}`}
+              >
+                {club.work.status === 'employer' ? 'Your employer' : club.work.status === 'client' ? 'Your client' : 'Not a client'} · trust {club.work.trust}
+              </span>
+            )}
+          </div>
+          <h1 className="mt-2 font-display text-5xl font-bold uppercase leading-none tracking-tight drop-shadow">{club.name}</h1>
+          <div className="mt-2 text-sm text-mist-300">
+            {club.city.name}, {club.country.name} · Founded {club.founded} · {club.stadium} ({club.capacity.toLocaleString('en-US')})
+          </div>
+        </div>
+      </div>
+    </motion.header>
+  );
+}
+
+const PRIORITY_LABEL: Record<keyof OfficialView['priorities'], string> = {
+  tacticalFit: 'Tactical fit',
+  currentAbility: 'Current ability',
+  potential: 'Potential',
+  value: 'Value for money',
+  resale: 'Resale value',
+  marketing: 'Marketing appeal',
+  personality: 'Personality',
+};
+
+function OfficialCard({ official, club }: { official: OfficialView; club: ClubView }) {
+  const culture = useCulture(club.country.id);
+  const { meet, openTravel, advancing, scout, proposeAgreement } = useGame();
+  const [error, setError] = useState<string>();
+  const top = (Object.entries(official.priorities) as [keyof OfficialView['priorities'], number][]).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const max = Math.max(...Object.values(official.priorities));
+  return (
+    <Panel title="Head Coach" right={<span className="chip">Signs off every proposal</span>}>
+      <div className="flex gap-4 p-4">
+        <Portrait
+          seed={official.portraitSeed}
+          culture={culture}
+          size={72}
+          age={official.age}
+          shirt={official.role === 'coach' ? club.colors.primary : '#1a2830'}
+          trim={official.role === 'coach' ? club.colors.secondary : '#d4af37'}
+          className="shrink-0 rounded-lg"
+        />
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-semibold">
+            {official.firstName} {official.lastName}
+          </div>
+          <div className="text-[11px] text-mist-400">
+            {official.age} · {official.nationality}
+          </div>
+          <div className="mt-2 space-y-1">
+            {top.map(([k, v]) => (
+              <div key={k} className="flex items-center gap-2 text-[11px]">
+                <span className="w-28 truncate text-mist-300">{PRIORITY_LABEL[k]}</span>
+                <span className="h-1 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
+                  <span className="block h-full rounded-full bg-flood-400" style={{ width: `${(v / max) * 100}%` }} />
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 text-[11px] text-mist-400">
+            {official.stubbornness >= 66 ? 'Hard to convince' : official.stubbornness >= 33 ? 'Open to a good pitch' : 'Easily persuaded'}
+          </div>
+        </div>
+      </div>
+      {official.meeting && (
+        <div className="border-t border-white/[0.05] px-4 py-3">
+          <div className="mb-1 text-[10px] uppercase tracking-wider text-mist-400">Your relationship</div>
+          <MeetingControls
+            meeting={official.meeting}
+            money={scout?.money ?? 0}
+            busy={advancing}
+            onTravel={() =>
+              openTravel(club.city.id, {
+                label: `Meet the Head Coach of ${club.name}`,
+                route: { screen: 'club', id: club.id },
+              })
+            }
+            onMeet={() => {
+              setError(undefined);
+              meet({ kind: 'official', id: official.id }).catch((e) => setError(e instanceof Error ? e.message : 'The meeting fell through.'));
+            }}
+          />
+          {club.work?.status === 'none' && club.work.canPropose && official.meeting.inPlace && official.meeting.allowed && (
+            <button
+              className="btn-ghost mt-2 w-full border-flood-400/40 py-1.5 text-xs text-flood-300"
+              disabled={advancing}
+              onClick={() => {
+                setError(undefined);
+                proposeAgreement(club.id)
+                  .then((r) => setError(r.accepted ? undefined : r.reason))
+                  .catch((e) => setError(e instanceof Error ? e.message : 'The meeting did not happen.'));
+              }}
+            >
+              Propose a scouting agreement · 1 day
+            </button>
+          )}
+          {error && <div className="mt-1 text-[11px] text-alert-400">{error}</div>}
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+type SortKey = 'position' | 'name' | 'age' | 'ovr' | 'apps' | 'goals' | 'assists' | 'rating' | 'value' | 'wage' | 'contract';
+
+const SORT_VALUE: Record<Exclude<SortKey, 'position'>, (p: PlayerRow) => number | string> = {
+  name: (p) => p.name,
+  age: (p) => p.age,
+  ovr: (p) => p.ovr,
+  apps: (p) => p.stats.apps,
+  goals: (p) => p.stats.goals,
+  assists: (p) => p.stats.assists,
+  rating: (p) => p.stats.avgRating ?? 0,
+  value: (p) => p.value,
+  wage: (p) => p.wage,
+  contract: (p) => p.contractUntil ?? 0,
+};
+
+function SquadTable({ club, onOpen }: { club: ClubView; onOpen: (id: string) => void }) {
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'position', dir: 1 });
+  const cultureOf = useCultureLookup();
+  const rows = useMemo(() => {
+    if (sort.key === 'position') return sort.dir === 1 ? club.squad : [...club.squad].reverse();
+    const get = SORT_VALUE[sort.key];
+    return [...club.squad].sort((a, b) => (get(a) > get(b) ? 1 : get(a) < get(b) ? -1 : 0) * sort.dir);
+  }, [club.squad, sort]);
+
+  const Th = ({ k, children, right }: { k: SortKey; children: string; right?: boolean }) => (
+    <th
+      className={`cursor-pointer select-none py-2 font-medium hover:text-mist-100 ${right ? 'text-right' : ''}`}
+      onClick={() => setSort((s) => ({ key: k, dir: s.key === k ? (-s.dir as 1 | -1) : k === 'name' || k === 'position' ? 1 : -1 }))}
+    >
+      {children}
+      {sort.key === k && <span className="ml-1 text-grass-400">{sort.dir === 1 ? '▲' : '▼'}</span>}
+    </th>
+  );
+
+  return (
+    <Panel title={`Squad · ${club.squad.length} players`}>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[960px] text-sm">
+          <thead>
+            <tr className="text-left text-[11px] uppercase tracking-wider text-mist-400">
+              <th className="w-4 pl-4" />
+              <Th k="position">Pos</Th>
+              <Th k="name">Player</Th>
+              <th className="font-medium">Nation</th>
+              <Th k="age" right>
+                Age
+              </Th>
+              <Th k="ovr" right>
+                OVR
+              </Th>
+              <Th k="apps" right>
+                Apps
+              </Th>
+              <Th k="goals" right>
+                G
+              </Th>
+              <Th k="assists" right>
+                A
+              </Th>
+              <Th k="rating" right>
+                Rtg
+              </Th>
+              <Th k="value" right>
+                Value
+              </Th>
+              <Th k="wage" right>
+                Wage
+              </Th>
+              <Th k="contract" right>
+                Contract
+              </Th>
+              <th className="pr-4" />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((p) => (
+              <tr key={p.id} className="data-row" onClick={() => onOpen(p.id)}>
+                <td className="pl-4" />
+                <td className="py-1.5">
+                  <PosBadge pos={p.position} />
+                </td>
+                <td>
+                  <span className="flex items-center gap-2.5">
+                    <Portrait
+                      seed={p.portraitSeed}
+                      culture={cultureOf(p.nationality.id)}
+                      size={28}
+                      age={p.age}
+                      shirt={club.colors.primary}
+                      trim={club.colors.secondary}
+                      className="rounded"
+                    />
+                    <span className="font-medium">{p.name}</span>
+                    {p.isCaptain && <span className="num rounded bg-flood-500 px-1 text-[10px] font-bold text-night-950">C</span>}
+                    {p.injury && (
+                      <span title={p.injury} className="rounded bg-alert-500/20 px-1 text-[10px] font-bold text-alert-400">
+                        INJ
+                      </span>
+                    )}
+                  </span>
+                </td>
+                <td className="text-mist-300">{p.nationality.name}</td>
+                <td className="num text-right">{p.age}</td>
+                <td className="text-right">
+                  <OvrBadge ovr={p.ovr} range={p.ovrRange} size="sm" />
+                </td>
+                <td className="num text-right">{p.stats.apps}</td>
+                <td className="num text-right">{p.stats.goals || ''}</td>
+                <td className="num text-right">{p.stats.assists || ''}</td>
+                <td className="num text-right" style={{ color: p.stats.avgRating ? ratingColor((p.stats.avgRating - 5) * 20) : undefined }}>
+                  {p.stats.avgRating?.toFixed(1) ?? '–'}
+                </td>
+                <td className="num text-right">{formatUSD(p.value)}</td>
+                <td className="num text-right text-mist-300">
+                  {formatUSD(p.wage)}
+                  <span className="text-[10px] text-mist-400">/wk</span>
+                </td>
+                <td className="num text-right text-mist-300">{p.contractUntil ? formatDate(p.contractUntil).slice(-4) : '–'}</td>
+                <td className="pr-4" />
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Panel>
+  );
+}
+
+function ordinal(n: number): string {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]!);
+}
+
+function FixturesPanel({ club }: { club: ClubView }) {
+  const played = club.fixtures.filter((f) => f.result);
+  const upcoming = club.fixtures.filter((f) => !f.result);
+  const [tab, setTab] = useState<'results' | 'upcoming'>(played.length ? 'results' : 'upcoming');
+  const list = tab === 'results' ? [...played].reverse() : upcoming;
+  const record = played.reduce(
+    (r, f) => {
+      const mine = f.home.id === club.id ? f.result!.homeGoals : f.result!.awayGoals;
+      const theirs = f.home.id === club.id ? f.result!.awayGoals : f.result!.homeGoals;
+      return mine > theirs ? { ...r, w: r.w + 1 } : mine < theirs ? { ...r, l: r.l + 1 } : { ...r, d: r.d + 1 };
+    },
+    { w: 0, d: 0, l: 0 },
+  );
+  return (
+    <Panel
+      title="Fixtures & results"
+      right={
+        <span className="flex items-center gap-3">
+          <span className="num text-xs text-mist-400">
+            <b className="text-grass-300">{record.w}W</b> · {record.d}D · <b className="text-alert-400">{record.l}L</b>
+          </span>
+          <span className="flex gap-0.5 rounded-md bg-white/[0.04] p-0.5">
+            {(['results', 'upcoming'] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`rounded px-2.5 py-1 text-[11px] font-semibold capitalize ${tab === t ? 'bg-white/[0.1] text-mist-100' : 'text-mist-400'}`}
+              >
+                {t}
+              </button>
+            ))}
+          </span>
+        </span>
+      }
+    >
+      <div className="max-h-[360px] overflow-y-auto">
+        {list.length ? (
+          list.map((f) => <FixtureRow key={f.id} f={f} focus={club.id} />)
+        ) : (
+          <div className="p-6 text-center text-sm text-mist-400">Nothing here yet.</div>
+        )}
+      </div>
+    </Panel>
+  );
+}
+
+/** "You're here" or a one-click trip to the club's city. */
+function TravelHere({ cityId, cityName, clubId, clubName }: { cityId: ClubView['city']['id']; cityName: string; clubId: ClubView['id']; clubName: string }) {
+  const { scout, openTravel, advancing } = useGame();
+  if (!scout) return null;
+  if (scout.location.cityId === cityId) return <span className="chip border-grass-400/40 text-grass-300">⌖ You're in {cityName}</span>;
+  return (
+    <button
+      className="chip hover:border-flood-400/50 hover:text-flood-300"
+      disabled={advancing}
+      onClick={() => openTravel(cityId, { label: `Visit ${clubName}`, route: { screen: 'club', id: clubId } })}
+    >
+      ✈ Travel to {cityName}
+    </button>
+  );
+}
+
+function RecommendHere({ clubId }: { clubId: ClubView['id'] }) {
+  const { scout, openRecommend } = useGame();
+  if (!scout) return null;
+  return (
+    <button className="chip border-flood-400/40 text-flood-300 hover:bg-flood-500/10" onClick={() => openRecommend({ clubId })}>
+      ★ Recommend a player
+    </button>
+  );
+}

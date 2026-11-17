@@ -1,0 +1,387 @@
+import { ageOn, type GameDate } from '../core/calendar';
+import { setSeasonObjectives } from './goals';
+import { scenarioSetup, startScenario } from './scenarios';
+import { snapshotReviewBaseline } from './review';
+import { onSearchResults } from './hunts';
+import type { CityId, CountryId, PlayerId } from '../core/ids';
+import { formatUSD, usd, type USD } from '../core/money';
+import { Rng, clamp } from '../core/rng';
+import type { ClubTier } from '../model/club';
+import { ATTRIBUTE_LABEL, type Player, type Position } from '../model/player';
+import type { Background, CareerSetup, Difficulty, LedgerEntry, LedgerKind, Scout, ScoutSkills, SearchFilters, SearchRecord } from '../model/scout';
+import { VALUE_NO_MAX } from '../model/scout';
+import type { GameState } from '../model/world-state';
+import { VIDEO_KNOWLEDGE_CAP, knowledgeLevel, learn, marketOf, publicLevel } from './knowledge';
+import { ovrAt } from './ratings';
+import { seedRivals } from './rivals';
+import { refreshMarket } from './assistants';
+import { OFFICE_REACH, OFFICE_SEARCH_DISCOUNT, hasBase } from './agency';
+
+// ── Career ──────────────────────────────────────────────────────────────
+
+export const BACKGROUNDS: Record<Background, { label: string; strength: string; weakness: string; skills: ScoutSkills }> = {
+  'ex-pro': {
+    label: 'Ex-pro player',
+    strength: 'Strong network and a good eye for current ability.',
+    weakness: 'Weak with data: searches cost more.',
+    skills: { judgingAbility: 13, judgingPotential: 9, network: 14, dataAnalysis: 6, negotiation: 10 },
+  },
+  analyst: {
+    label: 'Data analyst',
+    strength: 'Cheaper, faster, more accurate searches and video work.',
+    weakness: 'Few contacts: persuasion will be harder.',
+    skills: { judgingAbility: 11, judgingPotential: 10, network: 5, dataAnalysis: 15, negotiation: 7 },
+  },
+  'agent-assistant': {
+    label: "Agent's assistant",
+    strength: 'Persuasive, and knows a few agents.',
+    weakness: 'Untrained eye: wider stat ranges.',
+    skills: { judgingAbility: 7, judgingPotential: 8, network: 11, dataAnalysis: 8, negotiation: 15 },
+  },
+  'youth-coach': {
+    label: 'Youth coach',
+    strength: 'Spots potential early; youth searches are cheaper.',
+    weakness: 'Few contacts at big clubs.',
+    skills: { judgingAbility: 10, judgingPotential: 15, network: 7, dataAnalysis: 8, negotiation: 8 },
+  },
+};
+
+export const STARTING_MONEY: Record<Difficulty, number> = { easy: 25_000, normal: 10_000, hard: 3_000 };
+
+/** Full-time scouts: the employer pays part of work expenses. */
+const COVERED: ReadonlySet<LedgerKind> = new Set(['search', 'video', 'travel', 'accommodation', 'ticket', 'meeting', 'assistant-task']);
+/** Share of work expenses a full-time employer pays, by club tier. */
+export const EXPENSE_COVER: Record<ClubTier, number> = { 1: 0.9, 2: 0.8, 3: 0.7, 4: 0.6, 5: 0.5 };
+function withExpenseCover(state: GameState, e: Omit<LedgerEntry, 'date'>): Omit<LedgerEntry, 'date'> {
+  const job = state.scout?.employment;
+  if (e.amount >= 0 || !COVERED.has(e.kind) || job?.mode !== 'fulltime') return e;
+  const cover = EXPENSE_COVER[state.clubs[job.clubId]!.tier];
+  return { ...e, amount: usd(Math.round(e.amount * (1 - cover))), label: `${e.label} (club pays ${Math.round(cover * 100)}%)` };
+}
+
+/**
+ * Records income or an expense and updates your balance. With `merge`, a repeat of
+ * the latest entry (same kind and label) is added to it instead of a new line,
+ * so a two-week hotel stay is one line, not fourteen.
+ */
+export function addLedger(state: GameState, entryIn: Omit<LedgerEntry, 'date'>, opts: { date?: GameDate; merge?: boolean } = {}) {
+  const date = opts.date ?? state.date;
+  const entry = withExpenseCover(state, entryIn);
+  const last = state.ledger[0];
+  if (opts.merge && last && last.kind === entry.kind && last.label === entry.label) {
+    last.amount = usd(last.amount + entry.amount);
+    last.date = date;
+  } else {
+    state.ledger.unshift({ ...entry, date });
+    if (state.ledger.length > 500) state.ledger.length = 500;
+  }
+  state.scout!.money = usd(state.scout!.money + entry.amount);
+  const season = (state.ledgerTotals[state.season.year] ??= {});
+  season[entry.kind] = (season[entry.kind] ?? 0) + entry.amount;
+}
+
+export function createCareer(state: GameState, rawSetup: CareerSetup): Scout {
+  const setup = scenarioSetup(state, rawSetup);
+  const name = setup.name.trim().slice(0, 40) || 'Unnamed Scout';
+  const home = state.countries[setup.homeCountry];
+  if (!home || !state.countries[setup.nationality]) throw new Error('Unknown country');
+  const regionKnowledge = {} as Record<CountryId, number>;
+  for (const c of Object.values(state.countries)) regionKnowledge[c.id] = c.id === home.id ? 60 : c.continentId === home.continentId ? 15 : 0;
+  const city = state.regions[home.regionIds[0]!]!.cityIds[0]! as CityId;
+  state.scout = {
+    name,
+    nationality: setup.nationality,
+    homeCountry: home.id,
+    background: setup.background,
+    difficulty: setup.difficulty,
+    money: usd(0),
+    location: city,
+    homeCity: city,
+    reputation: 5,
+    skills: { ...BACKGROUNDS[setup.background].skills },
+    regionKnowledge,
+    relationships: {},
+    rapport: {},
+    lastMet: {},
+    employment: { mode: 'freelance', clients: [] },
+    represented: [],
+    clubRecord: {},
+    startedOn: state.date,
+    startReputation: 5,
+  };
+  addLedger(state, { amount: usd(STARTING_MONEY[setup.difficulty]), kind: 'starting-funds', label: 'Savings at the start of your career' });
+  seedRivals(state);
+  state.inboxSeenId = state.counters.news;
+  refreshMarket(state, state.date);
+  if (setup.scenario) startScenario(state, setup.scenario);
+  snapshotReviewBaseline(state);
+  setSeasonObjectives(state);
+  return state.scout;
+}
+
+function requireScout(state: GameState): Scout {
+  if (!state.scout) throw new ScoutingError('Set up your scout first.');
+  return state.scout;
+}
+
+export class ScoutingError extends Error {}
+
+// ── Search ──────────────────────────────────────────────────────────────
+
+const GEO_WIDTH = { city: 1, region: 2, country: 4, continent: 10, world: 20 } as const;
+const BASE_SEARCH = 150;
+export const RESULT_CAP = 30;
+export const MAX_POSITIONS = 3;
+export const MAX_ATTRIBUTE_FILTERS = 4;
+
+/** The country whose costs and market knowledge apply (if the search is inside one). */
+function searchCountry(state: GameState, f: SearchFilters): CountryId | undefined {
+  const l = f.location;
+  if (l.scope === 'country') return l.id;
+  if (l.scope === 'region') return state.regions[l.id]?.countryId;
+  if (l.scope === 'city') return state.cities[l.id]?.countryId;
+  return undefined;
+}
+
+export interface SearchEstimate {
+  cost: USD;
+  days: number;
+  affordable: boolean;
+  /** Why it costs what it costs, for the UI. */
+  factors: { label: string; effect: string }[];
+}
+
+export function estimateSearch(state: GameState, f: SearchFilters): SearchEstimate {
+  const scout = requireScout(state);
+  const s = scout.skills;
+  const width = GEO_WIDTH[f.location.scope];
+  const load =
+    f.positions.length +
+    (f.age ? 0.5 : 0) +
+    (f.value ? 0.5 : 0) +
+    (f.wage ? 0.5 : 0) +
+    (f.leagueId ? 0.5 : 0) +
+    (f.rating || f.ratingFloors ? 1.5 : 0) +
+    f.attributes.length * 2;
+  const country = searchCountry(state, f);
+  const costIndex = country ? state.countries[country]!.costIndex : 1;
+  const market = country ? (scout.regionKnowledge[country] ?? 0) : 0;
+  const office = country && hasBase(state, country) ? OFFICE_SEARCH_DISCOUNT : 1;
+  const youthDiscount = scout.background === 'youth-coach' && f.age && f.age[1] <= 21 ? 0.75 : 1;
+  const skillFactor = (1 - s.network * 0.01) * (1.25 - s.dataAnalysis * 0.025);
+  const cost = usd(Math.round((BASE_SEARCH * Math.pow(width, 0.6) * (1 + load * 0.25) * skillFactor * costIndex * youthDiscount * office) / 10) * 10);
+  const days = Math.round(clamp(2 + width * 0.8 + load * 1.5 - market * 0.05 - s.dataAnalysis * 0.1 - (office < 1 ? 2 : 0), 2, 42));
+  const factors = [
+    { label: 'Area', effect: `${f.location.scope} ×${Math.pow(width, 0.6).toFixed(1)}` },
+    { label: 'Filters', effect: `+${Math.round(load * 25)}%` },
+    { label: 'Your network & data skills', effect: `×${skillFactor.toFixed(2)}` },
+  ];
+  if (country) factors.push({ label: `${state.countries[country]!.name} costs`, effect: `×${costIndex.toFixed(2)}` });
+  if (youthDiscount < 1) factors.push({ label: 'Youth-coach discount', effect: '−25%' });
+  if (office < 1) factors.push({ label: 'Your agency office', effect: `−${Math.round((1 - office) * 100)}%` });
+  return { cost, days, affordable: scout.money >= cost, factors };
+}
+
+/** Is the player inside the filter's area (club city, or home market for free agents)? */
+export function inLocation(state: GameState, p: Player, f: SearchFilters): boolean {
+  const l = f.location;
+  if (p.clubId) {
+    const club = state.clubs[p.clubId]!;
+    if (f.leagueId && club.leagueId !== f.leagueId) return false;
+    switch (l.scope) {
+      case 'world':
+        return true;
+      case 'continent':
+        return state.countries[club.countryId]!.continentId === l.id;
+      case 'country':
+        return club.countryId === l.id;
+      case 'region':
+        return state.cities[club.cityId]!.regionId === l.id;
+      case 'city':
+        return club.cityId === l.id;
+    }
+  }
+  // Free agents have no club city: they're found through their home market.
+  if (!f.includeFreeAgents || f.leagueId) return false;
+  if (l.scope === 'world') return true;
+  if (l.scope === 'continent') return state.countries[p.nationality]!.continentId === l.id;
+  if (l.scope === 'country') return p.nationality === l.id;
+  return false;
+}
+
+/** How high up the pyramid your contacts reach, by club tier (free agents count as tier 5). */
+const REACH_THRESHOLD: Record<ClubTier, number> = { 5: 0, 4: 15, 3: 30, 2: 50, 1: 70 };
+
+/**
+ * Chance a search turns up this player, 0.03–1: your reputation, network skill and
+ * knowledge of his market against the level of his club. Early in a career you mostly
+ * find lower-league players; stars rarely come through your contacts.
+ */
+export function searchReach(state: GameState, p: Player, market = state.scout!.regionKnowledge[marketOf(state, p)] ?? 0): number {
+  const scout = state.scout!;
+  const tier: ClubTier = p.clubId ? state.clubs[p.clubId]!.tier : 5;
+  const local = state.agency && hasBase(state, marketOf(state, p)) ? OFFICE_REACH : 0;
+  const access = scout.reputation * 0.6 + scout.skills.network * 2 + market / 5 + local;
+  return clamp(1 / (1 + Math.exp(-(access - REACH_THRESHOLD[tier] + 3) / 10)), 0.03, 1);
+}
+
+/** Pays for a search and records it. The caller advances time, then calls completeSearch. */
+export function startSearch(state: GameState, f: SearchFilters): SearchRecord {
+  const scout = requireScout(state);
+  validateFilters(f);
+  const est = estimateSearch(state, f);
+  if (!est.affordable) throw new ScoutingError(`This search costs ${formatUSD(est.cost)} but you only have ${formatUSD(scout.money)}.`);
+  return createPendingSearch(state, f, est);
+}
+
+function validateFilters(f: SearchFilters) {
+  if (f.positions.length > MAX_POSITIONS) throw new ScoutingError(`Pick at most ${MAX_POSITIONS} positions.`);
+  if (f.attributes.length > MAX_ATTRIBUTE_FILTERS) throw new ScoutingError(`Use at most ${MAX_ATTRIBUTE_FILTERS} attribute filters.`);
+}
+
+/** Pays for the search and records it; results are filled in by completeSearch when the time has passed. */
+function createPendingSearch(state: GameState, f: SearchFilters, est: SearchEstimate): SearchRecord {
+  const id = state.counters.search++;
+  const label = describeSearch(state, f);
+  addLedger(state, { amount: usd(-est.cost), kind: 'search', label: `Search: ${label}` });
+  const record: SearchRecord = {
+    id,
+    filters: f,
+    label,
+    startedOn: state.date,
+    completedOn: state.date,
+    cost: est.cost,
+    days: est.days,
+    results: [],
+    matched: 0,
+  };
+  state.searches.unshift(record);
+  if (state.searches.length > 50) state.searches.length = 50;
+  return record;
+}
+
+/**
+ * Runs the matching once the search's days have passed. Hard filters (position,
+ * age, value: public facts) are exact; ability filters are judged, so they're noisy.
+ */
+export function completeSearch(state: GameState, record: SearchRecord) {
+  const scout = requireScout(state);
+  const f = record.filters;
+  const rng = (id: PlayerId) => Rng.derive(state.seed, `search:${record.id}:${id}`);
+  const accuracy = 2.4 * (1 - scout.skills.dataAnalysis / 25);
+  const scored: { p: Player; score: number }[] = [];
+  for (const p of Object.values(state.players)) {
+    if (!inLocation(state, p, f)) continue;
+    if (f.positions.length && !f.positions.some((pos) => (p.positions[pos] ?? 0) >= 0.75)) continue;
+    const age = ageOn(p.birthDate, state.date);
+    if (f.age && (age < f.age[0] || age > f.age[1])) continue;
+    if (f.value && (p.value < f.value[0] || p.value > f.value[1])) continue;
+    if (f.wage && (p.wage < f.wage[0] || p.wage > f.wage[1])) continue;
+    const r = rng(p.id);
+    const market = scout.regionKnowledge[marketOf(state, p)] ?? 0;
+    // Your network only turns up players within your reach.
+    if (!r.chance(searchReach(state, p, market))) continue;
+    const sd = accuracy * (1 - market / 200);
+    let ok = true;
+    for (const a of f.attributes) {
+      const judged = p.attributes[a.attribute] + r.gaussian(0, sd);
+      if (judged < a.min || (a.max !== undefined && a.max < 20 && judged > a.max)) ok = false;
+    }
+    if (!ok) continue;
+    // Judge him at the searched position where he looks best (against that position's bar, if there are per-position bars).
+    const noise = r.gaussian(0, sd * 2.5);
+    const options = f.positions.length ? f.positions.filter((x) => (p.positions[x] ?? 0) >= 0.75) : [p.naturalPosition];
+    const floor = (x: Position) => f.ratingFloors?.[x] ?? 0;
+    const pos = options.sort((a, b) => ovrAt(p, b) - floor(b) - (ovrAt(p, a) - floor(a)))[0]!;
+    const score = ovrAt(p, pos) + noise;
+    if (f.rating && (score < f.rating[0] || score > f.rating[1])) continue;
+    if (f.ratingFloors && score < floor(pos)) continue;
+    scored.push({ p, score });
+  }
+  scored.sort((a, b) => b.score - a.score);
+  const results = scored.slice(0, RESULT_CAP).map((x) => x.p);
+  for (const p of results) {
+    // A search always teaches you a little more than what's public, up to a modest ceiling.
+    learn(state, p, 10, Math.min(55, Math.max(35, publicLevel(state, p) + 10)), state.date);
+    if (!state.pool[p.id]) state.pool[p.id] = { addedOn: state.date, source: 'search', starred: false };
+  }
+  // Working a market teaches you about it.
+  const country = searchCountry(state, f);
+  if (country) scout.regionKnowledge[country] = clamp((scout.regionKnowledge[country] ?? 0) + 2, 0, 100);
+  record.results = results.map((p) => p.id);
+  onSearchResults(state, record.results);
+  record.matched = scored.length;
+  record.completedOn = state.date;
+}
+
+export function describeSearch(state: GameState, f: SearchFilters): string {
+  const l = f.location;
+  const where =
+    l.scope === 'world'
+      ? 'Worldwide'
+      : l.scope === 'continent'
+        ? state.continents[l.id]!.name
+        : l.scope === 'country'
+          ? state.countries[l.id]!.name
+          : l.scope === 'region'
+            ? state.regions[l.id]!.name
+            : state.cities[l.id]!.name;
+  const parts = [where];
+  if (f.leagueId) parts.push(state.leagues[f.leagueId]!.name);
+  if (f.positions.length) parts.push(f.positions.join('/'));
+  if (f.age) parts.push(`age ${f.age[0]}–${f.age[1]}`);
+  if (f.rating) parts.push(`rating ${f.rating[0]}–${f.rating[1]}`);
+  if (f.ratingFloors)
+    parts.push(
+      Object.entries(f.ratingFloors)
+        .map(([pos, n]) => `${pos} ${n}+`)
+        .join(', '),
+    );
+  if (f.wage)
+    parts.push(
+      f.wage[1] >= VALUE_NO_MAX
+        ? `wage ${formatUSD(f.wage[0])}+/wk`
+        : f.wage[0] <= 0
+          ? `wage up to ${formatUSD(f.wage[1])}/wk`
+          : `wage ${formatUSD(f.wage[0])}–${formatUSD(f.wage[1])}/wk`,
+    );
+  if (f.value)
+    parts.push(
+      f.value[1] >= VALUE_NO_MAX
+        ? `value ${formatUSD(f.value[0])}+`
+        : f.value[0] <= 0
+          ? `value up to ${formatUSD(f.value[1])}`
+          : `value ${formatUSD(f.value[0])}–${formatUSD(f.value[1])}`,
+    );
+  for (const a of f.attributes)
+    parts.push(a.max !== undefined && a.max < 20 ? `${ATTRIBUTE_LABEL[a.attribute]} ${a.min}–${a.max}` : `${ATTRIBUTE_LABEL[a.attribute]} ${a.min}+`);
+  return parts.join(' · ');
+}
+
+// ── Video scouting ──────────────────────────────────────────────────────
+
+const VIDEO_COST: Record<ClubTier, number> = { 1: 400, 2: 250, 3: 150, 4: 90, 5: 50 };
+
+export function videoCost(state: GameState, p: Player): USD {
+  const tier = p.clubId ? state.clubs[p.clubId]!.tier : 5;
+  return usd(Math.round((VIDEO_COST[tier] * state.countries[marketOf(state, p)]!.costIndex) / 5) * 5);
+}
+
+export function videoGain(state: GameState): number {
+  return Math.round(12 + requireScout(state).skills.dataAnalysis * 0.5);
+}
+
+/** One day studying match footage. Cheap, but can't take you past VIDEO_KNOWLEDGE_CAP. */
+export function watchVideo(state: GameState, playerId: PlayerId): { cost: USD; before: number; after: number } {
+  const scout = requireScout(state);
+  const p = state.players[playerId];
+  if (!p) throw new ScoutingError('That player has retired.');
+  const before = knowledgeLevel(state, p);
+  if (before >= VIDEO_KNOWLEDGE_CAP) throw new ScoutingError('Footage has told you all it can. You need to see him live.');
+  const cost = videoCost(state, p);
+  if (scout.money < cost) throw new ScoutingError(`Video analysis costs ${formatUSD(cost)} but you only have ${formatUSD(scout.money)}.`);
+  addLedger(state, { amount: usd(-cost), kind: 'video', label: `Video analysis: ${p.firstName} ${p.lastName}` });
+  learn(state, p, videoGain(state), VIDEO_KNOWLEDGE_CAP, state.date);
+  if (!state.pool[p.id]) state.pool[p.id] = { addedOn: state.date, source: 'manual', starred: false };
+  return { cost, before, after: knowledgeLevel(state, p) };
+}
