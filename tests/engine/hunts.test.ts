@@ -5,7 +5,7 @@ import { Rng } from '../../src/engine/core/rng';
 import { usd } from '../../src/engine/core/money';
 import { generateWorld } from '../../src/engine/generation/world-generator';
 import type { GameState } from '../../src/engine/model/world-state';
-import { HUNT_DAYS, huntAction, huntDestination, huntPlace, huntTick, onSearchResults, shieldedPlayers, spawnHunt } from '../../src/engine/systems/hunts';
+import { FLOP_CHANCE, HUNT_DAYS, huntAction, huntDestination, huntPlace, huntTick, onSearchResults, shieldedPlayers, spawnHunt } from '../../src/engine/systems/hunts';
 import { prodigyVisible } from '../../src/engine/systems/knowledge';
 import { createCareer } from '../../src/engine/systems/scouting';
 import { migrate } from '../../src/persistence/save-format';
@@ -20,7 +20,8 @@ function setup(seed = 1357, reputation = 0): GameState {
   return w;
 }
 
-const hunt = (w: GameState) => spawnHunt(w, w.date, Rng.derive(w.seed, 'test-hunt'))!;
+const hunt = (w: GameState) => spawnHunt(w, w.date, Rng.derive(w.seed, 'test-hunt'), null)!;
+const flopHunt = (w: GameState) => spawnHunt(w, w.date, Rng.derive(w.seed, 'test-hunt'), 'youtube')!;
 
 describe('wonderkid hunts', () => {
   it('start from a whisper about a real, unknown prodigy at a club, with a rival on the same trail', () => {
@@ -111,6 +112,44 @@ describe('wonderkid hunts', () => {
     const h = hunt(w);
     expect(h.rivals).toHaveLength(2);
     expect(huntPlace(w, h)!.club.tier).toBeGreaterThanOrEqual(1);
+  });
+
+  it('are sometimes just hype: same trail, but the kid is ordinary and you gain nothing', () => {
+    const w = setup();
+    const h = flopHunt(w);
+    const place = huntPlace(w, h)!;
+    expect(place.player.isProdigy).toBe(false);
+    const rep = w.scout!.reputation;
+    for (let i = 0; i < 60 && h.status === 'active'; i++) huntAction(w, h.id, 'calls');
+    expect(h.status).toBe('flop');
+    expect(h.clues.at(-1)!.text).toMatch(/followers/);
+    expect(w.pool[place.player.id]).toBeUndefined();
+    expect(w.scout!.reputation).toBe(rep);
+    expect(shieldedPlayers(w, w.date)).not.toContain(place.player.id);
+    expect(w.news.some((n) => n.title.startsWith('Just hype'))).toBe(true);
+  });
+
+  it('let a rival chase the hype instead: he finds nothing worth signing', () => {
+    const w = setup();
+    const h = flopHunt(w);
+    h.rivals[0]!.progress = 0.999;
+    for (let d = 1; d <= 3 && h.status === 'active'; d++) huntTick(w, addDays(w.date, d));
+    expect(h.status).toBe('flop');
+    expect(h.winnerId).toBe(h.rivals[0]!.rivalId);
+    expect(w.rivals.find((r) => r.id === h.winnerId)!.pursuit?.playerId).not.toBe(h.playerId);
+  });
+
+  it('roll a flop about a quarter of the time', () => {
+    const w = setup(1357, 30);
+    let flops = 0;
+    const n = 80;
+    for (let i = 0; i < n; i++) {
+      const h = spawnHunt(w, w.date, Rng.derive(w.seed, `roll:${i}`));
+      if (h?.flop) flops++;
+      w.hunts = [];
+    }
+    expect(flops / n).toBeGreaterThan(FLOP_CHANCE - 0.15);
+    expect(flops / n).toBeLessThan(FLOP_CHANCE + 0.15);
   });
 
   it('upgrade a v12 save with no hunts', () => {

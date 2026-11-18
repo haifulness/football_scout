@@ -23,6 +23,7 @@ const STATUS = {
   found: { label: 'Found', className: 'border-grass-400/40 text-grass-300' },
   lost: { label: 'Beaten to it', className: 'border-alert-400/40 text-alert-400' },
   cold: { label: 'Went cold', className: 'border-white/10 text-mist-400' },
+  flop: { label: 'Just hype', className: 'border-flood-400/40 text-flood-300' },
   active: { label: 'Open', className: 'border-violet-400/40 text-violet-300' },
 } as const;
 
@@ -249,7 +250,15 @@ function EndedRow({ h }: { h: HuntView }) {
           {cap(aYearOld(h.age))} in {h.area.country.name}
         </span>
       )}
-      <span className="ml-auto text-[12px] text-mist-400">{h.winner ? `${h.winner} got there first` : formatDate(h.clues[0]?.date ?? h.startedOn)}</span>
+      <span className="ml-auto text-[12px] text-mist-400" title={h.status === 'flop' ? h.clues[0]?.text : undefined}>
+        {h.status === 'flop'
+          ? h.winner
+            ? `${h.winner} chased the hype`
+            : 'Not a wonderkid after all'
+          : h.winner
+            ? `${h.winner} got there first`
+            : formatDate(h.clues[0]?.date ?? h.startedOn)}
+      </span>
     </li>
   );
 }

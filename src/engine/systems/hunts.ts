@@ -3,7 +3,7 @@ import type { CityId, ClubId, PlayerId } from '../core/ids';
 import { formatUSD, usd } from '../core/money';
 import { Rng, clamp } from '../core/rng';
 import type { ClubTier } from '../model/club';
-import type { Hunt, HuntClue } from '../model/hunt';
+import type { Hunt, HuntClue, HuntFlop } from '../model/hunt';
 import type { Player } from '../model/player';
 import type { RivalScout } from '../model/rival';
 import type { GameState } from '../model/world-state';
@@ -18,6 +18,23 @@ const WEEKLY_CHANCE = 0.08;
 /** Players you found keep rival scouts off for this long. */
 const SHIELD_DAYS = 120;
 const KEEP_ENDED = 12;
+/** Share of whispers that are hype: the kid turns out to be ordinary. */
+export const FLOP_CHANCE = 0.25;
+
+/** How a flop is revealed once you (or a rival) finally see him. */
+const FLOP_REVEAL: Record<HuntFlop, string> = {
+  youtube: 'He has half a million followers for his skill videos, but on a real pitch, against real defenders, he is ordinary.',
+  'five-a-side': 'The legend comes from one Sunday 5-a-side tournament. On a full-size pitch he is lost.',
+  'one-game': 'He had one great game in front of the right people. You watch him again: it was the only one.',
+  family: 'The whisper started with his uncle. The kid is keen, nothing more.',
+};
+/** A tell you may pick up near the end of a flop's trail. */
+const FLOP_TELL: Record<HuntFlop, string> = {
+  youtube: 'Someone in town mentions his videos get more views than the local club’s matches. Odd.',
+  'five-a-side': 'A barman says everyone saw him at the 5-a-side cup. Nobody mentions a league game.',
+  'one-game': 'Everyone you talk to describes the same match. Just the one.',
+  family: 'The loudest voice singing his praises shares his surname.',
+};
 
 export type HuntMethod = 'calls' | 'visit';
 
@@ -105,6 +122,21 @@ export function shieldedPlayers(state: GameState, date: GameDate): PlayerId[] {
   return (state.hunts ?? []).filter((h) => h.status === 'found' && h.endedOn !== undefined && date - h.endedOn < SHIELD_DAYS).map((h) => h.playerId);
 }
 
+/** A flop's target: an ordinary teenager at a club, so the trail plays out like any other. */
+function pickFlopTarget(state: GameState, rng: Rng, date: GameDate): Player | undefined {
+  const scout = state.scout!;
+  const homeContinent = state.countries[scout.homeCountry]!.continentId;
+  const taken = new Set<PlayerId>(state.hunts.map((h) => h.playerId));
+  const candidates = Object.values(state.players).filter((p) => {
+    if (p.isProdigy || !p.clubId || taken.has(p.id) || state.pool[p.id]) return false;
+    const age = ageOn(p.birthDate, date);
+    if (age < 15 || age > 19) return false;
+    const club = state.clubs[p.clubId]!;
+    return club.tier >= 3 && (scout.reputation >= 20 || state.countries[club.countryId]!.continentId === homeContinent);
+  });
+  return candidates.length ? rng.pick(candidates) : undefined;
+}
+
 function pickTarget(state: GameState, rng: Rng, date: GameDate): Player | undefined {
   const scout = state.scout!;
   const rep = scout.reputation;
@@ -123,9 +155,12 @@ function pickTarget(state: GameState, rng: Rng, date: GameDate): Player | undefi
   return rng.weighted(candidates, (p) => Math.pow(p.hidden.potential / 70, 1 + rep / 25));
 }
 
-export function spawnHunt(state: GameState, date: GameDate, rng: Rng): Hunt | undefined {
+/** A new whisper. `kind` fixes whether it is real (null) or which flop it is; left out, it is rolled. */
+export function spawnHunt(state: GameState, date: GameDate, rng: Rng, kind?: HuntFlop | null): Hunt | undefined {
   const scout = state.scout!;
-  const p = pickTarget(state, rng, date);
+  const rolled = rng.chance(FLOP_CHANCE) ? rng.pick<HuntFlop>(['youtube', 'five-a-side', 'one-game', 'family']) : undefined;
+  const flop = kind === undefined ? rolled : (kind ?? undefined);
+  const p = flop ? pickFlopTarget(state, rng, date) : pickTarget(state, rng, date);
   if (!p) return undefined;
   const club = state.clubs[p.clubId!]!;
   const country = state.countries[club.countryId]!;
@@ -151,6 +186,7 @@ export function spawnHunt(state: GameState, date: GameDate, rng: Rng): Hunt | un
     clues: [],
     rivals: chosen.map((r) => ({ rivalId: r.id, progress: rng.float(0, 0.1) })),
     status: 'active',
+    flop,
   };
   const who = rng.pick(CONTACTS);
   clue(
@@ -174,6 +210,7 @@ export function spawnHunt(state: GameState, date: GameDate, rng: Rng): Hunt | un
 function finish(state: GameState, hunt: Hunt, date: GameDate, how: string) {
   const place = huntPlace(state, hunt)!;
   const p = place.player;
+  if (hunt.flop) return finishFlop(state, hunt, date, how);
   hunt.stage = 3;
   hunt.status = 'found';
   hunt.endedOn = date;
@@ -189,6 +226,28 @@ function finish(state: GameState, hunt: Hunt, date: GameDate, how: string) {
     link: 'hunts',
     title: `You found him: ${p.firstName} ${p.lastName}`,
     body: `${how} ${p.firstName} ${p.lastName} (${hunt.age}, ${p.naturalPosition}) plays for ${place.club.name}. The other scouts drop the chase, and rival scouts leave him to you for the next four months.`,
+    playerIds: [p.id],
+    clubIds: [place.club.id],
+  });
+}
+
+/** The end of a hype trail: you find him, and he is nothing special. You learn what he really is; nothing else changes. */
+function finishFlop(state: GameState, hunt: Hunt, date: GameDate, how: string) {
+  const place = huntPlace(state, hunt)!;
+  const p = place.player;
+  hunt.stage = 3;
+  hunt.status = 'flop';
+  hunt.endedOn = date;
+  const reveal = FLOP_REVEAL[hunt.flop!];
+  clue(hunt, date, `${how} It's ${p.firstName} ${p.lastName} at ${place.club.name}. ${reveal}`, 'end');
+  learn(state, p, 60, 60, date); // you've seen enough to know
+  addNews(state, {
+    date,
+    kind: 'career',
+    forYou: true,
+    link: 'hunts',
+    title: `Just hype: ${p.firstName} ${p.lastName}`,
+    body: `${how} ${p.firstName} ${p.lastName} (${hunt.age}, ${p.naturalPosition}) plays for ${place.club.name}. ${reveal} Not every whisper is a wonderkid.`,
     playerIds: [p.id],
     clubIds: [place.club.id],
   });
@@ -245,6 +304,8 @@ function advance(state: GameState, hunt: Hunt, lead: string): string {
     hunt.stage = 2;
     const text = `${lead} It's a club in ${state.cities[place.cityId]!.name}.`;
     clue(hunt, state.date, text);
+    // A hype trail sometimes gives itself away before the end.
+    if (hunt.flop && Rng.derive(state.seed, `hunt-tell:${hunt.id}`).chance(0.5)) clue(hunt, state.date, FLOP_TELL[hunt.flop], 'miss');
     return text;
   }
   finish(state, hunt, state.date, lead);
@@ -256,7 +317,7 @@ export function onSearchResults(state: GameState, ids: PlayerId[]) {
   for (const hunt of state.hunts) if (hunt.status === 'active' && ids.includes(hunt.playerId)) finish(state, hunt, state.date, 'Your search turns him up.');
 }
 
-function endHunt(hunt: Hunt, date: GameDate, status: 'lost' | 'cold', text: string) {
+function endHunt(hunt: Hunt, date: GameDate, status: 'lost' | 'cold' | 'flop', text: string) {
   hunt.status = status;
   hunt.endedOn = date;
   clue(hunt, date, text, 'end');
@@ -285,6 +346,20 @@ export function huntTick(state: GameState, date: GameDate) {
           hunt.stage === 0 ? `in the ${state.regions[place.regionId]!.name} area` : hunt.stage === 1 ? `in ${state.cities[place.cityId]!.name}` : undefined;
         clue(hunt, date, `${r.firstName} ${r.lastName} was seen ${area ?? 'nearby'}, asking questions. He is getting close.`, 'rival');
         if (area) hunt.stage = (hunt.stage + 1) as Hunt['stage'];
+      }
+      if (hr.progress >= 1 && hunt.status === 'active' && hunt.flop) {
+        // He chased hype: he finds the kid, and nothing worth signing.
+        endHunt(hunt, date, 'flop', `${r.firstName} ${r.lastName} got there first and found ${place.player.firstName} ${place.player.lastName} at ${place.club.name}. ${FLOP_REVEAL[hunt.flop]} You've lost nothing.`);
+        hunt.winnerId = r.id;
+        addNews(state, {
+          date,
+          kind: 'career',
+          forYou: true,
+          link: 'hunts',
+          title: `${r.lastName} chased hype: ${place.player.firstName} ${place.player.lastName}`,
+          body: `${r.firstName} ${r.lastName} tracked down the ${hunt.age}-year-old first, and the wonderkid turned out to be ordinary. ${FLOP_REVEAL[hunt.flop]}`,
+          playerIds: [place.player.id],
+        });
       }
       if (hr.progress >= 1 && hunt.status === 'active') {
         endHunt(hunt, date, 'lost', `${r.firstName} ${r.lastName} got there first: ${place.player.firstName} ${place.player.lastName} at ${place.club.name}.`);
