@@ -56,9 +56,12 @@ const NAV: { label: string; icon: string; screen?: Route['screen']; phase?: stri
 export function App() {
   const { status, route } = useGame();
   const main = useRef<HTMLElement>(null);
-  // A new screen starts at the top, not wherever the last one was scrolled to.
+  // Below the lg breakpoint the sidebar is a slide-in menu.
+  const [navOpen, setNavOpen] = useState(false);
+  // A new screen starts at the top, not wherever the last one was scrolled to, and closes the menu.
   useEffect(() => {
     main.current?.scrollTo({ top: 0 });
+    setNavOpen(false);
   }, [routeKey(route)]);
 
   // Cmd/Ctrl+S saves; closing the tab with unsaved progress asks first.
@@ -86,13 +89,19 @@ export function App() {
       {status !== 'ready' ? (
         <StartScreen />
       ) : (
-        <div className="relative z-10 grid h-full grid-cols-[220px_1fr]">
-          <Sidebar />
-          <div className="flex min-h-0 flex-col">
-            <TopBar />
+        <div className="relative z-10 grid h-full grid-cols-1 lg:grid-cols-[220px_1fr]">
+          {/* Small screens: a dimmed backdrop behind the open menu. */}
+          {navOpen && <div className="fixed inset-0 z-40 bg-night-950/70 backdrop-blur-sm lg:hidden" onClick={() => setNavOpen(false)} />}
+          <div
+            className={`fixed inset-y-0 left-0 z-50 w-[240px] transition-transform duration-200 lg:static lg:z-auto lg:w-auto lg:translate-x-0 ${navOpen ? 'translate-x-0' : '-translate-x-full'}`}
+          >
+            <Sidebar onClose={() => setNavOpen(false)} />
+          </div>
+          <div className="flex min-h-0 min-w-0 flex-col">
+            <TopBar onMenu={() => setNavOpen(true)} />
             <DebtBanner />
             <ScenarioBanner />
-            <main ref={main} className="min-h-0 flex-1 overflow-y-auto px-6 pb-8 pt-4">
+            <main ref={main} className="min-h-0 flex-1 overflow-y-auto px-3 pb-8 pt-3 sm:px-6 sm:pt-4">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={routeKey(route)}
@@ -166,15 +175,23 @@ function Screen({ route }: { route: Route }): ReactNode {
   }
 }
 
-function Sidebar() {
+function Sidebar({ onClose }: { onClose: () => void }) {
   const { route, navigate, world, saveNow, quitToMenu, save, scout } = useGame();
   return (
-    <aside className="flex flex-col border-r border-white/[0.05] bg-night-950/70 backdrop-blur-xl">
-      <div className="px-5 pb-6 pt-5">
-        <div className="font-display text-2xl font-bold uppercase leading-none tracking-tight">
-          Football <span className="text-grass-400">Scout</span>
+    <aside className="flex h-full flex-col overflow-y-auto border-r border-white/[0.05] bg-night-950/95 backdrop-blur-xl lg:bg-night-950/70">
+      <div className="flex items-start px-5 pb-4 pt-5 lg:pb-6">
+        <div className="min-w-0 flex-1">
+          <div className="font-display text-2xl font-bold uppercase leading-none tracking-tight">
+            Football <span className="text-grass-400">Scout</span>
+          </div>
+          <div className="mt-1 truncate text-[11px] text-mist-400">{save.name ?? `World #${world?.seed}`}</div>
         </div>
-        <div className="mt-1 truncate text-[11px] text-mist-400">{save.name ?? `World #${world?.seed}`}</div>
+        <button className="btn-ghost h-8 w-8 p-0 lg:hidden" onClick={onClose} aria-label="Close menu">
+          ✕
+        </button>
+      </div>
+      <div className="px-3 pb-3 lg:hidden">
+        <GlobalSearch />
       </div>
       <nav className="flex-1 space-y-0.5 px-3">
         {NAV.map((n) => {
@@ -249,14 +266,17 @@ function Sidebar() {
   );
 }
 
-function TopBar() {
+function TopBar({ onMenu }: { onMenu: () => void }) {
   const { route, history, back, navigate } = useGame();
   return (
-    <header className="relative z-30 flex items-center gap-3 border-b border-white/[0.05] bg-night-950/40 px-6 py-3 backdrop-blur-xl">
+    <header className="relative z-30 flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-white/[0.05] bg-night-950/40 px-3 py-2 backdrop-blur-xl sm:px-6 sm:py-3">
+      <button onClick={onMenu} className="btn-ghost h-8 w-8 p-0 text-lg lg:hidden" aria-label="Open menu">
+        ☰
+      </button>
       <button onClick={back} disabled={history.length === 0} className="btn-ghost h-8 w-8 p-0 text-lg" aria-label="Back">
         ‹
       </button>
-      <nav className="flex min-w-0 items-center gap-2 text-sm text-mist-400">
+      <nav className="hidden min-w-0 items-center gap-2 text-sm text-mist-400 sm:flex">
         <button onClick={() => navigate({ screen: 'world' })} className="hover:text-mist-100">
           Home
         </button>
@@ -271,8 +291,10 @@ function TopBar() {
         <GlobalSearch />
       </div>
       <div className="ml-auto">
-        <div className="flex items-center gap-3">
-          <LocationChip />
+        <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+          <div className="hidden md:block">
+            <LocationChip />
+          </div>
           <MoneyPill />
           <TimeControls />
         </div>

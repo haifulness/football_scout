@@ -27,7 +27,7 @@ export function WorldScreen() {
   const open = (c: CountrySummary) => navigate({ screen: 'country', id: c.id });
 
   return (
-    <div className="flex h-full flex-col gap-4">
+    <div className="flex flex-col gap-4 xl:h-full">
       <GettingStarted />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile label="Countries" sub="Across 6 continents">

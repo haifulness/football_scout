@@ -110,7 +110,7 @@ function ResultsPanel({ result }: { result: SearchView }) {
       }
     >
       {result.results.length ? (
-        <PlayerTable rows={result.results} showClub />
+        <PlayerTable rows={result.results} showClub askFor={result.forClub?.name} />
       ) : (
         <div className="p-8 text-center text-sm text-mist-400">Nobody matched. Try a wider area or looser filters.</div>
       )}
@@ -146,6 +146,7 @@ function FilterBuilder({ tree, homeCountry, onResult }: { tree: LocationTree; ho
   const [wageOn, setWageOn] = useState(prefill?.maxWage !== undefined);
   const [wageMin, setWageMin] = useState<number>(0);
   const [wageMax, setWageMax] = useState<number | undefined>(prefill?.maxWage ?? 5_000);
+  const [forClub, setForClub] = useState(prefill?.clubId ? { id: prefill.clubId, name: prefill.clubName ?? 'the club' } : undefined);
   const [attrs, setAttrs] = useState<{ attribute: AttributeKey; min: number; max?: number }[]>(prefill?.attributes?.map((a) => ({ ...a, max: 20 })) ?? []);
   const [freeAgents, setFreeAgents] = useState(true);
   const [estimate, setEstimate] = useState<SearchEstimateView>();
@@ -178,8 +179,10 @@ function FilterBuilder({ tree, homeCountry, onResult }: { tree: LocationTree; ho
       wage: wageOn ? [wageMin, wageMax ?? VALUE_NO_MAX] : undefined,
       attributes: attrs,
       includeFreeAgents: freeAgents,
+      forClub: forClub?.id,
     };
   }, [
+    forClub,
     scope,
     continentId,
     countryId,
@@ -235,6 +238,16 @@ function FilterBuilder({ tree, homeCountry, onResult }: { tree: LocationTree; ho
   return (
     <Panel title="Filters" className="relative overflow-hidden">
       <div className="flex flex-col gap-4 p-4">
+        {forClub && (
+          <div className="flex items-center gap-2 rounded-lg border border-sky-400/30 bg-sky-500/[0.06] px-3 py-2 text-[12px]">
+            <span className="min-w-0 flex-1 text-sky-200">
+              For <b>{forClub.name}</b>: results show the wage each player would ask them.
+            </span>
+            <button className="text-[11px] text-mist-400 hover:text-mist-100" onClick={() => setForClub(undefined)} title="Search without a club in mind">
+              ✕
+            </button>
+          </div>
+        )}
         <Section label="Where">
           <div className="flex gap-0.5 rounded-lg bg-white/[0.04] p-0.5">
             {SCOPES.map((s) => (

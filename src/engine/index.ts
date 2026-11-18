@@ -55,7 +55,7 @@ import {
   resign,
 } from './systems/employment';
 import { REMOTE_PITCH_TRUST, clubPositionalAverage, formationPositions, pitch, pitchFee, remotePitchCheck, signOffProbability, type PitchArgs, playerChance, wageCeiling } from './systems/deals';
-import { canAfford, offeredWage, transferFee, brokeredWage } from './systems/transfers';
+import { WAGE_STRETCH, canAfford, offeredWage, transferFee, brokeredWage } from './systems/transfers';
 import type { Deal, Official, Placement } from './model/deal';
 import type { Mission } from './model/mission';
 import type { Position } from './model/player';
@@ -1757,7 +1757,7 @@ export class Engine {
         formation: club.formation,
         acceptsProspects: club.acceptsProspects,
         transferBudget: club.transferBudget,
-        wageRoom: usd(Math.max(0, Math.round(club.wageBudget * 1.08 - bill))),
+        wageRoom: usd(Math.max(0, Math.round(club.wageBudget * WAGE_STRETCH - bill))),
       },
       positions,
       position: pos,
@@ -1953,7 +1953,17 @@ export class Engine {
     const r = this.s.searches.find((x) => x.id === id);
     if (!r) return null;
     const rows = r.results.map((pid) => this.s.players[pid]).filter((p): p is Player => !!p);
-    return { ...searchSummary(r), results: rows.map((p) => this.playerRow(p)) };
+    const club = r.filters.forClub ? this.s.clubs[r.filters.forClub] : undefined;
+    return {
+      ...searchSummary(r),
+      forClub: club && { id: club.id, name: club.name },
+      results: rows.map((p) => {
+        const row = this.playerRow(p);
+        if (!club || p.clubId === club.id) return row;
+        const ask = brokeredWage(this.s, p, club);
+        return { ...row, ask, wageFits: canAfford(this.s, club, usd(0), ask).ok };
+      }),
+    };
   }
 
   getPool(): (PlayerRow & { addedOn: number; starred: boolean; report?: { by: string; rating: number } })[] {

@@ -23,7 +23,7 @@ export function TimeControls() {
   if (!clock) return null;
   const deadline = clock.deadlineHour;
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
       {deadline !== undefined ? (
         <button
           className="chip animate-pulse whitespace-nowrap border-alert-400/40 bg-alert-500/10 font-semibold text-alert-400 motion-reduce:animate-none"
@@ -59,7 +59,7 @@ export function TimeControls() {
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.div
             key={clock.date}
-            className="num text-lg font-bold leading-none"
+            className="num whitespace-nowrap text-base font-bold leading-none sm:text-lg"
             initial={{ rotateX: -90, opacity: 0 }}
             animate={{ rotateX: 0, opacity: 1 }}
             exit={{ rotateX: 90, opacity: 0 }}
@@ -68,7 +68,7 @@ export function TimeControls() {
             {formatDate(clock.date)}
           </motion.div>
         </AnimatePresence>
-        <div className="text-[10px] uppercase tracking-wider text-mist-400">
+        <div className="hidden whitespace-nowrap text-[10px] uppercase tracking-wider text-mist-400 sm:block">
           {clock.seasonLabel} · {PHASE_LABEL[clock.phase]}
           {clock.transferWindow && <span className="text-grass-300 2xl:hidden"> · Window</span>}
         </div>

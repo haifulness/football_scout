@@ -26,31 +26,44 @@ export function transferFee(state: GameState, p: Player): USD {
   return roundPrice(p.value * (1.05 + contractPremium));
 }
 
-/** Weekly wage the buying club would offer. */
+/** Most a player will knock off what he earns now to make a move. */
+export const MAX_PAY_CUT = 0.25;
+/** The most above the buying club's pay scale he holds out for (on account of what he earns now). */
+const ABOVE_SCALE = 1.3;
+
+/**
+ * The wage he asks the buying club for. It starts from the club's pay scale for a player of his level:
+ * he wants a 10% rise on what he earns now, but holds out for at most 30% above that scale,
+ * and never takes more than a 25% cut.
+ */
 export function offeredWage(state: GameState, p: Player, buyer: Club): USD {
-  const wage = weeklyWage(ovrAt(p, p.naturalPosition), buyer.tier, state.countries[buyer.countryId]!.wealthIndex);
-  // Players don't move for less money.
-  return usd(Math.max(wage, Math.round(p.wage * 1.1)));
+  const scale = weeklyWage(ovrAt(p, p.naturalPosition), buyer.tier, state.countries[buyer.countryId]!.wealthIndex);
+  const wanted = Math.min(p.wage * 1.1, Math.max(scale * ABOVE_SCALE, p.wage * (1 - MAX_PAY_CUT)));
+  // A tidy figure, but never past the biggest cut he'd take.
+  return usd(Math.max(roundPrice(Math.max(scale, wanted)), Math.round(p.wage * (1 - MAX_PAY_CUT))));
 }
 
 /** Most a player knocks off his wage demand for a scout he trusts (at rapport 100). */
 export const RAPPORT_WAGE_DISCOUNT = 0.2;
 
 /**
- * The wage he asks in a deal you broker: the club's normal offer, less up to 20%
- * the better he knows you (rapport from meeting him). Never below what he earns now.
+ * The wage he asks in a deal you broker: his demand, less up to 20% the better he knows you
+ * (rapport from meeting him). Never a bigger cut than 25% on what he earns now.
  */
 export function brokeredWage(state: GameState, p: Player, buyer: Club): USD {
   const base = offeredWage(state, p, buyer);
   const rapport = state.scout?.rapport[p.id] ?? 0;
-  return usd(Math.max(p.wage, Math.round(base * (1 - (RAPPORT_WAGE_DISCOUNT * rapport) / 100))));
+  return usd(Math.max(Math.round(p.wage * (1 - MAX_PAY_CUT)), Math.round(base * (1 - (RAPPORT_WAGE_DISCOUNT * rapport) / 100))));
 }
+
+/** How far over its wage budget a club will stretch for a signing it wants. */
+export const WAGE_STRETCH = 1.1;
 
 export function canAfford(state: GameState, buyer: Club, fee: USD, wage: USD): { ok: boolean; reason?: string } {
   if (fee > buyer.transferBudget)
     return { ok: false, reason: `We can't afford the fee (about ${formatUSD(fee)}; our budget is ${formatUSD(buyer.transferBudget)}).` };
   const bill = buyer.squad.reduce((n, id) => n + state.players[id]!.wage, 0);
-  if (bill + wage > buyer.wageBudget * 1.08) return { ok: false, reason: `His wages (${formatUSD(wage)}/wk) would break our wage structure.` };
+  if (bill + wage > buyer.wageBudget * WAGE_STRETCH) return { ok: false, reason: `His wages (${formatUSD(wage)}/wk) would break our wage structure.` };
   return { ok: true };
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { makeDate } from '../../src/engine/core/calendar';
+import { addDays, makeDate } from '../../src/engine/core/calendar';
 import type { CountryId } from '../../src/engine/core/ids';
 import { usd } from '../../src/engine/core/money';
 import { generateWorld } from '../../src/engine/generation/world-generator';
@@ -11,6 +11,7 @@ import {
   canWorkWith,
   clientSlots,
   clubTrust,
+  declineOffer,
   dropClient,
   onSigningCompleted,
   proposeAgreement,
@@ -128,6 +129,45 @@ describe('full-time employment', () => {
     expect(w.scout!.employment.mode).toBe('fulltime');
     advanceDays(w, 2);
     expect(w.scout!.employment).toEqual({ mode: 'freelance', clients: [] });
+  }, 60_000);
+
+  it('offers one renewal when the contract ends; ignoring it means you leave', () => {
+    const w = setup();
+    const club = englishClub(w, 4);
+    hire(w, club);
+    w.scout!.relationships[club.headCoachId] = 90; // trusted: they want you to stay
+    const e = w.scout!.employment as Extract<NonNullable<GameState['scout']>['employment'], { mode: 'fulltime' }>;
+    advanceDays(w, e.until - w.date + 1);
+    expect(w.offers.filter((o) => o.renewal)).toHaveLength(1);
+    // Let it expire: no second offer, the contract runs out.
+    advanceDays(w, 40);
+    expect(w.scout!.employment.mode).toBe('freelance');
+    expect(w.offers.some((o) => o.renewal)).toBe(false);
+  }, 60_000);
+
+  it('turning down the renewal sends you back to freelance work', () => {
+    const w = setup();
+    const club = englishClub(w, 4);
+    hire(w, club);
+    w.scout!.relationships[club.headCoachId] = 90;
+    const e = w.scout!.employment as Extract<NonNullable<GameState['scout']>['employment'], { mode: 'fulltime' }>;
+    advanceDays(w, e.until - w.date + 1);
+    const offer = w.offers.find((o) => o.renewal)!;
+    declineOffer(w, offer.id);
+    expect(w.scout!.employment).toEqual({ mode: 'freelance', clients: [] });
+  }, 60_000);
+
+  it('makes no renewal offer once you have handed in your notice', () => {
+    const w = setup();
+    const club = englishClub(w, 4);
+    hire(w, club);
+    w.scout!.relationships[club.headCoachId] = 90;
+    const e = w.scout!.employment as Extract<NonNullable<GameState['scout']>['employment'], { mode: 'fulltime' }>;
+    e.until = addDays(w.date, 5); // contract ends during the notice period
+    resign(w);
+    advanceDays(w, 10);
+    expect(w.offers.some((o) => o.renewal)).toBe(false);
+    expect(w.scout!.employment.mode).toBe('freelance');
   }, 60_000);
 
   it('dismisses you when the club stops trusting you', () => {

@@ -37,6 +37,9 @@ export interface SearchPrefill {
   maxWage?: number;
   attributes?: { attribute: AttributeKey; min: number }[];
   countryId?: CountryId;
+  /** The club the search is for: results show what each player would ask it. */
+  clubId?: ClubId;
+  clubName?: string;
   label?: string;
   /** After the search, go back to the (brief-filtered) pool instead of showing results here. */
   returnTo?: 'pool';

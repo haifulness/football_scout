@@ -19,7 +19,7 @@ npm run dev        # http://localhost:5173
 
 ## Status
 
-**Every planned phase is built (0–22).** 175 engine tests pass. On the default seed the balance bot makes +$32k in its first season and +$368k in its fifth, inside the targets in PLAN §3.9a.
+**Every planned phase is built (0–22).** 187 engine tests pass. Across four seeds the balance bot makes +$11k to +$57k in its first season and +$166k to +$789k in its fifth; PLAN §3.9a targets $150k–$400k, and the bot's careers vary a lot from seed to seed.
 
 ## The game
 
@@ -32,7 +32,7 @@ npm run dev        # http://localhost:5173
 - **New career:** pick a name, nationality, home market, background (ex-pro, data analyst, agent's assistant, youth coach) and difficulty ($25k / $10k / $3k to start).
 - Or pick a **scenario** instead (see Ending a career).
 - **Fog of war:** every rating is a range that narrows as you learn about the player. Potential, traits and prodigies are revealed along the way.
-- **Search** filters by area, league, positions, age, value, wage and ability ranges, with a live cost and duration estimate. Results go to your **Player Pool**. Your network only reaches so far: early on you mostly find lower-league players, and stars appear as your reputation, network and market knowledge grow.
+- **Search** filters by area, league, positions, age, value, wage and ability ranges, with a live cost and duration estimate. Results go to your **Player Pool**. A search started from a club's needs or a mission brief also shows what each player would ask that club a week, in red when its wage budget has no room. Your network only reaches so far: early on you mostly find lower-league players, and stars appear as your reputation, network and market knowledge grow.
 - **Video analysis** raises knowledge up to 60.
 - **Travel:**
   - You have a location. Trips are priced by distance, with a route map and flight animation.
@@ -41,7 +41,7 @@ npm run dev        # http://localhost:5173
 - **Live scouting:**
   - **Quick watch:** one click at a player's next match.
   - **Attend & watch closely:** a play-by-play of the real match. Pick up to three players, and what they do reveals specific attributes.
-- **Meetings** with players and Head Coaches build rapport and relationships. Big clubs won't see an unknown scout.
+- **Meetings** with players and Head Coaches build rapport and relationships. Big clubs won't see an unknown scout. A first meeting costs the full price; catch-ups afterwards cost about 40% of it, and the price varies a little from day to day.
 - **Scouting reports:** once you know a player well enough (knowledge 40), sign a report: your rating at a role, a potential grade and a verdict.
   - A report makes coaches keener to sign off.
   - A year later it's checked against how he turned out, and your accuracy builds a **track record** that clubs trust.
@@ -50,7 +50,8 @@ npm run dev        # http://localhost:5173
 - **Recommending:**
   - Recommend players to clubs you work for.
   - The dialog compares your estimate with the club's positional average and shows fee and wage against budgets. It also gives your read on the Head Coach, notes any report or specialty that helps, and checks mission requirements.
-- **The Head Coach decides:** pitch to him in person. His "no", or a club-level "not good enough" or "can't afford", is final for that player.
+- **The Head Coach decides:** pitch to him in person, or by phone once a club you work for trusts you (trust 60): no trip or fee, but a little less convincing. His "no", or a club-level "not good enough" or "can't afford", is final for that player.
+- **Wages:** a player asks the buying club for its usual pay for someone of his level. Well-paid players hold out for up to 30% more than that, and take at most a 25% cut on what they earn now. Clubs stretch up to 10% past their wage budget for a signing.
 - **Exceptions:** young players below the average can still be placed on potential, at clubs that take prospects.
 - **Completing deals:** negotiations take 1–2 weeks, and deals complete in transfer windows. Rival scouts and AI clubs can **hijack** your targets. A completed signing gets a **Here we go!** reveal.
 - **Deadline day** (31 August and 31 January) is played hour by hour, with a live feed of late deals. Prices rise, coaches sign off more easily, and every open negotiation is settled by midnight.
@@ -69,7 +70,7 @@ npm run dev        # http://localhost:5173
   - Work for 2–5 client clubs (more with reputation). Propose an agreement once you know the Head Coach, or accept invitations.
   - Take **selling mandates** from clients: sell their player to anyone for a 3–5% commission.
   - **Represent free agents** who trust you.
-- **Full-time:** job offers come with a salary, expenses covered and pitching only to your employer. Resign with notice, get dismissed if trust collapses, or renew.
+- **Full-time:** job offers come with a salary, expenses covered and pitching only to your employer. Resign with notice, get dismissed if trust collapses, or renew: when the contract ends a club that trusts you offers one new contract, and turning it down (or letting it lapse) sends you back to freelance work.
 - **Trust** per club comes from your relationship with the Head Coach, your record there and your report accuracy. The **Career** screen brings it together.
 - **Missions:** clubs post briefs ("CM rated 39+, aged 29 or under, within 8 weeks") built from real squad needs. Complete them for a reward and trust. Miss an accepted deadline and trust drops.
 - **Assistant scouts** (Staff screen) scan an area for weeks and add players to your pool with their own, imperfect rating. They improve with time in the field.
@@ -84,6 +85,7 @@ npm run dev        # http://localhost:5173
 - **Wonderkid hunts:** every few months a contact whispers about a hidden prodigy ("a 16-year-old winger in Portugal, at a lower-league club").
   - On the Hunts screen, narrow it down from country to region, city and name, by phone or in person.
   - One or two rivals race you. Find him first and he's yours to work with for four months.
+  - About one whisper in four is just hype: a YouTube skills star, a 5-a-side legend, one lucky game. You only find out at the end of the trail (sometimes a clue gives it away), and so does any rival who chases it.
 
 ### Goals, awards and your legacy (Goals screen)
 - **Season goals:** three each season, suited to where you stand (place players, place one abroad, find a prodigy, make a profit…). Each pays a bonus and reputation, and all three win a **Clean sweep** trophy.
@@ -119,3 +121,4 @@ npm run dev        # http://localhost:5173
 - The **search box** in the top bar (`/` or ⌘K) finds any player, club, league, country or city, accents ignored.
 - New careers get a **Getting started** checklist on the World screen.
 - Animations respect the system's reduce-motion setting.
+- The layout works on phones and tablets: below laptop width the sidebar becomes a slide-in menu (☰).

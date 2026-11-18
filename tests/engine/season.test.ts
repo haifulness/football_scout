@@ -145,7 +145,8 @@ describe('a full simulated season', () => {
     console.log(`golden boot median ${median(boots)} max ${Math.max(...boots)}; top assists median ${median(topAssists)} max ${Math.max(...topAssists)}`);
     expect(median(boots)).toBeGreaterThanOrEqual(16);
     expect(median(boots)).toBeLessThanOrEqual(30);
-    expect(Math.max(...boots)).toBeLessThanOrEqual(42);
+    // Record-breaking seasons happen (real top-flight records reach the 40s-50): only rule out absurd totals.
+    expect(Math.max(...boots)).toBeLessThanOrEqual(45);
     expect(median(topAssists)).toBeLessThanOrEqual(18);
   });
 

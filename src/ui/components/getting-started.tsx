@@ -20,13 +20,13 @@ export function GettingStarted() {
     <motion.section
       initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
-      className="panel relative overflow-hidden border-flood-400/40 bg-gradient-to-br from-flood-500/[0.10] via-night-900/60 to-grass-500/[0.06] shadow-[0_0_40px_-12px_rgba(255,201,51,0.35)]"
+      className="panel relative shrink-0 overflow-hidden border-flood-400/40 bg-gradient-to-br from-flood-500/[0.10] via-night-900/60 to-grass-500/[0.06] shadow-[0_0_40px_-12px_rgba(255,201,51,0.35)]"
     >
       <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-flood-400/10 blur-3xl" />
-      <div className="relative flex items-start justify-between gap-4 px-5 pb-3 pt-4">
+      <div className="relative flex items-start justify-between gap-4 px-3 pb-3 pt-4 sm:px-5">
         <div>
           <div className="panel-title text-flood-300">Getting started</div>
-          <h2 className="mt-0.5 font-display text-2xl font-bold uppercase leading-tight">
+          <h2 className="mt-0.5 font-display text-xl font-bold uppercase leading-tight sm:text-2xl">
             {all ? 'All set' : 'Your first steps as a scout'}
             <span className="num ml-2 text-lg text-mist-400">
               {done}/{view.steps.length}
@@ -40,7 +40,7 @@ export function GettingStarted() {
       <div className="relative mx-5 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
         <motion.div className="h-full rounded-full bg-gradient-to-r from-grass-400 to-flood-400" initial={{ width: 0 }} animate={{ width: `${(done / view.steps.length) * 100}%` }} />
       </div>
-      <ol className="relative grid grid-cols-1 gap-2 px-5 py-4 sm:grid-cols-2 md:grid-cols-5">
+      <ol className="relative grid grid-cols-2 gap-2 px-3 py-3 sm:px-5 sm:py-4 md:grid-cols-5">
         {view.steps.map((s, i) => {
           const isNext = s === next;
           return (

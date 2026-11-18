@@ -21,7 +21,8 @@ import {
 import { ovrAt } from '../../src/engine/systems/ratings';
 import { createCareer } from '../../src/engine/systems/scouting';
 import { clubTrust } from '../../src/engine/systems/employment';
-import { brokeredWage, executeTransfer, offeredWage, transferFee } from '../../src/engine/systems/transfers';
+import { MAX_PAY_CUT, brokeredWage, executeTransfer, offeredWage, transferFee } from '../../src/engine/systems/transfers';
+import { weeklyWage } from '../../src/engine/systems/economy';
 import { advanceDays } from '../../src/engine/tick';
 import { CURRENT_SCHEMA_VERSION, migrate } from '../../src/persistence/save-format';
 
@@ -235,7 +236,7 @@ describe('save migration', () => {
 });
 
 describe('rapport and wages', () => {
-  it('a player who trusts you asks for up to 20% less, never below what he earns now', () => {
+  it('a player who trusts you asks for up to 20% less, never more than a 25% cut on what he earns now', () => {
     const w = setup();
     const club = clubs(w, (c) => c.tier === 2)[0]!;
     const p = Object.values(w.players).find((x) => x.clubId && w.clubs[x.clubId]!.tier === 4)!;
@@ -246,7 +247,7 @@ describe('rapport and wages', () => {
     const trusted = brokeredWage(w, p, club);
     expect(trusted).toBeLessThan(full);
     expect(trusted).toBeGreaterThanOrEqual(Math.round(full * 0.8));
-    expect(trusted).toBeGreaterThanOrEqual(p.wage);
+    expect(trusted).toBeGreaterThanOrEqual(Math.round(p.wage * (1 - MAX_PAY_CUT)));
   }, 60_000);
 
   it('the wage in your deal reflects that rapport', () => {
@@ -346,5 +347,28 @@ describe('pitching by phone', () => {
     const byPhone = signOffProbability(w, coach, p, club, pos, fee, true);
     expect(byPhone).toBeLessThan(inPerson);
     expect(inPerson - byPhone).toBeLessThan(0.08);
+  });
+});
+
+describe('wage demands', () => {
+  it('follow the buying club\'s pay scale: a well-paid player takes a cut to move, but not more than 25%', () => {
+    const w = setup();
+    const club = clubs(w, (c) => c.tier === 4 && c.countryId === eng)[0]!;
+    const scaleOf = (p: Player) => weeklyWage(ovrAt(p, p.naturalPosition), club.tier, w.countries[club.countryId]!.wealthIndex);
+    const others = Object.values(w.players).filter((p) => p.clubId && p.clubId !== club.id && p.wage > 0);
+    // Someone earning far more than this club would pay him: he asks less than he earns, but at least 75% of it.
+    const rich = others.find((p) => p.wage > scaleOf(p) * 2)!;
+    const askRich = offeredWage(w, rich, club);
+    expect(askRich).toBeLessThan(rich.wage);
+    expect(askRich).toBeGreaterThanOrEqual(Math.round(rich.wage * (1 - MAX_PAY_CUT)));
+    // Someone a little above the scale holds out for at most 30% over it.
+    const mid = others.find((p) => p.wage > scaleOf(p) * 1.25 && p.wage < scaleOf(p) * 1.6)!;
+    expect(offeredWage(w, mid, club)).toBeLessThanOrEqual(Math.round(scaleOf(mid) * 1.3) + 1);
+    // Someone on less than the scale is offered the scale.
+    const poor = others.find((p) => p.wage * 1.1 < scaleOf(p))!;
+    expect(offeredWage(w, poor, club)).toBe(scaleOf(poor));
+    // Rapport never pushes the brokered wage below the 25% cut.
+    w.scout!.rapport[rich.id] = 100;
+    expect(brokeredWage(w, rich, club)).toBeGreaterThanOrEqual(Math.round(rich.wage * (1 - MAX_PAY_CUT)));
   });
 });

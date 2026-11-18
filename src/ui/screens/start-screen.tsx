@@ -151,11 +151,11 @@ export function StartScreen() {
               <div className="relative">
                 <div className="panel-title text-grass-300">Continue</div>
                 <div className="mt-1 font-display text-3xl font-bold uppercase leading-none">{latest.name}</div>
-                <div className="mt-2 text-sm text-mist-300">
+                <div className="mt-2 text-sm text-mist-300 sm:pr-32">
                   {formatDate(latest.gameDate as GameDate)} · {latest.seasonLabel} season
                 </div>
                 <div className="mt-1 text-xs text-mist-400">Saved {timeAgo(latest.updatedAt)}</div>
-                <span className="btn-primary absolute bottom-0 right-0 px-4 py-2 text-sm">Continue ▸</span>
+                <span className="btn-primary mt-3 inline-flex px-4 py-2 text-sm sm:absolute sm:bottom-0 sm:right-0 sm:mt-0">Continue ▸</span>
               </div>
             </button>
           )}

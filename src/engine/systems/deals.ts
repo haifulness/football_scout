@@ -146,6 +146,8 @@ export function playerChance(state: GameState, deal: Deal): number {
   const ambitious = p.hidden.ambition >= 15;
   const raise = p.wage > 0 ? deal.wage / p.wage : 2;
   let x = 0.6 + rapport / 30 + tierGap * (tierGap > 0 ? 0.6 : 1.1) + (raise >= 1.3 ? 0.5 : 0);
+  // Taking a pay cut to move makes him a little less keen (up to a 25% cut).
+  if (raise < 1) x -= (1 - raise) * 2;
   if (ambitious && tierGap < 0) x -= 1;
   if (!seller) x += 0.8; // free agents want a club
   if (deal.mandateId !== undefined) x += 1; // his club is pushing him out

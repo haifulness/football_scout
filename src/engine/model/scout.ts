@@ -114,6 +114,8 @@ export interface SearchFilters {
   ratingFloors?: Partial<Record<Position, number>>;
   attributes: AttributeFilter[]; // up to 4
   includeFreeAgents: boolean;
+  /** The club the search is for (from its needs or a brief). Doesn't change who matches; results show what each would ask it. */
+  forClub?: ClubId;
 }
 
 export interface SearchRecord {
@@ -162,6 +164,8 @@ export type Employment =
       until: GameDate;
       /** Resigned: you leave on this date. */
       leavingOn?: GameDate;
+      /** The club has already offered to renew this contract: if you don't take it, you leave. */
+      renewalOffered?: boolean;
     };
 
 export interface ClubRecord {

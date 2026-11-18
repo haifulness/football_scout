@@ -413,7 +413,12 @@ export interface SearchSummary {
 }
 
 export interface SearchView extends SearchSummary {
-  results: PlayerRow[];
+  results: (PlayerRow & {
+    /** For a search made for a club: the weekly wage he'd ask it, and whether its wage budget has room. */
+    ask?: USD;
+    wageFits?: boolean;
+  })[];
+  forClub?: { id: ClubId; name: string };
 }
 
 export interface LocationTree {

@@ -212,7 +212,12 @@ export function acceptOffer(state: GameState, offerId: number): Employment {
 }
 
 export function declineOffer(state: GameState, offerId: number) {
+  const offer = state.offers.find((o) => o.id === offerId);
   state.offers = state.offers.filter((o) => o.id !== offerId);
+  // Turning down a new contract at your own club means leaving it.
+  const e = state.scout?.employment;
+  if (offer?.renewal && e?.mode === 'fulltime' && e.clubId === offer.clubId)
+    goFreelance(state, `${state.scout!.name} turns down a new contract at ${state.clubs[offer.clubId]!.name} and returns to freelance work.`);
 }
 
 export function resign(state: GameState) {
@@ -282,7 +287,8 @@ export function employmentTick(state: GameState, date: GameDate) {
     if (e.leavingOn && date >= e.leavingOn) goFreelance(state, `${scout.name} has left ${club.name} after serving notice and returns to freelance work.`);
     else if (date >= e.until) {
       const trust = clubTrust(state, club.id);
-      if (trust >= 45 && !state.offers.some((o) => o.renewal)) {
+      // One renewal offer per contract, and none once you've handed in your notice.
+      if (trust >= 45 && !e.leavingOn && !e.renewalOffered) {
         makeOffer(state, {
           kind: 'fulltime',
           clubId: club.id,
@@ -292,6 +298,7 @@ export function employmentTick(state: GameState, date: GameDate) {
           renewal: true,
         });
         e.until = addDays(e.until, OFFER_DAYS); // stay on while you decide
+        e.renewalOffered = true;
       } else if (!state.offers.some((o) => o.renewal && o.clubId === club.id)) {
         goFreelance(state, `${club.name} let ${scout.name}'s contract run out.`);
       }

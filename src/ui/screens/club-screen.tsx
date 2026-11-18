@@ -29,6 +29,8 @@ export function ClubScreen({ id }: { id: ClubId }) {
       ratingFloors: Object.fromEntries(needs.map((n) => [n.position, (n.positionalAverage || 0) + 1])),
       maxValue: club.transferBudget > 0 ? club.transferBudget : undefined,
       countryId: club.country.id,
+      clubId: club.id,
+      clubName: club.name,
       label: `${club.name}: ${needs.map((n) => n.position).join('/')}`,
     });
   const topNeeds = club.needs.filter((n) => n.severity >= 0.2).slice(0, 3);
@@ -202,7 +204,7 @@ function ClubHero({ club }: { club: ClubView }) {
         className="absolute -right-10 top-0 h-full w-1/2 opacity-20"
         style={{ background: `repeating-linear-gradient(115deg, transparent 0 40px, ${secondary} 40px 52px)` }}
       />
-      <div className="relative flex flex-wrap items-center gap-6 p-6">
+      <div className="relative flex flex-wrap items-center gap-4 p-4 sm:gap-6 sm:p-6">
         <motion.div
           initial={{ scale: 0.6, rotate: -8, opacity: 0 }}
           animate={{ scale: 1, rotate: 0, opacity: 1 }}
@@ -226,7 +228,7 @@ function ClubHero({ club }: { club: ClubView }) {
               </span>
             )}
           </div>
-          <h1 className="mt-2 font-display text-5xl font-bold uppercase leading-none tracking-tight drop-shadow">{club.name}</h1>
+          <h1 className="mt-2 font-display text-3xl font-bold uppercase leading-none tracking-tight drop-shadow sm:text-5xl">{club.name}</h1>
           <div className="mt-2 text-sm text-mist-300">
             {club.city.name}, {club.country.name} · Founded {club.founded} · {club.stadium} ({club.capacity.toLocaleString('en-US')})
           </div>

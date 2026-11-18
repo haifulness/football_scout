@@ -7,19 +7,32 @@ import { Portrait } from '../visuals/portrait';
 import { useGame } from '../store/game-store';
 import { KnowledgeMeter, OvrBadge, PosBadge, useCultureLookup } from './ui';
 
-type Key = 'name' | 'age' | 'ovr' | 'potential' | 'value' | 'wage' | 'knowledge';
-const SORT: Record<Key, (p: PlayerRow) => number | string> = {
+type Row = PlayerRow & { ask?: number; wageFits?: boolean };
+type Key = 'name' | 'age' | 'ovr' | 'potential' | 'value' | 'wage' | 'ask' | 'knowledge';
+const SORT: Record<Key, (p: Row) => number | string> = {
   name: (p) => p.name,
   age: (p) => p.age,
   ovr: (p) => p.ovr,
   potential: (p) => (p.potential ? (p.potential[0] + p.potential[1]) / 2 : -1),
   value: (p) => p.value,
   wage: (p) => p.wage,
+  ask: (p) => p.ask ?? Infinity,
   knowledge: (p) => p.knowledge,
 };
 
 /** Scouting list: fogged ratings, potential once revealed, and how well you know each player. */
-export function PlayerTable<T extends PlayerRow>({ rows, showClub, actions }: { rows: T[]; showClub?: boolean; actions?: (p: T) => ReactNode }) {
+/** `askFor`: the club a search was made for; adds the wage each player would ask it (red when its wage budget has no room). */
+export function PlayerTable<T extends Row>({
+  rows,
+  showClub,
+  actions,
+  askFor,
+}: {
+  rows: T[];
+  showClub?: boolean;
+  actions?: (p: T) => ReactNode;
+  askFor?: string;
+}) {
   const navigate = useGame((s) => s.navigate);
   const cultureOf = useCultureLookup();
   const [sort, setSort] = useState<{ key: Key; dir: 1 | -1 } | undefined>();
@@ -54,6 +67,11 @@ export function PlayerTable<T extends PlayerRow>({ rows, showClub, actions }: { 
             <Th k="ovr" right>
               Rating
             </Th>
+            {askFor && (
+              <Th k="ask" right>
+                Asks
+              </Th>
+            )}
             <Th k="potential" right>
               Potential
             </Th>
@@ -122,6 +140,20 @@ export function PlayerTable<T extends PlayerRow>({ rows, showClub, actions }: { 
               <td className="text-right">
                 <OvrBadge ovr={p.ovr} range={p.ovrRange} size="sm" />
               </td>
+              {askFor && (
+                <td
+                  className={`num text-right font-semibold ${p.ask === undefined ? 'text-mist-400/60' : p.wageFits ? 'text-grass-300' : 'text-alert-400'}`}
+                  title={
+                    p.ask === undefined
+                      ? `Already at ${askFor}`
+                      : p.wageFits
+                        ? `What he'd ask ${askFor}. Fits their wage budget.`
+                        : `What he'd ask ${askFor}. Their wage budget has no room for it.`
+                  }
+                >
+                  {p.ask === undefined ? '–' : `${formatUSD(p.ask)}/wk`}
+                </td>
+              )}
               <td className="num text-right text-mist-300">
                 {p.potential ? (
                   p.potential[0] === p.potential[1] ? (

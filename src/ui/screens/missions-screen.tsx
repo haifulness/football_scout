@@ -223,6 +223,8 @@ function MissionCard({ m, i }: { m: MissionView; i: number }) {
                 maxWage: m.preferences?.maxWage,
                 attributes: m.preferences?.keyAttributes.map(({ attribute, min }) => ({ attribute, min })),
                 countryId: m.club.countryId,
+                clubId: m.club.id as ClubId,
+                clubName: m.club.name,
                 label: `${m.club.name} brief`,
                 returnTo: 'pool' as const,
               };
