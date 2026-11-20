@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useState } from 'react';
-import type { ClubId, CountryId, LeagueId, PlayerId } from '../../engine/core/ids';
+import type { ClubId, CountryId, LeagueId, PlayerId, StaffId } from '../../engine/core/ids';
 import { formatUSD, usd } from '../../engine/core/money';
 import type { Official } from '../../engine/model/deal';
 import type { Position } from '../../engine/model/player';
@@ -377,7 +377,8 @@ function PitchView({
   // Wage offered to the player: his ask by default, up to the club's ceiling.
   const [offer, setOffer] = useState<number>();
   const preview = useEngineQuery(() => engine.getPitchPreview(playerId, clubId, position), [playerId, clubId, position]);
-  const { pitch, advancing, openTravel, closeRecommend, navigate } = useGame();
+  const { pitch, meet, advancing, openTravel, closeRecommend, navigate } = useGame();
+  const [meetNote, setMeetNote] = useState<string>();
   const [result, setResult] = useState<DealView>();
   const [error, setError] = useState<string>();
   if (!preview) return <div className="p-8 text-center text-sm text-mist-400">Studying the squad…</div>;
@@ -648,6 +649,14 @@ function PitchView({
         inCity={preview.inCity}
         onPitch={() => void doPitch('coach')}
         onPhone={() => void doPitch('coach', true)}
+        meetNote={meetNote}
+        busy={advancing}
+        onMeet={() => {
+          setError(undefined);
+          meet({ kind: 'official', id: preview.coach.id as StaffId })
+            .then((r) => setMeetNote(`Relationship ${r.before} → ${r.after}`))
+            .catch((e) => setError(e instanceof Error ? e.message : 'The meeting fell through.'));
+        }}
         onTravel={() => {
           closeRecommend();
           openTravel(preview.club.cityId, { label: `Pitch ${preview.player.name} to ${preview.club.name}`, recommend: { playerId, clubId } });
@@ -705,8 +714,11 @@ function OfficialPitchCard({
   inCity,
   onPitch,
   onPhone,
+  onMeet,
+  meetNote,
   onTravel,
   cityName,
+  busy,
 }: {
   o: OfficialPitchView;
   disabled: boolean;
@@ -714,6 +726,9 @@ function OfficialPitchCard({
   inCity: boolean;
   onPitch: () => void;
   onPhone: () => void;
+  onMeet: () => void;
+  meetNote?: string;
+  busy: boolean;
   onTravel: () => void;
   cityName: string;
 }) {
@@ -732,6 +747,22 @@ function OfficialPitchCard({
       <div className="mt-3">
         <RelationshipBar level={o.meeting.level} label={o.meeting.label} />
       </div>
+      {/* Warm him up first: a better relationship makes a yes likelier. */}
+      {inCity && o.meeting.allowed && blockedReason !== 'Already decided' && (
+        <div className="mt-2 flex items-center gap-2">
+          <button
+            className="btn-ghost flex-1 border-grass-400/30 py-1.5 text-xs text-grass-200"
+            disabled={busy}
+            onClick={onMeet}
+            title="Spend a day with him: your relationship grows, and so do the odds of a yes"
+          >
+            ☕ Meet him first ·{' '}
+            {o.meeting.colleague ? 'free' : `${o.meeting.firstMeeting ? 'first meeting' : 'catch up'} ${formatUSD(o.meeting.cost)}`} · 1 day
+            {o.meeting.recentlyMet ? ' (met recently: less effect)' : ''}
+          </button>
+          {meetNote && <span className="text-[11px] text-grass-300">{meetNote}</span>}
+        </div>
+      )}
       {blockedReason === 'Not a client yet' ? (
         <div className="mt-3 text-[12px] text-mist-400">Pitching opens once they're a client.</div>
       ) : !o.meeting.allowed ? (
