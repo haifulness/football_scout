@@ -439,8 +439,10 @@ function completeDeal(state: GameState, deal: Deal, date: GameDate) {
   onDealSecured(state, deal);
   const scout = state.scout!;
   // Reputation builds steadily: about +2 for a lower-league signing, +3 mid-table, up to +4 for a top-flight one that clearly beats the average,
-  // and less the better known you already are (half as much at 50), so the top of the game takes a career to reach.
-  const repGain = Math.max(1, Math.round((0.8 + (6 - buyer.tier) * 0.4 + clamp(placement.ovrGap / 5, 0, 1)) * (1 - scout.reputation / 100)));
+  // and less the better known you already are (about a third as much at 50, a tenth at 80), so the top of the game takes a career to reach.
+  // A fraction of a point becomes a whole one by chance, so famous scouts don't get +1 for every signing.
+  const raw = (0.8 + (6 - buyer.tier) * 0.4 + clamp(placement.ovrGap / 5, 0, 1)) * Math.pow(1 - scout.reputation / 100, 1.5);
+  const repGain = Math.floor(raw) + (Rng.derive(state.seed, `rep:${deal.id}`).chance(raw - Math.floor(raw)) ? 1 : 0);
   scout.reputation = clamp(scout.reputation + repGain, 0, 100);
   log(
     deal,

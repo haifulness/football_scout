@@ -135,20 +135,20 @@ All money is stored as **whole US dollars** (integers, no floating-point drift) 
 | Item | Full-time | Freelance |
 |---|---|---|
 | Salary (per year, by employer tier 5 → 1) | $18k · $30k · $55k · $110k · $220k (Head of Recruitment at tier 1: $400k+) | – |
-| Placement bonus | **1.5%** of fee × gap factor (1.0–2.0) | **4%** of fee × gap factor |
-| Placement floor (per tier 5 → 1) | $300 · $1k · $3k · $12k · $50k | $750 · $2.5k · $7.5k · $30k · $125k |
+| Placement bonus | **0.6%** of the tapered fee × gap factor (1.0–1.5) | **1.25%** of the tapered fee × gap factor |
+| Placement floor (per tier 5 → 1) | $600 · $1.6k · $2k · $4k · $10k | $1.5k · $4k · $5k · $10k · $25k |
 | Sale commission | – | 3–5% of the sale fee (set per mandate) |
 | Mission reward | 2–6 weeks of salary | $1k – $250k by tier |
 
-The **floors** make early, tiny deals worth doing (a $0 free-agent placement at a tier-5 club still pays $750 to a freelancer).
+The **floors** make early, tiny deals worth doing (a $0 free-agent placement at a tier-5 club still pays $1,500 to a freelancer). Big fees **taper**: the fee counts in full up to $500k, 25% of it from $500k to $5M and 6% above, so elite deals pay well but not a fortune each. (Retuned 2026-11-20, after the balance bot learned to reuse its pool: the old rates gave $0.6M–$2M by season 5.)
 
-**Per-match bonuses**: base values at **tier 3, full-time**, multiplied by the tier (T5 ×0.1 · T4 ×0.3 · T3 ×1 · T2 ×3 · T1 ×8) and ×2 for freelance:
+**Per-match bonuses**: base values at **tier 3, full-time**, multiplied by the tier (T5 ×0.25 · T4 ×0.5 · T3 ×1 · T2 ×2 · T1 ×5) and ×2 for freelance:
 
 | Appearance | Goal | Assist | Tackle match (threshold met) | Clean sheet | Captain |
 |---|---|---|---|---|---|
 | $50 | $150 | $100 | $75 | $150 | $75 |
 
-*Sanity check:* a tier-1 striker you placed as a freelancer, with 35 apps, 20 goals and 8 assists, earns you 2 × 8 × (35×50 + 20×150 + 8×100) = **$88.8k / season**. The same player at tier 4 earns you **$3.3k**.
+*Sanity check:* a tier-1 striker you placed as a freelancer, with 35 apps, 20 goals and 8 assists, earns you 2 × 5 × (35×50 + 20×150 + 8×100) = **$55.5k / season**. The same player at tier 4 earns you **$5.6k**.
 
 **Your expenses**
 | Item | Cost |

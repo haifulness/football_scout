@@ -17,14 +17,14 @@ import { addNews } from './season';
 
 type Mode = Placement['mode'];
 
-export const SIGNING_PCT: Record<Mode, number> = { fulltime: 1, freelance: 2 };
+export const SIGNING_PCT: Record<Mode, number> = { fulltime: 0.6, freelance: 1.25 };
 export const SIGNING_FLOOR: Record<Mode, Record<ClubTier, number>> = {
-  fulltime: { 5: 600, 4: 1_600, 3: 3_000, 2: 12_000, 1: 50_000 },
-  freelance: { 5: 1_500, 4: 4_000, 3: 7_500, 2: 30_000, 1: 125_000 },
+  fulltime: { 5: 600, 4: 1_600, 3: 2_000, 2: 4_000, 1: 10_000 },
+  freelance: { 5: 1_500, 4: 4_000, 3: 5_000, 2: 10_000, 1: 25_000 },
 };
 /** Per-match base values at a tier-3 club for a full-time scout. */
 export const MATCH_BASE = { appearance: 50, goal: 150, assist: 100, tackleMatch: 75, cleanSheet: 150, captain: 75 };
-export const MATCH_TIER_MULT: Record<ClubTier, number> = { 5: 0.25, 4: 0.5, 3: 1, 2: 3, 1: 8 };
+export const MATCH_TIER_MULT: Record<ClubTier, number> = { 5: 0.25, 4: 0.5, 3: 1, 2: 2, 1: 5 };
 export const MODE_MULT: Record<Mode, number> = { fulltime: 1, freelance: 2 };
 
 const ATTACKING = new Set<Position>(['ST', 'LW', 'RW', 'AM']);
@@ -55,14 +55,14 @@ export function signingBonus(p: { fee: USD; value: USD; tier: ClubTier; ovrGap: 
 }
 
 /**
- * Big fees count for less: the full fee up to $1M, 40% of it from $1M to $10M, 12% above.
- * At 2.5% (freelance) that is 2.5% / 1% / 0.3% of each slice, so elite deals still pay a fortune, but not millions each.
+ * Big fees count for less: the full fee up to $500k, 25% of it from $500k to $5M, 6% above.
+ * At 1.25% (freelance) that is 1.25% / 0.31% / 0.075% of each slice: a big deal still pays well, but not a fortune each.
  */
 export function taperedFee(fee: number): number {
-  const a = Math.min(fee, 1_000_000);
-  const b = clamp(fee - 1_000_000, 0, 9_000_000);
-  const c = Math.max(0, fee - 10_000_000);
-  return a + b * 0.4 + c * 0.12;
+  const a = Math.min(fee, 500_000);
+  const b = clamp(fee - 500_000, 0, 4_500_000);
+  const c = Math.max(0, fee - 5_000_000);
+  return a + b * 0.25 + c * 0.06;
 }
 
 /** Stacked per-match bonuses for one player's match line. */

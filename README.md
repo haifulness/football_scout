@@ -19,7 +19,7 @@ npm run dev        # http://localhost:5173
 
 ## Status
 
-**Every planned phase is built (0–22).** 192 engine tests pass. The balance bot now reuses its Player Pool before searching, as a player would; across four seeds it makes −$2k to +$47k in its first season and +$571k to +$2.1M in its fifth, well above PLAN §3.9a's $150k–$400k target, so income needs retuning.
+**Every planned phase is built (0–22).** 192 engine tests pass. Across four seeds the balance bot (which reuses its Player Pool before searching, as a player would) makes −$2k to +$38k in its first season and +$300k to +$480k in its fifth, three of the four inside PLAN §3.9a's $150k–$400k, ending season 5 at reputation 68–77.
 
 ## The game
 
@@ -57,7 +57,7 @@ npm run dev        # http://localhost:5173
 - **Deadline day** (31 August and 31 January) is played hour by hour, with a live feed of late deals. Prices rise, coaches sign off more easily, and every open negotiation is settled by midnight.
 
 ### Money
-- **Signing bonus:** 2% of the fee (or market value for free agents) as a freelancer, 1% full-time. It tapers above $1M, rises up to ×1.5 for a big quality gap, and never falls below a floor by club tier. Prospects pay no signing bonus.
+- **Signing bonus:** 1.25% of the fee (or market value for free agents) as a freelancer, 0.6% full-time. Big fees taper (in full up to $500k, a quarter of the next $4.5M, 6% above), it rises up to ×1.5 for a big quality gap, and never falls below a floor by club tier ($1.5k at tier 5 up to $25k at tier 1, freelance). Prospects pay no signing bonus.
 - **Match bonuses** for every placed player until his first contract ends or he leaves:
   - appearances;
   - goals and assists (forwards and attacking midfielders), tackle matches (defenders and defensive midfielders) or clean sheets (goalkeepers);

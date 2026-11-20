@@ -32,9 +32,9 @@ const total = (l: PlayerMatchLine, tier: 1 | 2 | 3 | 4 | 5, mode: 'freelance' | 
 
 describe('match bonuses', () => {
   it('stack for a scoring captain, scaled by tier and doubled for freelancers', () => {
-    // tier 1 (×8) freelance (×2) = ×16: app 50 + 2 goals 300 + assist 100 + captain 75 = 525 → 8,400
-    expect(total(line({ position: 'ST', goals: 2, assists: 1, captain: true }), 1, 'freelance')).toBe(8400);
-    expect(total(line({ position: 'ST', goals: 2, assists: 1, captain: true }), 1, 'fulltime')).toBe(4200);
+    // tier 1 (×5) freelance (×2) = ×10: app 50 + 2 goals 300 + assist 100 + captain 75 = 525 → 5,250
+    expect(total(line({ position: 'ST', goals: 2, assists: 1, captain: true }), 1, 'freelance')).toBe(5250);
+    expect(total(line({ position: 'ST', goals: 2, assists: 1, captain: true }), 1, 'fulltime')).toBe(2625);
     expect(total(line({ position: 'ST', goals: 1 }), 5, 'fulltime')).toBe(51); // 50 × 0.25 and 150 × 0.25, each rounded to whole dollars
   });
 
@@ -64,12 +64,12 @@ describe('match bonuses', () => {
 describe('signing bonus', () => {
   it('is a share of the fee, more for a bigger gap, never below the tier floor, zero for prospects', () => {
     const base = { fee: usd(10_000_000), value: usd(9_000_000), tier: 2 as const, ovrGap: 0, mode: 'freelance' as const, prospect: false };
-    // A $10M fee counts as $1M + 40% of the next $9M = $4.6M (big fees taper).
-    expect(signingBonus(base)).toBe(92_000); // 2% of $4.6M
-    expect(signingBonus({ ...base, ovrGap: 3 })).toBe(119_600); // ×1.3
-    expect(signingBonus({ ...base, ovrGap: 30 })).toBe(138_000); // capped ×1.5
-    expect(signingBonus({ ...base, mode: 'fulltime' })).toBe(46_000); // 1%
-    expect(signingBonus({ ...base, fee: usd(800_000), tier: 3 })).toBe(16_000); // small fees: the full 2%
+    // A $10M fee counts as $500k + 25% of the next $4.5M + 6% of the last $5M = $1.925M (big fees taper).
+    expect(signingBonus(base)).toBe(24_063); // 1.25% of $1.925M
+    expect(signingBonus({ ...base, ovrGap: 3 })).toBe(31_281); // ×1.3
+    expect(signingBonus({ ...base, ovrGap: 30 })).toBe(36_094); // capped ×1.5
+    expect(signingBonus({ ...base, mode: 'fulltime' })).toBe(11_550); // 0.6%
+    expect(signingBonus({ ...base, fee: usd(800_000), tier: 3 })).toBe(7_188); // $500k + 25% of $300k = $575k at 1.25%
     expect(signingBonus({ ...base, fee: usd(0), value: usd(10_000), tier: 5 })).toBe(1_500); // free agent → floor
     expect(signingBonus({ ...base, prospect: true })).toBe(0);
   });
@@ -107,7 +107,7 @@ describe('payouts in the season', () => {
     advanceDays(w, 30);
     const pl = w.placements[0]!;
     expect(pl.bonusPaid).toBe(true);
-    expect(pl.bonus).toBeGreaterThanOrEqual(30_000); // tier-2 freelance floor
+    expect(pl.bonus).toBeGreaterThanOrEqual(10_000); // tier-2 freelance floor
     expect(w.ledger.some((l) => l.kind === 'signing-bonus')).toBe(true);
     expect(pl.endedOn).toBeUndefined();
     if (w.players[pid]!.stats.apps > 0) {
