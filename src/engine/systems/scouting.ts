@@ -11,8 +11,8 @@ import { ATTRIBUTE_LABEL, type Player, type Position } from '../model/player';
 import type { Background, CareerSetup, Difficulty, LedgerEntry, LedgerKind, Scout, ScoutSkills, SearchFilters, SearchRecord } from '../model/scout';
 import { VALUE_NO_MAX } from '../model/scout';
 import type { GameState } from '../model/world-state';
-import { VIDEO_KNOWLEDGE_CAP, knowledgeLevel, learn, marketOf, publicLevel } from './knowledge';
-import { ovrAt } from './ratings';
+import { VIDEO_KNOWLEDGE_CAP, estimate, knowledgeLevel, learn, marketOf, searchLearning, searchRange } from './knowledge';
+import { searchWage } from './transfers';
 import { seedRivals } from './rivals';
 import { refreshMarket } from './assistants';
 import { OFFICE_REACH, OFFICE_SEARCH_DISCOUNT, hasBase } from './agency';
@@ -269,14 +269,23 @@ export function completeSearch(state: GameState, record: SearchRecord) {
   const f = record.filters;
   const rng = (id: PlayerId) => Rng.derive(state.seed, `search:${record.id}:${id}`);
   const accuracy = 2.4 * (1 - scout.skills.dataAnalysis / 25);
-  const scored: { p: Player; score: number }[] = [];
+  const club = f.forClub ? state.clubs[f.forClub] : undefined;
+  // Working a market teaches you about it (first, so results are judged with what you'll know afterwards).
+  const country = searchCountry(state, f);
+  if (country) scout.regionKnowledge[country] = clamp((scout.regionKnowledge[country] ?? 0) + 2, 0, 100);
+  const scored: { p: Player; score: number; pos: Position }[] = [];
   for (const p of Object.values(state.players)) {
     if (!inLocation(state, p, f)) continue;
+    if (club && p.clubId === club.id) continue; // searching for a club: not its own players
     if (f.positions.length && !f.positions.some((pos) => (p.positions[pos] ?? 0) >= 0.75)) continue;
     const age = ageOn(p.birthDate, state.date);
     if (f.age && (age < f.age[0] || age > f.age[1])) continue;
     if (f.value && (p.value < f.value[0] || p.value > f.value[1])) continue;
-    if (f.wage && (p.wage < f.wage[0] || p.wage > f.wage[1])) continue;
+    // The wage that matters: his ask at the club the search is for, else what he earns (or expects, if free).
+    if (f.wage) {
+      const wage = searchWage(state, p, club);
+      if (wage < f.wage[0] || wage > f.wage[1]) continue;
+    }
     const r = rng(p.id);
     const market = scout.regionKnowledge[marketOf(state, p)] ?? 0;
     // Your network only turns up players within your reach.
@@ -288,26 +297,26 @@ export function completeSearch(state: GameState, record: SearchRecord) {
       if (judged < a.min || (a.max !== undefined && a.max < 20 && judged > a.max)) ok = false;
     }
     if (!ok) continue;
-    // Judge him at the searched position where he looks best (against that position's bar, if there are per-position bars).
-    const noise = r.gaussian(0, sd * 2.5);
+    // Judge him by the estimate you'll see once the search turns him up (the same fog the results show),
+    // at the searched position where he looks best against that position's bar.
     const options = f.positions.length ? f.positions.filter((x) => (p.positions[x] ?? 0) >= 0.75) : [p.naturalPosition];
     const floor = (x: Position) => f.ratingFloors?.[x] ?? 0;
-    const pos = options.sort((a, b) => ovrAt(p, b) - floor(b) - (ovrAt(p, a) - floor(a)))[0]!;
-    const score = ovrAt(p, pos) + noise;
+    const judged = (x: Position) => estimate(searchRange(state, p, x));
+    const pos = options.sort((a, b) => judged(b) - floor(b) - (judged(a) - floor(a)))[0]!;
+    const score = judged(pos);
     if (f.rating && (score < f.rating[0] || score > f.rating[1])) continue;
     if (f.ratingFloors && score < floor(pos)) continue;
-    scored.push({ p, score });
+    scored.push({ p, score, pos });
   }
   scored.sort((a, b) => b.score - a.score);
-  const results = scored.slice(0, RESULT_CAP).map((x) => x.p);
+  const top = scored.slice(0, RESULT_CAP);
+  const results = top.map((x) => x.p);
   for (const p of results) {
-    // A search always teaches you a little more than what's public, up to a modest ceiling.
-    learn(state, p, 10, Math.min(55, Math.max(35, publicLevel(state, p) + 10)), state.date);
+    const { gain, cap } = searchLearning(state, p);
+    learn(state, p, gain, cap, state.date);
     if (!state.pool[p.id]) state.pool[p.id] = { addedOn: state.date, source: 'search', starred: false };
   }
-  // Working a market teaches you about it.
-  const country = searchCountry(state, f);
-  if (country) scout.regionKnowledge[country] = clamp((scout.regionKnowledge[country] ?? 0) + 2, 0, 100);
+  record.judgedAs = Object.fromEntries(top.filter((x) => x.pos !== x.p.naturalPosition).map((x) => [x.p.id, x.pos]));
   record.results = results.map((p) => p.id);
   onSearchResults(state, record.results);
   record.matched = scored.length;

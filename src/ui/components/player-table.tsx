@@ -5,7 +5,7 @@ import { Crest } from '../visuals/crest';
 import { ClubLink } from './club-link';
 import { Portrait } from '../visuals/portrait';
 import { useGame } from '../store/game-store';
-import { KnowledgeMeter, OvrBadge, PosBadge, useCultureLookup } from './ui';
+import { KnowledgeMeter, OvrBadge, PosBadge, ratingColor, useCultureLookup } from './ui';
 
 type Row = PlayerRow & { ask?: number; wageFits?: boolean };
 type Key = 'name' | 'age' | 'ovr' | 'potential' | 'value' | 'wage' | 'ask' | 'knowledge';
@@ -15,7 +15,7 @@ const SORT: Record<Key, (p: Row) => number | string> = {
   ovr: (p) => p.ovr,
   potential: (p) => (p.potential ? (p.potential[0] + p.potential[1]) / 2 : -1),
   value: (p) => p.value,
-  wage: (p) => p.wage,
+  wage: (p) => p.wage || (p.expectedWage ?? 0),
   ask: (p) => p.ask ?? Infinity,
   knowledge: (p) => p.knowledge,
 };
@@ -42,9 +42,9 @@ export function PlayerTable<T extends Row>({
     return [...rows].sort((a, b) => (get(a) > get(b) ? 1 : get(a) < get(b) ? -1 : 0) * sort.dir);
   }, [rows, sort]);
 
-  const Th = ({ k, children, right, pad }: { k: Key; children: string; right?: boolean; pad?: boolean }) => (
+  const Th = ({ k, children, right, pad, className = '' }: { k: Key; children: string; right?: boolean; pad?: boolean; className?: string }) => (
     <th
-      className={`cursor-pointer select-none py-2 font-medium hover:text-mist-100 ${right ? 'text-right' : ''} ${pad ? 'pl-4' : ''}`}
+      className={`cursor-pointer select-none py-2 font-medium hover:text-mist-100 ${right ? 'text-right' : ''} ${pad ? 'pl-4' : ''} ${className}`}
       onClick={() => setSort((s) => ({ key: k, dir: s?.key === k ? (-s.dir as 1 | -1) : k === 'name' ? 1 : -1 }))}
     >
       {children}
@@ -54,7 +54,7 @@ export function PlayerTable<T extends Row>({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[900px] text-sm">
+      <table className="w-full min-w-[640px] text-sm">
         <thead>
           <tr className="text-left text-[11px] uppercase tracking-wider text-mist-400">
             <th className="w-4 pl-4" />
@@ -81,7 +81,7 @@ export function PlayerTable<T extends Row>({
             <Th k="wage" right>
               Wage
             </Th>
-            <Th k="knowledge" pad>
+            <Th k="knowledge" pad className="hidden 2xl:table-cell">
               Knowledge
             </Th>
             {actions && <th className="pr-4" />}
@@ -138,7 +138,13 @@ export function PlayerTable<T extends Row>({
                 </td>
               )}
               <td className="text-right">
-                <OvrBadge ovr={p.ovr} range={p.ovrRange} size="sm" />
+                {/* Your estimate (what the rating filter goes by), with the range it comes from. */}
+                <span className="inline-flex items-center justify-end gap-1.5" title={`Your estimate ${p.ovr} (range ${p.ovrRange[0]}–${p.ovrRange[1]})`}>
+                  <span className="num font-bold" style={{ color: ratingColor(p.ovr) }}>
+                    {p.ovr}
+                  </span>
+                  <OvrBadge ovr={p.ovr} range={p.ovrRange} size="sm" />
+                </span>
               </td>
               {askFor && (
                 <td
@@ -166,8 +172,18 @@ export function PlayerTable<T extends Row>({
                 )}
               </td>
               <td className="num text-right">{formatUSD(p.value)}</td>
-              <td className="num text-right text-mist-300">{p.wage ? `${formatUSD(p.wage)}/wk` : <span className="text-mist-400/60">–</span>}</td>
-              <td className="pl-4">
+              <td className="num text-right text-mist-300">
+                {p.wage ? (
+                  `${formatUSD(p.wage)}/wk`
+                ) : p.expectedWage ? (
+                  <span className="text-mist-400" title="Free agent: the wage he expects for his level">
+                    ≈{formatUSD(p.expectedWage)}/wk
+                  </span>
+                ) : (
+                  <span className="text-mist-400/60">–</span>
+                )}
+              </td>
+              <td className="hidden pl-4 2xl:table-cell">
                 <KnowledgeMeter level={p.knowledge} compact />
               </td>
               {actions && (

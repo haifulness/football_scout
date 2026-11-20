@@ -405,7 +405,10 @@ function FilterBuilder({ tree, homeCountry, onResult }: { tree: LocationTree; ho
                 </button>
               </div>
             )}
-            <label className="mb-1.5 flex items-center gap-2 text-xs text-mist-300" title="Judged by your network at the searched position">
+            <label
+              className="mb-1.5 flex items-center gap-2 text-xs text-mist-300"
+              title="Your estimate at the searched position, as the results will show it"
+            >
               <input type="checkbox" checked={ratingOn} onChange={(e) => setRatingOn(e.target.checked)} className="accent-grass-500" /> Limit rating
             </label>
             <div className={`flex items-center gap-1.5 ${ratingOn ? '' : 'pointer-events-none opacity-40'}`}>
@@ -414,8 +417,15 @@ function FilterBuilder({ tree, homeCountry, onResult }: { tree: LocationTree; ho
               <NumInput value={rating[1]} min={rating[0]} max={99} onChange={(v) => setRating([rating[0], v])} />
             </div>
           </Section>
-          <Section label="Wage (per week)">
-            <label className="mb-1.5 flex items-center gap-2 text-xs text-mist-300" title="Current weekly wage; free agents count as $0">
+          <Section label={forClub ? 'Wage they’d ask (per week)' : 'Wage (per week)'}>
+            <label
+              className="mb-1.5 flex items-center gap-2 text-xs text-mist-300"
+              title={
+                forClub
+                  ? `What each player would ask ${forClub.name} a week (the Asks column)`
+                  : 'What he earns now a week; free agents count at the wage they expect'
+              }
+            >
               <input type="checkbox" checked={wageOn} onChange={(e) => setWageOn(e.target.checked)} className="accent-grass-500" /> Limit wage
             </label>
             <div className={`flex items-center gap-1.5 ${wageOn ? '' : 'pointer-events-none opacity-40'}`}>

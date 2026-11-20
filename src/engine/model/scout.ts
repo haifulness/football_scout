@@ -130,6 +130,8 @@ export interface SearchRecord {
   results: PlayerId[];
   /** How many players matched before the result cap. */
   matched: number;
+  /** The position each result was judged at, where it differs from his natural one. */
+  judgedAs?: Partial<Record<PlayerId, Position>>;
 }
 
 export type LedgerKind =

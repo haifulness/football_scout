@@ -102,6 +102,8 @@ export interface PlayerRow {
   inPool: boolean;
   value: USD;
   wage: USD;
+  /** Free agents: the weekly wage he expects for his level (his wage is 0 until he signs). */
+  expectedWage?: USD;
   contractUntil?: GameDate;
   portraitSeed: number;
   isCaptain: boolean;

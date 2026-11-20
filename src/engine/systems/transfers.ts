@@ -7,7 +7,7 @@ import { POSITIONS, type Player, type Position } from '../model/player';
 import type { GameState } from '../model/world-state';
 import { pickCaptain } from '../generation/world-generator';
 import { contractYearsLeft } from './development';
-import { weeklyWage } from './economy';
+import { TIER_BANDS, weeklyWage } from './economy';
 import { ovrAt } from './ratings';
 import { addNews } from './season';
 import { positionalAverage, squadNeeds } from './squad-needs';
@@ -24,6 +24,20 @@ export function transferFee(state: GameState, p: Player): USD {
   const years = contractYearsLeft(p, state.date);
   const contractPremium = years >= 3 ? 0.35 : years >= 2 ? 0.2 : years >= 1 ? 0.1 : 0;
   return roundPrice(p.value * (1.05 + contractPremium));
+}
+
+/** What a free agent expects a week: the going rate for his level, at the kind of club that level fits, in his home market. */
+export function freeAgentWage(state: GameState, p: Player): USD {
+  const ovr = ovrAt(p, p.naturalPosition);
+  const tiers = [1, 2, 3, 4, 5] as const;
+  const tier = tiers.find((t) => ovr >= TIER_BANDS[t].squadOvr.min) ?? 5;
+  return weeklyWage(ovr, tier, state.countries[p.nationality]!.wealthIndex);
+}
+
+/** The weekly wage a search judges a player by: his ask at the club the search is for, else what he earns (or, if free, expects). */
+export function searchWage(state: GameState, p: Player, forClub?: Club): USD {
+  if (forClub && p.clubId !== forClub.id) return brokeredWage(state, p, forClub);
+  return p.clubId ? p.wage : freeAgentWage(state, p);
 }
 
 /** Most a player will knock off what he earns now to make a move. */

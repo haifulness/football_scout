@@ -55,7 +55,7 @@ import {
   resign,
 } from './systems/employment';
 import { REMOTE_PITCH_TRUST, clubPositionalAverage, formationPositions, pitch, pitchFee, remotePitchCheck, signOffProbability, type PitchArgs, playerChance, wageCeiling } from './systems/deals';
-import { WAGE_STRETCH, canAfford, offeredWage, transferFee, brokeredWage } from './systems/transfers';
+import { WAGE_STRETCH, canAfford, freeAgentWage, offeredWage, transferFee, brokeredWage } from './systems/transfers';
 import type { Deal, Official, Placement } from './model/deal';
 import type { Mission } from './model/mission';
 import type { Position } from './model/player';
@@ -1958,7 +1958,11 @@ export class Engine {
       ...searchSummary(r),
       forClub: club && { id: club.id, name: club.name },
       results: rows.map((p) => {
-        const row = this.playerRow(p);
+        // Shown at the position the search judged him at, so the rating matches what was searched for.
+        const as = r.judgedAs?.[p.id];
+        const base = this.playerRow(p);
+        const range = as ? fog(this.s, p).positions[as] : undefined;
+        const row = range && as ? { ...base, position: as, ovr: estimate(range), ovrRange: range } : base;
         if (!club || p.clubId === club.id) return row;
         const ask = brokeredWage(this.s, p, club);
         return { ...row, ask, wageFits: canAfford(this.s, club, usd(0), ask).ok };
@@ -2346,6 +2350,7 @@ export class Engine {
       inPool: !!this.s.pool[p.id],
       value: p.value,
       wage: p.wage,
+      expectedWage: p.clubId ? undefined : freeAgentWage(this.s, p),
       contractUntil: p.contractUntil,
       portraitSeed: p.portraitSeed,
       isCaptain: (club ?? (p.clubId ? this.s.clubs[p.clubId] : undefined))?.captainId === p.id,

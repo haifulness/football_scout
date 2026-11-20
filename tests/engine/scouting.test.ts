@@ -5,7 +5,8 @@ import { generateWorld } from '../../src/engine/generation/world-generator';
 import { ATTRIBUTES } from '../../src/engine/model/player';
 import type { SearchFilters } from '../../src/engine/model/scout';
 import type { GameState } from '../../src/engine/model/world-state';
-import { VIDEO_KNOWLEDGE_CAP, fog, knowledgeLevel, learn, publicLevel } from '../../src/engine/systems/knowledge';
+import { VIDEO_KNOWLEDGE_CAP, estimate, fog, knowledgeLevel, learn, publicLevel } from '../../src/engine/systems/knowledge';
+import { brokeredWage, freeAgentWage } from '../../src/engine/systems/transfers';
 import { ovrAt } from '../../src/engine/systems/ratings';
 import {
   STARTING_MONEY,
@@ -190,6 +191,50 @@ describe('search', () => {
       return r >= 50 && r <= 70;
     }).length;
     expect(near / record.results.length).toBeGreaterThan(0.8);
+  }, 60_000);
+
+  it('shows every result with an estimate inside the rating range, at the position it was searched for', () => {
+    world.scout!.money = 1_000_000 as never;
+    const f = baseFilters({ positions: ['CM', 'DM'], rating: [50, 58] });
+    const record = startSearch(world, f);
+    advanceDays(world, record.days);
+    completeSearch(world, record);
+    expect(record.results.length).toBeGreaterThan(0);
+    for (const id of record.results) {
+      const p = world.players[id]!;
+      const pos = record.judgedAs?.[id] ?? p.naturalPosition;
+      expect(['CM', 'DM']).toContain(pos);
+      const shown = estimate(fog(world, p).positions[pos]);
+      expect(shown).toBeGreaterThanOrEqual(50);
+      expect(shown).toBeLessThanOrEqual(58);
+    }
+  }, 60_000);
+
+  it('judges free agents by the wage they expect, not $0', () => {
+    world.scout!.money = 1_000_000 as never;
+    const f = baseFilters({ wage: [0, 400] });
+    const record = startSearch(world, f);
+    advanceDays(world, record.days);
+    completeSearch(world, record);
+    for (const id of record.results) {
+      const p = world.players[id]!;
+      expect(p.clubId ? p.wage : freeAgentWage(world, p)).toBeLessThanOrEqual(400);
+    }
+  }, 60_000);
+
+  it('for a club, filters by what each player would ask it, and leaves out its own players', () => {
+    world.scout!.money = 1_000_000 as never;
+    const club = Object.values(world.clubs).find((c) => c.tier === 4 && c.countryId === eng)!;
+    const f = baseFilters({ wage: [0, 1_500], forClub: club.id });
+    const record = startSearch(world, f);
+    advanceDays(world, record.days);
+    completeSearch(world, record);
+    expect(record.results.length).toBeGreaterThan(0);
+    for (const id of record.results) {
+      const p = world.players[id]!;
+      expect(p.clubId).not.toBe(club.id);
+      expect(brokeredWage(world, p, club)).toBeLessThanOrEqual(1_500);
+    }
   }, 60_000);
 
   it('honours an upper bound on an ability filter (judged, so mostly)', () => {

@@ -121,6 +121,22 @@ export function ovrRange(p: Player, hw: number, pos: Position): Range {
 
 export const estimate = ([lo, hi]: Range) => Math.round((lo + hi) / 2);
 
+/** What a search teaches you about a player it turns up: a little more than what's public, up to a modest ceiling. */
+export function searchLearning(state: GameState, p: Player): { gain: number; cap: number } {
+  return { gain: 10, cap: Math.min(55, Math.max(35, publicLevel(state, p) + 10)) };
+}
+
+/**
+ * The OVR range you'll see at a position once a search has turned him up: the same fog the
+ * results show, so a search judges players by exactly the estimate it then displays.
+ */
+export function searchRange(state: GameState, p: Player, pos: Position): Range {
+  const { gain, cap } = searchLearning(state, p);
+  const current = state.knowledge[p.id]?.level ?? 0;
+  const level = clamp(Math.max(current, Math.min(cap, Math.max(current, publicLevel(state, p)) + gain)), 0, 100);
+  return ovrRange(p, halfWidth(Math.max(level, publicLevel(state, p)), skillsOf(state)), pos);
+}
+
 export interface FoggedPlayer {
   level: number;
   attributes: Record<AttributeKey, Range>;
