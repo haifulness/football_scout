@@ -98,6 +98,15 @@ describe('world generation', () => {
     expect(median(lowValues)).toBeLessThan(60_000);
   });
 
+  it('gives every position a market: each one is playable (75%+) by a decent share of players', () => {
+    const can = (pos: string) => players.filter((p) => (p.positions[pos as keyof typeof p.positions] ?? 0) >= 0.75).length;
+    const outfield = ['CB', 'LB', 'RB', 'LWB', 'RWB', 'DM', 'CM', 'AM', 'LM', 'RM', 'LW', 'RW', 'ST'];
+    const counts = outfield.map(can);
+    // Formations use two centre-backs for every winger, so some gap is natural; but the thinnest position
+    // keeps at least a quarter of the deepest (it used to be under a fifth).
+    expect(Math.min(...counts)).toBeGreaterThan(Math.max(...counts) / 4);
+  });
+
   it('produces a few prodigies among youngsters', () => {
     const prodigies = players.filter((p) => p.isProdigy);
     expect(prodigies.length).toBeGreaterThan(5);

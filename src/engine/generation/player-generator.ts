@@ -64,14 +64,29 @@ const roundAttrs = (a: Record<AttributeKey, number>) => {
   return out;
 };
 
+/** The role next door that almost every player can fill: full-back and wing-back, wide midfielder and winger, and so on. */
+const PARTNER: Partial<Record<Position, Position>> = {
+  LB: 'LWB',
+  RB: 'RWB',
+  LWB: 'LB',
+  RWB: 'RB',
+  DM: 'CM',
+  CM: 'DM',
+  AM: 'CM',
+  LM: 'LW',
+  RM: 'RW',
+  LW: 'LM',
+  RW: 'RM',
+  ST: 'AM',
+};
+
 function familiarity(rng: Rng, natural: Position): Partial<Record<Position, number>> {
   const fam: Partial<Record<Position, number>> = { [natural]: 1 };
-  const related = rng.shuffle([...RELATED_POSITIONS[natural]]);
-  const count = rng.int(0, Math.min(3, related.length));
-  for (let i = 0; i < count; i++) {
-    const p = related[i]!;
-    fam[p] = Math.round(rng.float(0.35, i === 0 ? 0.95 : 0.75) * 100) / 100;
-  }
+  const partner = PARTNER[natural];
+  if (partner) fam[partner] = Math.round(rng.float(0.75, 0.95) * 100) / 100;
+  const related = rng.shuffle(RELATED_POSITIONS[natural].filter((p) => p !== partner));
+  const count = rng.int(0, Math.min(2, related.length));
+  for (let i = 0; i < count; i++) fam[related[i]!] = Math.round(rng.float(0.35, 0.8) * 100) / 100;
   return fam;
 }
 

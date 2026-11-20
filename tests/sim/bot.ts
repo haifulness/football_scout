@@ -156,7 +156,14 @@ export function runBot(opts: { seed: number; seasons: number; difficulty: Diffic
           attributes: [],
           includeFreeAgents: true,
         };
-        const r = safe(() => {
+        // Check the pool first, like a player would: players found earlier who clear the bar and haven't been put to this club.
+        const pitched = new Set(s.deals.filter((d) => d.clubId === club.id).map((d) => d.playerId));
+        const fromPool = Object.keys(s.pool)
+          .map((id) => s.players[id as PlayerId])
+          .filter((p): p is NonNullable<typeof p> => !!p && p.clubId !== club.id && !pitched.has(p.id) && (p.positions[need.position] ?? 0) >= 0.75)
+          .map((p) => ({ p, est: estimate(fog(s, p).positions[need.position]) }))
+          .filter((x) => x.est > bar);
+        const r = fromPool.length ? undefined : safe(() => {
           const t0 = performance.now();
           const record = startSearch(s, filters);
           const t1 = performance.now();
@@ -172,15 +179,27 @@ export function runBot(opts: { seed: number; seasons: number; difficulty: Diffic
           timing['search: view'] = (timing['search: view'] ?? 0) + t4 - t3;
           return { search: view };
         }, 'search');
-        const found = (r?.search.results ?? [])
-          .map((row) => s.players[row.id as PlayerId])
-          .filter((p): p is NonNullable<typeof p> => !!p && p.clubId !== club.id)
-          .map((p) => ({ p, est: estimate(fog(s, p).positions[need.position]) }))
-          .filter((x) => x.est > bar)
+        const found = (
+          fromPool.length
+            ? fromPool
+            : (r?.search.results ?? [])
+                .map((row) => s.players[row.id as PlayerId])
+                .filter((p): p is NonNullable<typeof p> => !!p && p.clubId !== club.id)
+                .map((p) => ({ p, est: estimate(fog(s, p).positions[need.position]) }))
+                .filter((x) => x.est > bar)
+        )
           .sort((a, b) => b.est - a.est)
           .slice(0, 2);
         note(
-          r ? (r.search.results.length ? (found.length ? 'found candidates' : 'results but none look good enough') : 'search found nobody') : 'search failed',
+          fromPool.length
+            ? 'candidates from the pool'
+            : r
+              ? r.search.results.length
+                ? found.length
+                  ? 'found candidates'
+                  : 'results but none look good enough'
+                : 'search found nobody'
+              : 'search failed',
         );
         // A club that trusts you takes the pitch by phone: no trip needed.
         const byPhone = remotePitchCheck(s, club.id).ok;

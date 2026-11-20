@@ -19,7 +19,7 @@ npm run dev        # http://localhost:5173
 
 ## Status
 
-**Every planned phase is built (0–22).** 190 engine tests pass. Across four seeds the balance bot makes +$9k to +$87k in its first season and +$229k to +$1M in its fifth (three of the four inside PLAN §3.9a's $150k–$400k; the bot's careers vary a lot from seed to seed).
+**Every planned phase is built (0–22).** 192 engine tests pass. The balance bot now reuses its Player Pool before searching, as a player would; across four seeds it makes −$2k to +$47k in its first season and +$571k to +$2.1M in its fifth, well above PLAN §3.9a's $150k–$400k target, so income needs retuning.
 
 ## The game
 
@@ -32,7 +32,7 @@ npm run dev        # http://localhost:5173
 - **New career:** pick a name, nationality, home market, background (ex-pro, data analyst, agent's assistant, youth coach) and difficulty ($25k / $10k / $3k to start).
 - Or pick a **scenario** instead (see Ending a career).
 - **Fog of war:** every rating is a range that narrows as you learn about the player. Potential, traits and prodigies are revealed along the way.
-- **Search** filters by area, league, positions, age, value, wage and ability ranges, with a live cost and duration estimate. Results go to your **Player Pool**. Ratings in the results are your estimate (in bold, beside its range) at the position you searched for, and the rating filter goes by exactly that number. The wage filter goes by what a player earns now, or, if he's a free agent, what he expects (shown as ≈). A search started from a club's needs or a mission brief instead filters by what each player would ask that club a week, shown in an Asks column, red when the club's wage budget has no room, and leaves out the club's own players. Your network only reaches so far: early on you mostly find lower-league players, and stars appear as your reputation, network and market knowledge grow.
+- **Search** filters by area, league, positions, age, value, wage and ability ranges, with a live cost and duration estimate. Results go to your **Player Pool**. Each search adds up to 30 new players; players already in your pool are left out. Ratings in the results are your estimate (in bold, beside its range) at the position you searched for, and the rating filter goes by exactly that number. The wage filter goes by what a player earns now, or, if he's a free agent, what he expects (shown as ≈). A search started from a club's needs or a mission brief instead filters by what each player would ask that club a week, shown in an Asks column, red when the club's wage budget has no room, and leaves out the club's own players. Your network only reaches so far: early on you mostly find lower-league players, and stars appear as your reputation, network and market knowledge grow.
 - **Video analysis** raises knowledge up to 60.
 - **Travel:**
   - You have a location. Trips are priced by distance, with a route map and flight animation.

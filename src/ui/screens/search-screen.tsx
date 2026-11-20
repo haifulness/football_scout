@@ -5,6 +5,7 @@ import type { CityId, ContinentId, CountryId, LeagueId, RegionId } from '../../e
 import { formatUSD } from '../../engine/core/money';
 import { ATTRIBUTES, ATTRIBUTE_LABEL, POSITIONS, type AttributeKey, type Position } from '../../engine/model/player';
 import { VALUE_NO_MAX, type LocationScope, type SearchFilters } from '../../engine/model/scout';
+import { RESULT_CAP } from '../../engine/systems/scouting';
 import type { LocationTree, SearchEstimateView, SearchView } from '../../engine/views';
 import { PlayerTable } from '../components/player-table';
 import { Loading, Panel, PosBadge } from '../components/ui';
@@ -50,7 +51,8 @@ export function SearchScreen({ searchId }: { searchId?: number }) {
           <h1 className="font-display text-5xl font-bold uppercase leading-none">Search</h1>
         </div>
         <div className="text-right text-sm text-mist-400">
-          Results go straight into your <b className="text-mist-100">Player Pool</b>
+          Up to {RESULT_CAP} new players a search, straight into your <b className="text-mist-100">Player Pool</b>
+          <div className="text-[11px]">Players already in your pool are left out.</div>
         </div>
       </header>
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[460px_1fr]">
@@ -105,7 +107,8 @@ function ResultsPanel({ result }: { result: SearchView }) {
       title={result.label}
       right={
         <span className="text-[11px] text-mist-400">
-          {result.matched > result.resultCount ? `Best ${result.resultCount} of ${result.matched} matches` : `${result.matched} matches`}
+          {result.matched > result.resultCount ? `Best ${result.resultCount} of ${result.matched} new matches` : `${result.matched} new matches`}
+          {result.alreadyInPool > 0 && ` · ${result.alreadyInPool} already in your pool`}
         </span>
       }
     >

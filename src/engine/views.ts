@@ -411,6 +411,8 @@ export interface SearchSummary {
   days: number;
   matched: number;
   resultCount: number;
+  /** Matches left out because they were already in your pool. */
+  alreadyInPool: number;
   filters: SearchFilters;
 }
 

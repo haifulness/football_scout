@@ -9,6 +9,7 @@ import { VIDEO_KNOWLEDGE_CAP, estimate, fog, knowledgeLevel, learn, publicLevel 
 import { brokeredWage, freeAgentWage } from '../../src/engine/systems/transfers';
 import { ovrAt } from '../../src/engine/systems/ratings';
 import {
+  RESULT_CAP,
   STARTING_MONEY,
   ScoutingError,
   completeSearch,
@@ -235,6 +236,21 @@ describe('search', () => {
       expect(p.clubId).not.toBe(club.id);
       expect(brokeredWage(world, p, club)).toBeLessThanOrEqual(1_500);
     }
+  }, 60_000);
+
+  it('leaves out players already in your pool, and never returns more than the cap', () => {
+    world.scout!.money = 1_000_000 as never;
+    const f = baseFilters({ positions: ['CM'] });
+    const first = startSearch(world, f);
+    advanceDays(world, first.days);
+    completeSearch(world, first);
+    expect(first.results.length).toBeLessThanOrEqual(RESULT_CAP);
+    const again = startSearch(world, f);
+    advanceDays(world, again.days);
+    completeSearch(world, again);
+    expect(again.results.length).toBeLessThanOrEqual(RESULT_CAP);
+    for (const id of again.results) expect(first.results).not.toContain(id);
+    expect(again.alreadyInPool).toBeGreaterThan(0);
   }, 60_000);
 
   it('honours an upper bound on an ability filter (judged, so mostly)', () => {

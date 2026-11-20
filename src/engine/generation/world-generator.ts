@@ -343,7 +343,8 @@ export function pickCaptain(squad: Player[]): PlayerId | undefined {
   return best?.id;
 }
 
-const POSITION_MIX: Position[] = ['GK', 'CB', 'CB', 'LB', 'RB', 'DM', 'CM', 'CM', 'AM', 'LM', 'RM', 'LW', 'RW', 'ST', 'ST', 'LWB', 'RWB'];
+/** Youngsters and free agents: weighted toward the wide and attacking roles that formations use less, so every position has a market. */
+const POSITION_MIX: Position[] = ['GK', 'CB', 'LB', 'RB', 'LWB', 'RWB', 'DM', 'CM', 'AM', 'AM', 'LM', 'RM', 'LW', 'LW', 'RW', 'RW', 'ST'];
 export const randomPosition = (rng: Rng) => rng.pick(POSITION_MIX);
 
 function uniqueClubName(rng: Rng, patterns: string[], city: string, used: Set<string>): string {

@@ -132,6 +132,8 @@ export interface SearchRecord {
   matched: number;
   /** The position each result was judged at, where it differs from his natural one. */
   judgedAs?: Partial<Record<PlayerId, Position>>;
+  /** Matches left out because they were already in your pool. */
+  alreadyInPool?: number;
 }
 
 export type LedgerKind =

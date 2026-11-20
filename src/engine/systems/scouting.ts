@@ -274,6 +274,7 @@ export function completeSearch(state: GameState, record: SearchRecord) {
   const country = searchCountry(state, f);
   if (country) scout.regionKnowledge[country] = clamp((scout.regionKnowledge[country] ?? 0) + 2, 0, 100);
   const scored: { p: Player; score: number; pos: Position }[] = [];
+  let alreadyInPool = 0;
   for (const p of Object.values(state.players)) {
     if (!inLocation(state, p, f)) continue;
     if (club && p.clubId === club.id) continue; // searching for a club: not its own players
@@ -306,6 +307,11 @@ export function completeSearch(state: GameState, record: SearchRecord) {
     const score = judged(pos);
     if (f.rating && (score < f.rating[0] || score > f.rating[1])) continue;
     if (f.ratingFloors && score < floor(pos)) continue;
+    // You already have him: a search is for finding new players.
+    if (state.pool[p.id]) {
+      alreadyInPool++;
+      continue;
+    }
     scored.push({ p, score, pos });
   }
   scored.sort((a, b) => b.score - a.score);
@@ -320,6 +326,7 @@ export function completeSearch(state: GameState, record: SearchRecord) {
   record.results = results.map((p) => p.id);
   onSearchResults(state, record.results);
   record.matched = scored.length;
+  record.alreadyInPool = alreadyInPool;
   record.completedOn = state.date;
 }
 

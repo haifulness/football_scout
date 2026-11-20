@@ -2446,6 +2446,7 @@ function searchSummary(r: SearchRecord): SearchSummary {
     days: r.days,
     matched: r.matched,
     resultCount: r.results.length,
+    alreadyInPool: r.alreadyInPool ?? 0,
     filters: r.filters,
   };
 }
