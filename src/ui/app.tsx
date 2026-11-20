@@ -33,6 +33,7 @@ import { GoalsScreen } from './screens/goals-screen';
 import { AgencyScreen } from './screens/agency-screen';
 import { StartScreen } from './screens/start-screen';
 import { WorldScreen } from './screens/world-screen';
+import { GazetteScreen } from './screens/gazette-screen';
 import { SaveIndicator } from './components/save-indicator';
 import { useGame, type Route } from './store/game-store';
 
@@ -40,6 +41,7 @@ const NAV: { label: string; icon: string; screen?: Route['screen']; phase?: stri
   { label: 'Home', icon: '⌂', screen: 'world' },
   { label: 'Inbox', icon: '✉', screen: 'inbox' },
   { label: 'News', icon: '▤', screen: 'news' },
+  { label: 'Weekly', icon: '¶', screen: 'gazette' },
   { label: 'Search', icon: '⌕', screen: 'search' },
   { label: 'Player Pool', icon: '☰', screen: 'pool' },
   { label: 'Deals', icon: '⇄', screen: 'deals' },
@@ -138,6 +140,8 @@ function Screen({ route }: { route: Route }): ReactNode {
       return <InboxScreen />;
     case 'news':
       return <NewsScreen />;
+    case 'gazette':
+      return <GazetteScreen />;
     case 'world':
       return <WorldScreen />;
     case 'country':
@@ -283,7 +287,7 @@ function TopBar({ onMenu }: { onMenu: () => void }) {
         {route.screen !== 'world' && (
           <>
             <span>/</span>
-            <span className="truncate capitalize text-mist-100">{route.screen}</span>
+            <span className="truncate capitalize text-mist-100">{NAV.find((n) => n.screen === route.screen)?.label ?? route.screen}</span>
           </>
         )}
       </nav>

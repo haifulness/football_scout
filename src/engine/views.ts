@@ -1071,3 +1071,46 @@ export interface OnboardingView {
   }[];
   dismissed: boolean;
 }
+
+/** One club's need, as the weekly needs magazine reports it. */
+export interface GazetteNeed {
+  club: ClubBadge & { cityName: string; leagueName: string; countryId: CountryId };
+  position: Position;
+  severity: number;
+  /** The positional average a signing must beat. */
+  average: number;
+  depth: number;
+  transferBudget: USD;
+  /** An open brief from this club at this position. */
+  mission?: { id: number; status: 'offered' | 'active'; reward: USD };
+  /** Your relationship with the head coach (leads only). */
+  coach?: number;
+}
+
+export interface GazettePoolFit {
+  player: PlayerRow;
+  club: ClubBadge;
+  position: Position;
+  /** How far the player's estimate clears the bar. */
+  margin: number;
+}
+
+export interface GazetteView {
+  issue: number;
+  date: GameDate;
+  seasonLabel: string;
+  countryName: string;
+  countryId: CountryId;
+  /** Needs at your employer or clients, most pressing first. */
+  yourClubs: GazetteNeed[];
+  /** You have no clubs yet (freelance with no clients). */
+  noClubs: boolean;
+  /** Other clubs in your home country with an urgent need and money to spend. */
+  leads: GazetteNeed[];
+  /** Positions in demand across your clubs and your home country. */
+  demand: { position: Position; clubs: number; urgent: number; lowestBar: number; topBudget: USD }[];
+  /** Players already in your pool who would solve one of your clubs' needs (the leads' needs while you have no clubs). */
+  poolFits: GazettePoolFit[];
+  /** Rival chases the rumour mill has revealed. */
+  rumours: { rival: string; player: { id: PlayerId; name: string }; club: ClubBadge; advanced: boolean; yours: boolean }[];
+}

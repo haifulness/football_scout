@@ -84,6 +84,7 @@ export const DEFAULT_POOL_FILTERS: PoolFilters = {
 export type Route =
   | { screen: 'inbox' }
   | { screen: 'news' }
+  | { screen: 'gazette' }
   | { screen: 'world' }
   | { screen: 'search'; searchId?: number }
   | { screen: 'pool' }

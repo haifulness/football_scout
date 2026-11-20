@@ -1,5 +1,5 @@
 import { ATTRIBUTE_LABEL } from './model/player';
-import { ageOn, isTransferWindow, makeDate, type GameDate } from './core/calendar';
+import { CAREER_START, ageOn, isTransferWindow, makeDate, type GameDate } from './core/calendar';
 import type { CityId, ClubId, CountryId, LeagueId, PlayerId } from './core/ids';
 import { formatUSD, usd, type USD } from './core/money';
 import { generateWorld, type ProgressFn } from './generation/world-generator';
@@ -130,6 +130,8 @@ import type {
   TaskEstimateView,
   RivalInterestView,
   RivalsView,
+  GazetteNeed,
+  GazetteView,
   MarketView,
   DiscoveryView,
   PayoutView,
@@ -1494,6 +1496,120 @@ export class Engine {
       you: { name: sc.name, reputation: Math.round(sc.reputation), rank: 1 + s.rivals.filter((r) => r.reputation > sc.reputation).length },
       rivals,
       threats: rivals.filter((r) => r.chase?.yours).length,
+    };
+  }
+
+  /**
+   * The weekly needs magazine: what your clubs need, which other clubs at home are
+   * short and can pay, what positions are in demand, and who in your pool fits.
+   */
+  getGazette(): GazetteView {
+    const s = this.s;
+    const sc = s.scout!;
+    const e = sc.employment;
+    const mine: ClubId[] = e.mode === 'fulltime' ? [e.clubId] : e.clients;
+    const mineSet = new Set(mine);
+    const openMissions = s.missions.filter((m) => m.status === 'offered' || m.status === 'active');
+    const needsOf = (club: Club) => squadNeeds(club.formation, this.squadOf(club));
+    const row = (club: Club, n: ReturnType<typeof squadNeeds>[number]): GazetteNeed => {
+      const m = openMissions.find((x) => x.clubId === club.id && x.position === n.position);
+      return {
+        club: { ...badge(club), cityName: s.cities[club.cityId]!.name, leagueName: s.leagues[club.leagueId]!.name, countryId: club.countryId },
+        position: n.position,
+        severity: Math.round(n.severity * 100) / 100,
+        average: n.positionalAverage,
+        depth: n.depth,
+        transferBudget: club.transferBudget,
+        mission: m && { id: m.id, status: m.status as 'offered' | 'active', reward: m.reward },
+      };
+    };
+
+    const yourClubs = mine
+      .flatMap((id) => {
+        const club = s.clubs[id]!;
+        return needsOf(club)
+          .filter((n) => n.severity >= 0.2)
+          .map((n) => row(club, n));
+      })
+      .sort((a, b) => Number(!!b.mission) - Number(!!a.mission) || b.severity - a.severity)
+      .slice(0, 8);
+
+    // Home clubs outside your book: urgent needs only, and they must have money.
+    const home = Object.values(s.clubs).filter((c) => c.countryId === sc.homeCountry && !mineSet.has(c.id));
+    const homeNeeds = home.map((club) => ({ club, needs: needsOf(club) }));
+    const leads = homeNeeds
+      .flatMap(({ club, needs }) =>
+        club.transferBudget > 0
+          ? needs.filter((n) => n.severity >= 0.45).map((n) => ({ ...row(club, n), coach: Math.round(sc.relationships[club.headCoachId] ?? 0) }))
+          : [],
+      )
+      .sort((a, b) => b.severity * Math.log10(10 + b.transferBudget) - a.severity * Math.log10(10 + a.transferBudget))
+      // One line per club: the most pressing.
+      .filter((n, i, all) => all.findIndex((x) => x.club.id === n.club.id) === i)
+      .slice(0, 6);
+
+    const allNeeds = [...mine.map((id) => ({ club: s.clubs[id]!, needs: needsOf(s.clubs[id]!) })), ...homeNeeds];
+    const byPos = new Map<Position, { clubs: number; urgent: number; lowestBar: number; topBudget: USD }>();
+    for (const { club, needs } of allNeeds) {
+      for (const n of needs) {
+        if (n.severity < 0.2) continue;
+        const d = byPos.get(n.position) ?? { clubs: 0, urgent: 0, lowestBar: 99, topBudget: usd(0) };
+        d.clubs += 1;
+        if (n.severity >= 0.45) d.urgent += 1;
+        d.lowestBar = Math.min(d.lowestBar, (n.positionalAverage || 0) + 1);
+        d.topBudget = usd(Math.max(d.topBudget, club.transferBudget));
+        byPos.set(n.position, d);
+      }
+    }
+    const demand = [...byPos.entries()]
+      .map(([position, d]) => ({ position, ...d }))
+      .sort((a, b) => b.clubs - a.clubs || b.urgent - a.urgent)
+      .slice(0, 6);
+
+    // Pool players who would beat the bar at one of your clubs and fit its budget.
+    const negotiating = new Set(s.deals.filter((d) => d.stage === 'negotiating').map((d) => d.playerId));
+    const pool = this.getPool().filter((p) => !negotiating.has(p.id));
+    // With no clubs yet, match the pool against the leads instead: a ready answer when you court them.
+    const poolFits = (yourClubs.length ? yourClubs : leads)
+      .flatMap((n) =>
+        pool
+          .filter((p) => p.position === n.position && p.club?.id !== n.club.id)
+          .filter((p) => !p.club || n.transferBudget <= 0 || p.value <= n.transferBudget)
+          .map((p) => ({ player: p, club: n.club, position: n.position, margin: p.ovr - (n.average + 1), severity: n.severity }))
+          .filter((x) => x.margin >= 0),
+      )
+      .sort((a, b) => b.severity - a.severity || b.margin - a.margin)
+      .slice(0, 8)
+      .map(({ severity: _, club, ...rest }) => ({ ...rest, club: badge(s.clubs[club.id]!) }));
+
+    const rumours = s.rivals.flatMap((r) => {
+      const chase = r.pursuit?.rumoured ? r.pursuit : undefined;
+      const p = chase && s.players[chase.playerId];
+      if (!chase || !p) return [];
+      return [
+        {
+          rival: `${r.firstName} ${r.lastName}`,
+          player: { id: p.id, name: `${p.firstName} ${p.lastName}` },
+          club: badge(s.clubs[chase.clubId]!),
+          advanced: chase.progress >= 0.7,
+          yours: negotiating.has(p.id) || !!s.pool[p.id],
+        },
+      ];
+    });
+
+    const start = sc.startedOn ?? CAREER_START;
+    return {
+      issue: Math.floor((s.date - start) / 7) + 1,
+      date: s.date,
+      seasonLabel: seasonLabel(s.season.year),
+      countryName: s.countries[sc.homeCountry]!.name,
+      countryId: sc.homeCountry,
+      yourClubs,
+      noClubs: mine.length === 0,
+      leads,
+      demand,
+      poolFits,
+      rumours: rumours.slice(0, 5),
     };
   }
 
