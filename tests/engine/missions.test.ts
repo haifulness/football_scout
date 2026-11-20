@@ -69,6 +69,23 @@ describe('mission offers', () => {
     expect(w.news.some((n) => n.title.startsWith('Mission offer'))).toBe(true);
   }, 120_000);
 
+  it('vary the position: a client that keeps asking does not ask for the same one every time', () => {
+    const { w, club } = withClient();
+    const positions: string[] = [];
+    for (let i = 0; i < 40 && positions.length < 4; i++) {
+      advanceDays(w, 15);
+      for (const m of w.missions.filter((x) => x.clubId === club.id && x.status === 'offered')) {
+        positions.push(m.position);
+        declineMission(w, m.id); // the squad doesn't change, so the same need is still there
+      }
+    }
+    expect(positions.length).toBeGreaterThanOrEqual(3);
+    // Back to back, the same position comes up far less often than not.
+    const repeats = positions.slice(1).filter((p, i) => p === positions[i]).length;
+    expect(repeats).toBeLessThan(positions.length - 1);
+    expect(new Set(positions).size).toBeGreaterThan(1);
+  }, 180_000);
+
   it('lapse if you do not answer, and declining costs nothing', () => {
     const { w, club } = withClient();
     const m = firstMission(w);

@@ -59,7 +59,15 @@ function makeMission(state: GameState, club: Club, rng: Rng): Mission {
   const group = specialties(state).find((s) => s.kind === 'position')?.group;
   const niche = group ? needs.find((n) => positionGroup(n.position) === group && n.severity >= 0.1) : undefined;
   const byName = !!niche && rng.chance(0.5);
-  const need = (byName ? niche : undefined) ?? needs.find((n) => n.severity >= 0.2) ?? rng.pick(needs);
+  // Vary the asks: weigh each real need by how pressing it is, and go easy on positions this club asked for
+  // in its last few briefs (or that any club asked for just now), so the same position doesn't come up again and again.
+  const recent = state.missions.filter((m) => state.date - m.postedOn < 180).sort((a, b) => b.postedOn - a.postedOn);
+  const askedHere = recent.filter((m) => m.clubId === club.id).slice(0, 3).map((m) => m.position);
+  const askedAnywhere = recent.slice(0, 3).map((m) => m.position);
+  const weight = (n: (typeof needs)[number]) =>
+    (0.05 + n.severity) * (askedHere.includes(n.position) ? 0.1 : 1) * (askedAnywhere.includes(n.position) ? 0.4 : 1);
+  const real = needs.filter((n) => n.severity >= 0.1);
+  const need = (byName && niche && !askedHere.includes(niche.position) ? niche : undefined) ?? rng.weighted(real.length ? real : needs, weight);
   const pos = need.position;
   const avg = clubPositionalAverage(state, club, pos);
   const coach = state.officials[club.headCoachId]!;
