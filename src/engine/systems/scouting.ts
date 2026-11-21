@@ -19,29 +19,41 @@ import { OFFICE_REACH, OFFICE_SEARCH_DISCOUNT, hasBase } from './agency';
 
 // ── Career ──────────────────────────────────────────────────────────────
 
-export const BACKGROUNDS: Record<Background, { label: string; strength: string; weakness: string; skills: ScoutSkills }> = {
+/**
+ * Each background's skills (fixed for the career) and, in plain words, what they do in play. Perks are what
+ * the UI shows; keep them in step with where each skill is used.
+ */
+export const BACKGROUNDS: Record<Background, { label: string; perks: { good: string[]; bad: string[] }; skills: ScoutSkills }> = {
   'ex-pro': {
     label: 'Ex-pro player',
-    strength: 'Strong network and a good eye for current ability.',
-    weakness: 'Weak with data: searches cost more.',
+    perks: {
+      good: ['Coaches treat you as more senior: they agree to meet you sooner', 'Tight rating ranges, and you learn a lot watching live', 'Phone leads on hunts pay off more often'],
+      bad: ['Searches cost more and take longer'],
+    },
     skills: { judgingAbility: 13, judgingPotential: 9, network: 14, dataAnalysis: 6, negotiation: 10 },
   },
   analyst: {
     label: 'Data analyst',
-    strength: 'Cheaper, faster, more accurate searches and video work.',
-    weakness: 'Few contacts: persuasion will be harder.',
+    perks: {
+      good: ['Searches are cheaper, faster and more accurate', 'Video teaches you more about a player'],
+      bad: ['Few contacts: hunts by phone rarely pay off', 'Coaches are a little harder to persuade'],
+    },
     skills: { judgingAbility: 11, judgingPotential: 10, network: 5, dataAnalysis: 15, negotiation: 7 },
   },
   'agent-assistant': {
     label: "Agent's assistant",
-    strength: 'Persuasive, and knows a few agents.',
-    weakness: 'Untrained eye: wider stat ranges.',
+    perks: {
+      good: ['Persuasive: coaches sign off more often', 'Meetings build relationships faster'],
+      bad: ['Untrained eye: wider rating ranges until you know a player well'],
+    },
     skills: { judgingAbility: 7, judgingPotential: 8, network: 11, dataAnalysis: 8, negotiation: 15 },
   },
   'youth-coach': {
     label: 'Youth coach',
-    strength: 'Spots potential early; youth searches are cheaper.',
-    weakness: 'Few contacts at big clubs.',
+    perks: {
+      good: ['Potential shows sooner, and prodigies reveal themselves earlier', 'Searches for players 21 and under cost 25% less'],
+      bad: ['Few contacts: hunts by phone pay off less often'],
+    },
     skills: { judgingAbility: 10, judgingPotential: 15, network: 7, dataAnalysis: 8, negotiation: 8 },
   },
 };

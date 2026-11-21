@@ -9,13 +9,6 @@ import { BACKGROUNDS, STARTING_MONEY } from '../../engine/systems/scouting';
 import type { ScenarioId } from '../../engine/model/scenario';
 import { SCENARIOS } from '../../engine/systems/scenarios';
 
-const SKILL_LABEL = {
-  judgingAbility: 'Judging ability',
-  judgingPotential: 'Judging potential',
-  network: 'Network',
-  dataAnalysis: 'Data analysis',
-  negotiation: 'Negotiation',
-} as const;
 const DIFFICULTY: Record<Difficulty, string> = {
   easy: 'Comfortable savings, forgiving start.',
   normal: 'Enough for a few searches. Spend wisely.',
@@ -172,18 +165,18 @@ export function CareerSetup({ onSubmit, submitLabel, busy }: { onSubmit: (setup:
                   <span className="font-semibold">{info.label}</span>
                   {active && <span className="text-xs text-grass-300">Selected</span>}
                 </div>
-                <div className="mt-1 text-[12px] text-grass-300">+ {info.strength}</div>
-                <div className="text-[12px] text-alert-400">− {info.weakness}</div>
-                <div className="mt-2 grid grid-cols-5 gap-1">
-                  {(Object.keys(SKILL_LABEL) as (keyof typeof SKILL_LABEL)[]).map((k) => (
-                    <div key={k} title={SKILL_LABEL[k]}>
-                      <div className="h-1 overflow-hidden rounded-full bg-white/[0.08]">
-                        <div className="h-full rounded-full bg-flood-400" style={{ width: `${(info.skills[k] / 20) * 100}%` }} />
-                      </div>
-                      <div className="mt-0.5 truncate text-[9px] text-mist-400">{SKILL_LABEL[k].split(' ')[0]}</div>
-                    </div>
+                <ul className="mt-1 space-y-0.5 text-[12px]">
+                  {info.perks.good.map((t) => (
+                    <li key={t} className="text-grass-300">
+                      + {t}
+                    </li>
                   ))}
-                </div>
+                  {info.perks.bad.map((t) => (
+                    <li key={t} className="text-alert-400">
+                      − {t}
+                    </li>
+                  ))}
+                </ul>
               </motion.button>
             );
           })}

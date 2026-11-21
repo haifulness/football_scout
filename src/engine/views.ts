@@ -828,6 +828,8 @@ export interface CareerView {
   difficulty: string;
   reputation: number;
   skills: ScoutSkills;
+  /** What your background does for you, in plain words. */
+  perks: { good: string[]; bad: string[] };
   markets: { countryId: CountryId; name: string; level: number }[];
   homeCity: string;
   employment:

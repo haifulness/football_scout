@@ -13,13 +13,6 @@ import { RetirePanel } from '../components/career-end';
 import { engine } from '../store/engine-client';
 import { useEngineQuery, useGame } from '../store/game-store';
 
-const SKILL_LABEL = {
-  judgingAbility: 'Judging ability',
-  judgingPotential: 'Judging potential',
-  network: 'Network',
-  dataAnalysis: 'Data analysis',
-  negotiation: 'Negotiation',
-} as const;
 
 export function CareerScreen() {
   const c = useEngineQuery(() => engine.getCareer(), []);
@@ -65,17 +58,20 @@ export function CareerScreen() {
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_380px]">
         <TrustPanel c={c} />
-        <Panel title="Skills & markets">
+        <Panel title={`Your background · ${c.backgroundLabel}`}>
           <div className="space-y-2 p-4">
-            {(Object.keys(SKILL_LABEL) as (keyof typeof SKILL_LABEL)[]).map((k) => (
-              <div key={k} className="grid grid-cols-[120px_1fr_24px] items-center gap-2 text-[12px]">
-                <span className="text-mist-300">{SKILL_LABEL[k]}</span>
-                <span className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
-                  <span className="block h-full rounded-full bg-flood-400" style={{ width: `${(c.skills[k] / 20) * 100}%` }} />
-                </span>
-                <span className="num text-right font-bold">{c.skills[k]}</span>
-              </div>
-            ))}
+            <ul className="space-y-1 text-[12px]">
+              {c.perks.good.map((t) => (
+                <li key={t} className="text-grass-300">
+                  + {t}
+                </li>
+              ))}
+              {c.perks.bad.map((t) => (
+                <li key={t} className="text-alert-400">
+                  − {t}
+                </li>
+              ))}
+            </ul>
             <div className="panel-title pt-3 text-[11px]">Markets you know</div>
             {c.markets.map((m) => (
               <div key={m.countryId} className="grid grid-cols-[120px_1fr_24px] items-center gap-2 text-[12px]">

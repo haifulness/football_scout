@@ -1078,6 +1078,7 @@ export class Engine {
       difficulty: sc.difficulty,
       reputation: sc.reputation,
       skills: sc.skills,
+      perks: BACKGROUNDS[sc.background].perks,
       markets: Object.entries(sc.regionKnowledge)
         .filter(([, v]) => v > 0)
         .sort((a, b) => b[1] - a[1])
