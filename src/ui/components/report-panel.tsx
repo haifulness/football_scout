@@ -75,7 +75,7 @@ export function TrackRecordPanel() {
           <span className="block text-[11px] text-mist-400">
             {t.accuracy === undefined
               ? `Accuracy shows after ${t.minReviewed} checked reports`
-              : `Accuracy · club trust ${t.trust >= 0 ? '+' : ''}${t.trust}${t.overrated ? ` · oversold ${t.overrated}` : ''}`}
+              : `Accuracy · standing with clubs ${t.trust >= 0 ? '+' : ''}${t.trust}${t.overrated ? ` · oversold ${t.overrated}` : ''}`}
           </span>
         </span>
       </div>

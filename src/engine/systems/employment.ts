@@ -29,6 +29,18 @@ export function clubRecord(scout: Scout, clubId: ClubId): ClubRecord {
 }
 
 /** 0–100: your relationship with the Head Coach, plus your track record there. */
+/** Your standing with a club, 0–100, in words. */
+export function standingLabel(v: number): string {
+  return v >= 80 ? 'Inner circle' : v >= 60 ? 'Trusted' : v >= 40 ? 'Respected' : v >= 20 ? 'Known' : v >= 8 ? 'On the radar' : 'Unknown';
+}
+
+/** Below this standing a club won't discuss an agreement: they don't know you yet. */
+export const AGREEMENT_MIN_STANDING = 8;
+
+/**
+ * Your standing with a club (shown to the player as one number): mostly how well the Head Coach knows you,
+ * plus your record there (signings, briefs, weak pitches), report accuracy and integrity.
+ */
 export function clubTrust(state: GameState, clubId: ClubId): number {
   const scout = state.scout;
   const club = state.clubs[clubId];
@@ -117,7 +129,8 @@ export function proposeAgreement(state: GameState, clubId: ClubId): { accepted: 
   }
   scout.lastMet[officialId] = state.date;
   const rel = info.level;
-  if (rel < 10) return { accepted: false, reason: "They don't know you well enough yet. Meet them a few times first." };
+  if (clubTrust(state, clubId) < AGREEMENT_MIN_STANDING)
+    return { accepted: false, reason: `They don't know you well enough yet (standing ${AGREEMENT_MIN_STANDING} needed). Meet the coach a few times first.` };
   const rival = rivalAtClub(state, clubId);
   const chance =
     1 / (1 + Math.exp(-((rel - 20) / 8 + (scout.reputation - AGREEMENT_GATE[club.tier]) / 15 + (clubTrust(state, clubId) - 20) / 25 - (rival ? 0.7 : 0))));
@@ -126,8 +139,8 @@ export function proposeAgreement(state: GameState, clubId: ClubId): { accepted: 
     return {
       accepted: false,
       reason: rival
-        ? `They already use ${rivalName(rival)}, a better-known scout. Build the relationship (or your name) and try again.`
-        : 'They thanked you, but said not yet. Build the relationship and try again.',
+        ? `They already use ${rivalName(rival)}, a better-known scout. Raise your standing (or your name) and try again.`
+        : 'They thanked you, but said not yet. Raise your standing and try again.',
     };
   addClient(state, clubId);
   return { accepted: true, reason: `${club.name} take you on as a freelance scout.` };

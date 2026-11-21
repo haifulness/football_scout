@@ -241,7 +241,7 @@ export function marketTick(state: GameState, date: GameDate) {
         kind: 'career',
         link: 'missions',
         title: `Sale failed: ${p.firstName} ${p.lastName}`,
-        body: `You didn't find a buyer in time. ${club.name} trust you a little less.`,
+        body: `You didn't find a buyer in time. Your standing at ${club.name} drops.`,
         clubIds: [club.id],
         countryId: club.countryId,
       });

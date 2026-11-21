@@ -50,12 +50,14 @@ import {
   agreementCheck,
   clubRecord,
   clubTrust,
+  standingLabel,
+  AGREEMENT_MIN_STANDING,
   declineOffer,
   dropClient,
   proposeAgreement,
   resign,
 } from './systems/employment';
-import { REMOTE_PITCH_TRUST, clubPositionalAverage, formationPositions, pitch, pitchFee, remotePitchCheck, signOffProbability, type PitchArgs, playerChance, wageCeiling } from './systems/deals';
+import { REMOTE_PITCH_TRUST, clubPositionalAverage, formationPositions, pitch, pitchFee, remotePitchCheck, repitchCheck, repitchMessage, signOffProbability, type PitchArgs, playerChance, wageCeiling } from './systems/deals';
 import { canAfford, wageRoom, freeAgentWage, offeredWage, transferFee, brokeredWage } from './systems/transfers';
 import type { Deal, Official, Placement } from './model/deal';
 import type { Mission } from './model/mission';
@@ -1049,7 +1051,11 @@ export class Engine {
   meet(target: MeetTarget): { result: MeetingResult; advance: AdvanceSummary } {
     this.assertActive();
     const sameDay = metToday(this.s, target.id);
-    const result = meet(this.s, target);
+    const coachClub = target.kind === 'official' ? this.s.officials[target.id]?.clubId : undefined;
+    const standingBefore = coachClub ? clubTrust(this.s, coachClub) : 0;
+    const raw = meet(this.s, target);
+    // Meeting a coach: report the change in your standing with his club (what the game shows).
+    const result = coachClub ? { ...raw, before: standingBefore, after: clubTrust(this.s, coachClub) } : raw;
     const advance = sameDay ? this.noTime() : this.spend(1);
     this.stillInMeeting(target.id);
     return { result, advance: this.summarize(advance) };
@@ -1111,12 +1117,10 @@ export class Engine {
       }),
       clubs: [...known]
         .map((id) => {
-          const c = s.clubs[id]!;
           const r = clubRecord(sc, id);
           return {
             club: badgeCity(id),
             trust: clubTrust(s, id),
-            coach: sc.relationships[c.headCoachId] ?? 0,
             signings: r.signings,
             weakPitches: r.weakPitches,
             status: statusOf(id),
@@ -1320,7 +1324,7 @@ export class Engine {
         {
           id: 'client',
           label: 'Win your first client',
-          hint: 'Once the coach knows you (relationship 10+), propose a scouting agreement on the club page. Clubs may also invite you.',
+          hint: `Once the coach knows you (standing ${AGREEMENT_MIN_STANDING}+), propose a scouting agreement on the club page. Clubs may also invite you.`,
           done: sc.employment.mode === 'fulltime' || sc.employment.clients.length > 0,
           screen: 'career',
         },
@@ -1697,7 +1701,7 @@ export class Engine {
         kind: 'coach',
         tone: 'action',
         title: `New coach at ${club.name}: meet ${coach.firstName} ${coach.lastName}`,
-        detail: `Appointed ${formatDate(coach.appointedOn)}. Your relationship with him: ${Math.round(sc.relationships[coach.id] ?? 0)}.`,
+        detail: `Appointed ${formatDate(coach.appointedOn)}. Your standing at ${club.name}: ${clubTrust(s, club.id)}.`,
         club: badge(club),
         link: { screen: 'club', id: club.id },
       });
@@ -1882,7 +1886,7 @@ export class Engine {
     const leads = homeNeeds
       .flatMap(({ club, needs }) =>
         club.transferBudget > 0
-          ? needs.filter((n) => n.severity >= 0.45).map((n) => ({ ...row(club, n), coach: Math.round(sc.relationships[club.headCoachId] ?? 0) }))
+          ? needs.filter((n) => n.severity >= 0.45).map((n) => ({ ...row(club, n), coach: clubTrust(s, club.id) }))
           : [],
       )
       .sort((a, b) => b.severity * Math.log10(10 + b.transferBudget) - a.severity * Math.log10(10 + a.transferBudget))
@@ -2211,10 +2215,13 @@ export class Engine {
         remote: { ...remote, required: REMOTE_PITCH_TRUST, read: readOf(remoteProb) },
       };
     };
-    const existing = s.deals.find(
+    const latest = s.deals.find(
       (d) =>
         d.playerId === p.id && d.clubId === club.id && d.stage !== 'completed' && d.stage !== 'failed' && d.stage !== 'hijacked' && d.stage !== 'collapsed',
     );
+    // A no isn't forever: when the rules let you try again, the old deal no longer blocks the pitch.
+    const again = latest?.stage === 'rejected' ? repitchCheck(s, latest) : undefined;
+    const existing = again?.ok ? undefined : latest;
     return {
       player: { id: p.id, name: `${p.firstName} ${p.lastName}`, age, naturalPosition: p.naturalPosition, prodigyKnown: f.prodigy, potential: f.potential },
       club: {
@@ -2271,6 +2278,13 @@ export class Engine {
       agreement: s.scout ? (({ ok, reason }) => ({ ok, reason }))(agreementCheck(s, club.id)) : { ok: false },
       coach: officialView('coach'),
       existing: existing && this.dealView(existing),
+      repitch: again && {
+        ok: again.ok,
+        because: again.because,
+        from: again.from,
+        conditions: again.conditions,
+        message: again.ok ? `They said no on ${formatDate(latest!.openedOn)}, but ${again.because}: you can try again.` : repitchMessage(latest!, again),
+      },
       missions: this.missionFits(p, club, pos, fee),
     };
   }
@@ -2775,10 +2789,14 @@ export class Engine {
   private meetingView(target: MeetTarget): MeetingView {
     const s = this.s;
     const m = meetingInfo(s, target);
+    // With a coach, what you see is your standing with his club; with a player, your rapport.
+    const coachClub = target.kind === 'official' ? s.officials[target.id]?.clubId : undefined;
+    const level = coachClub ? clubTrust(s, coachClub) : m.level;
     return {
       role: m.role,
-      level: m.level,
-      label: relationshipLabel(m.level),
+      level,
+      label: coachClub ? standingLabel(level) : relationshipLabel(m.level),
+      standing: !!coachClub,
       cost: m.cost,
       city: m.city ? { id: m.city, name: s.cities[m.city]!.name } : undefined,
       countryName: s.countries[m.country]!.name,

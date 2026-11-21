@@ -1,5 +1,5 @@
 import type { GameDate } from '../core/calendar';
-import type { ClubId, CountryId, PlayerId } from '../core/ids';
+import type { ClubId, CountryId, PlayerId, StaffId } from '../core/ids';
 import type { USD } from '../core/money';
 import type { Position } from './player';
 
@@ -41,6 +41,10 @@ export interface Deal {
   signOff?: { by: Official; date: GameDate };
   /** A club-level "no" (not good enough, can't afford it): asking the other official won't help. */
   clubLevelRejection?: boolean;
+  /** The coach who said no (a different coach may see it differently). */
+  rejectedBy?: StaffId;
+  /** Your estimate of him at this position when you pitched (to tell when you know more). */
+  estimateThen?: number;
   /** Below the positional average, accepted on potential: no placement bonus later. */
   prospect: boolean;
   /** Selling for a client under a mandate: commission instead of placement bonuses. */

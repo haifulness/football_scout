@@ -289,7 +289,7 @@ function NeedLine({
             {n.average || '–'}
           </b>{' '}
           · depth {n.depth} · {n.transferBudget > 0 ? formatUSD(n.transferBudget, { compact: true }) : 'no budget'}
-          {lead && ` · coach ${n.coach ? `relationship ${n.coach}` : 'never met'}`}
+          {lead && ` · ${n.coach ? `standing ${n.coach}` : 'coach never met'}`}
           {n.mission && ` · brief ${formatUSD(n.mission.reward, { compact: true })}`}
         </div>
       </div>

@@ -45,8 +45,8 @@ export function MissionsScreen() {
         <h1 className="font-display text-5xl font-bold uppercase leading-none">Missions</h1>
         <p className="mt-2 max-w-2xl text-sm text-mist-400">
           {scout?.employmentLabel.startsWith('Freelance')
-            ? 'Your clients post briefs. Declining costs nothing; failing an accepted mission costs trust.'
-            : 'Your employer posts briefs. Declining costs nothing; failing an accepted mission costs trust.'}{' '}
+            ? 'Your clients post briefs. Declining costs nothing; failing an accepted mission costs standing.'
+            : 'Your employer posts briefs. Declining costs nothing; failing an accepted mission costs standing.'}{' '}
           A mission is accomplished when a player who fits the brief signs (or agrees terms) for the club before the deadline. You can recommend as many players
           as you like for one brief: the first who fits and agrees terms completes it.
         </p>

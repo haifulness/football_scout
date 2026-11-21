@@ -186,7 +186,7 @@ function EmploymentPanel({ c }: { c: CareerView }) {
               {formatUSD(e.salary)} a year · {Math.round(e.expenseCover * 100)}% of expenses paid · since {formatDate(e.since)}
             </div>
             <div className="mt-1 text-[12px] text-mist-400">
-              Contract until {formatDate(e.until)} · trust <TrustBar value={e.trust} />{' '}
+              Contract until {formatDate(e.until)} · standing <TrustBar value={e.trust} />{' '}
               {e.trust < 20 && <span className="text-alert-400">· below 12 you'll be dismissed</span>}
             </div>
           </div>
@@ -301,7 +301,7 @@ function ReputationPanel({ c }: { c: CareerView }) {
 function TrustPanel({ c }: { c: CareerView }) {
   const navigate = useGame((s) => s.navigate);
   return (
-    <Panel title="Trust by club" right={<span className="text-[11px] text-mist-400">Relationship with the coach + your track record</span>}>
+    <Panel title="Standing by club" right={<span className="text-[11px] text-mist-400">How well the coach knows you, plus your record there</span>}>
       {c.clubs.length === 0 ? (
         <div className="p-6 text-sm text-mist-400">You haven't met anyone yet.</div>
       ) : (
@@ -309,8 +309,7 @@ function TrustPanel({ c }: { c: CareerView }) {
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-wider text-mist-400">
               <th className="py-2 pl-4 font-medium">Club</th>
-              <th className="font-medium">Trust</th>
-              <th className="num text-right font-medium">Coach</th>
+              <th className="font-medium">Standing</th>
               <th className="num text-right font-medium">Signings</th>
               <th className="pr-4 text-right font-medium">Status</th>
             </tr>
@@ -327,7 +326,6 @@ function TrustPanel({ c }: { c: CareerView }) {
                 <td>
                   <TrustBar value={r.trust} />
                 </td>
-                <td className="num text-right text-mist-300">{r.coach}</td>
                 <td className="num text-right">
                   {r.signings}
                   {r.weakPitches ? <span className="text-alert-400"> · {r.weakPitches}✕</span> : ''}

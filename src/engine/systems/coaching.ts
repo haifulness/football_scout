@@ -95,9 +95,9 @@ export function announceChange(state: GameState, ch: CoachChange, date: GameDate
   const homeTopFlight = state.scout && club.countryId === state.scout.homeCountry && state.leagues[club.leagueId]!.level === 1;
   if (!forYou && !(midSeason && homeTopFlight)) return;
   const notes: string[] = [];
-  if (knowNew > 0) notes.push(`You know ${coach.firstName} ${coach.lastName} (relationship ${knowNew}): a door opens at ${club.name}.`);
+  if (knowNew > 0) notes.push(`You know ${coach.firstName} ${coach.lastName}: a door opens at ${club.name}, and your standing there starts higher.`);
   else if (yours) notes.push(`You've never met ${newName}: your standing at ${club.name} now rests on him. Meet him soon.`);
-  if (knowOld > 0) notes.push(`${oldName} (relationship ${knowOld}) is out of work. Your relationship stays with him if another club hires him.`);
+  if (knowOld > 0) notes.push(`${oldName}, who knows you, is out of work. If another club hires him, you start there in his good books.`);
   addNews(state, {
     date,
     kind: 'coaching',

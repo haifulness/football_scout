@@ -5,6 +5,7 @@ import { Rng, clamp } from '../core/rng';
 import type { Dilemma, DilemmaKind } from '../model/dilemma';
 import type { Player } from '../model/player';
 import type { GameState } from '../model/world-state';
+import { clubTrust } from './employment';
 import { learn } from './knowledge';
 import { ScoutingError, addLedger } from './scouting';
 import { addNews } from './season';
@@ -157,11 +158,15 @@ export function dilemmaTick(state: GameState, date: GameDate) {
   });
 }
 
-const relate = (state: GameState, clubId: ClubId | undefined, delta: number) => {
+/** Warm or cool the coach towards you; returns the change in your standing with his club, in words. */
+const relate = (state: GameState, clubId: ClubId | undefined, delta: number): string => {
   const sc = state.scout!;
   const club = clubId ? state.clubs[clubId] : undefined;
-  if (!club) return;
+  if (!club) return '';
+  const before = clubTrust(state, club.id);
   sc.relationships[club.headCoachId] = clamp((sc.relationships[club.headCoachId] ?? 0) + delta, 0, 100);
+  const change = clubTrust(state, club.id) - before;
+  return change ? ` (standing ${change > 0 ? '+' : '−'}${Math.abs(change)})` : '';
 };
 
 /** Your answer: apply its effects once and say what came of it. */
@@ -181,8 +186,8 @@ export function resolveDilemma(state: GameState, id: number, choice: string): { 
       integrity(-15);
       if (rng.chance(0.25)) {
         sc.reputation = clamp(sc.reputation - 4, 0, 100);
-        relate(state, d.clubId, -10);
-        outcome = `You took the money, and word got out. Your reputation takes a hit (−4), and ${state.clubs[d.clubId!]?.name ?? 'the club'} trust you less.`;
+        const s = relate(state, d.clubId, -10);
+        outcome = `You took the money, and word got out. Your reputation takes a hit (−4), and ${state.clubs[d.clubId!]?.name ?? 'the club'} think less of you${s}.`;
       } else outcome = `You took ${formatUSD(d.amount!)}. Nobody found out. This time.`;
       break;
     case 'agent-cut:decline':
@@ -191,28 +196,23 @@ export function resolveDilemma(state: GameState, id: number, choice: string): { 
       break;
     case 'agent-cut:report':
       integrity(8);
-      relate(state, d.clubId, 6);
-      outcome = `You told ${state.clubs[d.clubId!]?.name ?? 'the club'}. The coach thanks you for it (relationship +6).`;
+      outcome = `You told ${state.clubs[d.clubId!]?.name ?? 'the club'}. The coach thanks you for it${relate(state, d.clubId, 6)}.`;
       break;
     case 'inflate-report:inflate':
       integrity(-10);
-      relate(state, d.clubId, 10);
-      outcome = 'You wrote what he wanted. He owes you one (relationship +10).';
+      outcome = `You wrote what he wanted. He owes you one${relate(state, d.clubId, 10)}.`;
       break;
     case 'inflate-report:refuse':
       integrity(6);
-      relate(state, d.clubId, -4);
-      outcome = 'You reported what you saw. He was put out (relationship −4), but your word means something.';
+      outcome = `You reported what you saw. He was put out${relate(state, d.clubId, -4)}, but your word means something.`;
       break;
     case 'talk-down:spread':
       integrity(-12);
-      relate(state, d.clubId, 8);
-      outcome = 'You spread the doubts. The coach is grateful (relationship +8).';
+      outcome = `You spread the doubts. The coach is grateful${relate(state, d.clubId, 8)}.`;
       break;
     case 'talk-down:refuse':
       integrity(5);
-      relate(state, d.clubId, -3);
-      outcome = 'You refused. The coach was put out (relationship −3).';
+      outcome = `You refused. The coach was put out${relate(state, d.clubId, -3)}.`;
       break;
     case 'family-fee:take':
       addLedger(state, { amount: d.amount as USD, kind: 'award', label: `A fee from ${playerName(p)}'s family` });

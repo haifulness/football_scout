@@ -77,7 +77,8 @@ describe('the above-average gate', () => {
     expect(deal.stage).toBe('rejected');
     expect(deal.clubLevelRejection).toBe(true);
     expect(deal.reason).toMatch(/isn't better/);
-    expect(() => pitch(w, { playerId: weak.id, clubId: elite.id, position: pos, to: 'coach' })).toThrow(/given its answer/);
+    // Not straight back in: only once he reaches their level, or six months on.
+    expect(() => pitch(w, { playerId: weak.id, clubId: elite.id, position: pos, to: 'coach' })).toThrow(/pitch him again from .*he reaches their level/);
   });
 
   it('lets young prospects through on potential, only where the club takes prospects', () => {
@@ -126,7 +127,7 @@ describe('sign-off', () => {
     expect(warm).toBeGreaterThan(cold + 0.2);
   });
 
-  it("treats the Head Coach's no as final for that player at that club", () => {
+  it("holds the Head Coach's no for that player at that club until something changes", () => {
     const w = setup();
     let done = false;
     for (const club of clubs(w, (c) => c.tier === 3 || c.tier === 4)) {
@@ -138,7 +139,7 @@ describe('sign-off', () => {
       goTo(w, club);
       const deal = pitch(w, { playerId: fit.p.id, clubId: club.id, position: fit.pos, to: 'coach' });
       if (deal.stage !== 'rejected' || deal.clubLevelRejection) continue;
-      expect(() => pitch(w, { playerId: fit.p.id, clubId: club.id, position: fit.pos, to: 'coach' })).toThrow(/given its answer/);
+      expect(() => pitch(w, { playerId: fit.p.id, clubId: club.id, position: fit.pos, to: 'coach' })).toThrow(/pitch him again from .*the coach changes/);
       done = true;
       break;
     }
@@ -312,7 +313,7 @@ describe('pitching by phone', () => {
     w.scout!.relationships[club.headCoachId] = 0;
     expect(clubTrust(w, club.id)).toBeLessThan(REMOTE_PITCH_TRUST);
     expect(remotePitchCheck(w, club.id).ok).toBe(false);
-    expect(() => pitch(w, { playerId: p.id, clubId: club.id, position: pos, to: 'coach', remote: true })).toThrow(/trust/);
+    expect(() => pitch(w, { playerId: p.id, clubId: club.id, position: pos, to: 'coach', remote: true })).toThrow(/standing/);
     // And in person still needs you there.
     expect(() => pitch(w, { playerId: p.id, clubId: club.id, position: pos, to: 'coach' })).toThrow(/in person/);
   });

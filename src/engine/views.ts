@@ -461,6 +461,8 @@ export interface MeetingView {
   firstMeeting: boolean;
   /** You already met today: more meetings or pitches with them take no extra day (or fee). */
   metToday: boolean;
+  /** For a coach, level/label are your standing with his club (not a personal relationship). */
+  standing?: boolean;
 }
 
 export interface LiveView {
@@ -755,6 +757,8 @@ export interface PitchPreview {
   missions: MissionFitView[];
   coach: OfficialPitchView;
   existing?: DealView;
+  /** After a no: whether you may pitch him again now, from when, and what would open it sooner. */
+  repitch?: { ok: boolean; because?: string; from: GameDate; conditions: string[]; message: string };
 }
 
 export interface ClubSuggestion {
@@ -853,7 +857,6 @@ export interface CareerView {
   clubs: {
     club: ClubBadge & { cityName: string };
     trust: number;
-    coach: number;
     signings: number;
     weakPitches: number;
     status: 'employer' | 'client' | 'none';
@@ -1093,7 +1096,7 @@ export interface GazetteNeed {
   transferBudget: USD;
   /** An open brief from this club at this position. */
   mission?: { id: number; status: 'offered' | 'active'; reward: USD };
-  /** Your relationship with the head coach (leads only). */
+  /** Your standing with the club (leads only). */
   coach?: number;
 }
 

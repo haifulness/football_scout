@@ -413,7 +413,7 @@ export function missionTick(state: GameState, date: GameDate) {
         kind: 'career',
         link: 'missions',
         title: `Mission failed: ${club.name}`,
-        body: `You didn't deliver a ${describeRequirements(m.requirements, m.position).join(', ')} in time. ${club.name} trust you a little less.`,
+        body: `You didn't deliver a ${describeRequirements(m.requirements, m.position).join(', ')} in time. your standing at ${club.name} drops.`,
         clubIds: [club.id],
         countryId: club.countryId,
       });

@@ -61,7 +61,7 @@ export const SCENARIOS: Record<ScenarioId, ScenarioDef> = {
     id: 'audition',
     name: 'Big-club audition',
     tagline: 'A top-flight giant gives you one season on trial.',
-    goal: `Earn their trust (${AUDITION_TRUST}) before the season ends, and they hire you.`,
+    goal: `Reach standing ${AUDITION_TRUST} with them before the season ends, and they hire you.`,
     rules: ['They take you on as a freelance client from day one.', 'You start with reputation 35 and $25,000.', 'Dropping them ends it.'],
     difficulty: 'normal',
   },
@@ -191,7 +191,7 @@ export function scenarioProgress(state: GameState): ScenarioProgress | undefined
     }
     case 'audition': {
       const t = clubTrust(state, sc.clubId!);
-      return { value: t, target: AUDITION_TRUST, label: `${state.clubs[sc.clubId!]!.name} trust you ${t} of ${AUDITION_TRUST}`, fraction: Math.min(1, t / AUDITION_TRUST) };
+      return { value: t, target: AUDITION_TRUST, label: `Standing at ${state.clubs[sc.clubId!]!.name}: ${t} of ${AUDITION_TRUST}`, fraction: Math.min(1, t / AUDITION_TRUST) };
     }
     case 'rescue': {
       const club = state.clubs[sc.clubId!]!;

@@ -682,7 +682,7 @@ function PitchView({
         onMeet={() => {
           setError(undefined);
           meet({ kind: 'official', id: preview.coach.id as StaffId })
-            .then((r) => setMeetNote(`Relationship ${r.before} → ${r.after}`))
+            .then((r) => setMeetNote(`Standing ${r.before} → ${r.after}`))
             .catch((e) => setError(e instanceof Error ? e.message : 'The meeting fell through.'));
         }}
         onTravel={() => {
@@ -762,6 +762,9 @@ function Verdict({ preview, wageOffer, deal }: { preview: Preview; wageOffer: nu
     <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4">
       <div className={`font-display text-2xl font-bold uppercase leading-tight ${color}`}>{head}</div>
       {blocked && !deal && <div className="mt-1 text-sm text-alert-400">{blocked}</div>}
+      {preview.repitch && (deal?.stage === 'rejected' || preview.repitch.ok) && (
+        <div className={`mt-1 text-sm ${preview.repitch.ok ? 'text-grass-300' : 'text-mist-300'}`}>{preview.repitch.message}</div>
+      )}
       <ul className="mt-2.5 flex flex-wrap gap-1.5">
         {chips.map((c) => (
           <li key={c.text} className={`rounded-md border px-2 py-0.5 text-[12px] ${chipColor[c.tone]}`}>
@@ -853,14 +856,14 @@ function OfficialPitchCard({
       <div className="mt-3">
         <RelationshipBar level={o.meeting.level} label={o.meeting.label} />
       </div>
-      {/* Warm him up first: a better relationship makes a yes likelier. */}
+      {/* Warm him up first: better standing makes a yes likelier. */}
       {inCity && o.meeting.allowed && blockedReason !== 'Already decided' && (
         <div className="mt-2 flex items-center gap-2">
           <button
             className="btn-ghost flex-1 border-grass-400/30 py-1.5 text-xs text-grass-200"
             disabled={busy}
             onClick={onMeet}
-            title="Spend a day with him: your relationship grows, and so do the odds of a yes"
+            title="Spend a day with him: your standing grows, and so do the odds of a yes"
           >
             ☕ Meet him first · {o.meeting.colleague ? 'free' : `${o.meeting.firstMeeting ? 'first meeting' : 'catch up'} ${formatUSD(o.meeting.cost)}`} ·{' '}
             {o.meeting.metToday ? 'same day' : '1 day'}
@@ -957,7 +960,7 @@ function AgreementBox({
       ) : (
         <div className="mt-3 flex flex-wrap gap-2">
           <span className="w-full text-[12px] text-mist-400">
-            Ask the Head Coach in person (one day). He needs to know you a little first: relationship 10+.
+            Ask the Head Coach in person (one day). He needs to know you a little first: standing 8+.
           </span>
           <button className={`${optional ? 'btn-ghost' : 'btn-primary'} text-xs`} disabled={advancing} onClick={() => void propose()}>
             Propose a scouting agreement

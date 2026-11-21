@@ -1,4 +1,4 @@
-import { addDays, ageOn, isTransferWindow, type GameDate } from '../core/calendar';
+import { addDays, ageOn, formatDate, isTransferWindow, type GameDate } from '../core/calendar';
 import { DEADLINE_FEE_PREMIUM, DEADLINE_SIGNOFF_BONUS } from './deadline';
 import { specialtyBonus } from './goals';
 import { reportBonus } from './reports';
@@ -15,6 +15,7 @@ import { onMandateSecured, payCommission, pitchRights } from './market';
 import type { Player, Position } from '../model/player';
 import type { GameState } from '../model/world-state';
 import { meetingInfo, metToday } from './fieldwork';
+import { estimate, fog } from './knowledge';
 import { ovrAt } from './ratings';
 import { ScoutingError, addLedger } from './scouting';
 import { addNews } from './season';
@@ -103,7 +104,7 @@ const REMOTE_PITCH_PENALTY = 0.25;
 export function remotePitchCheck(state: GameState, clubId: ClubId): { ok: boolean; trust: number; reason?: string } {
   const trust = clubTrust(state, clubId);
   if (!canWorkWith(state, clubId).ok) return { ok: false, trust, reason: 'Only clubs you work for take pitches by phone.' };
-  if (trust < REMOTE_PITCH_TRUST) return { ok: false, trust, reason: `Pitching by phone opens at trust ${REMOTE_PITCH_TRUST} (now ${trust}).` };
+  if (trust < REMOTE_PITCH_TRUST) return { ok: false, trust, reason: `Pitching by phone opens at standing ${REMOTE_PITCH_TRUST} (now ${trust}).` };
   return { ok: true, trust };
 }
 
@@ -192,6 +193,64 @@ export function pitchFee(state: GameState, p: Player, askingFee?: USD): USD {
   return state.deadline ? roundPrice(fee * DEADLINE_FEE_PREMIUM) : fee;
 }
 
+/** After a no, how long before you may pitch him to that club again (unless something changes first). */
+export const REPITCH_DAYS = 180;
+/** How much your read on him must rise to justify asking the coach again early. */
+export const REPITCH_ESTIMATE_GAIN = 5;
+
+export interface RepitchCheck {
+  ok: boolean;
+  /** What changed, when you may try again. */
+  because?: string;
+  /** When the waiting period ends. */
+  from: GameDate;
+  /** What would let you try again sooner. */
+  conditions: string[];
+}
+
+/**
+ * May you pitch a player to a club that turned him down? The reason decides: a club-level no (money, his
+ * level, prospect policy) lifts once those checks pass again; a coach's no needs six months, or a reason to
+ * think again (a new coach, a better read on him, a brief for his position, or him becoming a free agent).
+ */
+export function repitchCheck(state: GameState, deal: Deal): RepitchCheck {
+  const p = state.players[deal.playerId];
+  const club = state.clubs[deal.clubId]!;
+  const from = addDays(deal.openedOn, REPITCH_DAYS);
+  const met: string[] = [];
+  const conditions: string[] = [];
+  if (state.date >= from) met.push('six months have passed');
+  if (!p) return { ok: false, from, conditions: [] };
+  if (deal.sellingClubId) {
+    if (!p.clubId) met.push("he's a free agent now");
+    else conditions.push('he becomes a free agent');
+  }
+  if (deal.clubLevelRejection) {
+    const gate = gateCheck(state, p, club, deal.position);
+    const afford = canAfford(state, club, pitchFee(state, p), brokeredWage(state, p, club));
+    if (gate.passes && afford.ok) met.push("the club's reasons no longer apply");
+    else conditions.push(afford.ok ? 'he reaches their level' : 'they can afford him');
+  } else {
+    if (deal.rejectedBy && club.headCoachId !== deal.rejectedBy) met.push('the coach who said no has gone');
+    else if (deal.rejectedBy) conditions.push('the coach changes');
+    if (deal.estimateThen !== undefined) {
+      const target = deal.estimateThen + REPITCH_ESTIMATE_GAIN;
+      const now = estimate(fog(state, p).positions[deal.position]);
+      if (now >= target) met.push(`your read on him is up to ${now}`);
+      else conditions.push(`your read on him reaches ${target}`);
+    }
+    if (state.missions.some((m) => m.clubId === club.id && m.position === deal.position && (m.status === 'offered' || m.status === 'active')))
+      met.push(`they posted a ${deal.position} brief`);
+    else conditions.push(`they post a ${deal.position} brief`);
+  }
+  return { ok: met.length > 0, because: met[0], from, conditions };
+}
+
+export function repitchMessage(deal: Deal, r: RepitchCheck): string {
+  const sooner = r.conditions.length ? `, or sooner if ${r.conditions.join(', or ')}` : '';
+  return `They said no on ${formatDate(deal.openedOn)}. You can pitch him again from ${formatDate(r.from)}${sooner}.`;
+}
+
 /** A one-day pitch, in person or (for trusting clubs) by phone. Returns the deal (new, or the existing one for a second pitch). */
 export function pitch(state: GameState, args: PitchArgs): Deal {
   const scout = state.scout;
@@ -206,7 +265,8 @@ export function pitch(state: GameState, args: PitchArgs): Deal {
 
   const existing = state.deals.find((d) => d.playerId === p.id && d.clubId === club.id && (OPEN_STAGES.has(d.stage) || d.stage === 'rejected'));
   if (existing && OPEN_STAGES.has(existing.stage)) throw new ScoutingError('You already have a deal in progress for him with this club.');
-  if (existing) throw new ScoutingError('The club has given its answer on this player.');
+  const again = existing ? repitchCheck(state, existing) : undefined;
+  if (again && !again.ok) throw new ScoutingError(repitchMessage(existing!, again));
 
   const officialId = officialOf(club, args.to);
   const o = state.officials[officialId]!;
@@ -241,10 +301,12 @@ export function pitch(state: GameState, args: PitchArgs): Deal {
     represented: rights.represented,
     open: rights.open || undefined,
     wage: brokeredWage(state, p, club),
+    estimateThen: estimate(fog(state, p).positions[args.position]),
     log: [],
   };
   state.deals.unshift(deal);
   deal.pitchedTo.push(args.to);
+  if (again) log(deal, state.date, `Trying again: ${again.because}.`);
   log(deal, state.date, `Pitched ${p.firstName} ${p.lastName} as a ${args.position} to the ${roleName(args.to)}, ${o.firstName} ${o.lastName}${remote ? ', by phone' : ''}.`);
 
   // Club-level checks: ability (or potential) and money.
@@ -290,6 +352,7 @@ export function pitch(state: GameState, args: PitchArgs): Deal {
     );
   } else {
     deal.stage = 'rejected';
+    deal.rejectedBy = officialId;
     deal.reason = `The ${roleName(args.to)} wasn't convinced.`;
     log(deal, state.date, `The ${roleName(args.to)} turned it down.`, 'bad');
   }

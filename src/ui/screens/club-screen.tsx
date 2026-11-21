@@ -224,7 +224,7 @@ function ClubHero({ club }: { club: ClubView }) {
               <span
                 className={`chip ${club.work.status === 'none' ? '' : club.work.status === 'employer' ? 'border-flood-400/50 text-flood-300' : 'border-grass-400/50 text-grass-300'}`}
               >
-                {club.work.status === 'employer' ? 'Your employer' : club.work.status === 'client' ? 'Your client' : 'Not a client'} · trust {club.work.trust}
+                {club.work.status === 'employer' ? 'Your employer' : club.work.status === 'client' ? 'Your client' : 'Not a client'} · standing {club.work.trust}
               </span>
             )}
           </div>
@@ -291,7 +291,7 @@ function OfficialCard({ official, club }: { official: OfficialView; club: ClubVi
       </div>
       {official.meeting && (
         <div className="border-t border-white/[0.05] px-4 py-3">
-          <div className="mb-1 text-[10px] uppercase tracking-wider text-mist-400">Your relationship</div>
+          <div className="mb-1 text-[10px] uppercase tracking-wider text-mist-400">Your standing with {club.name}</div>
           <MeetingControls
             meeting={official.meeting}
             money={scout?.money ?? 0}
