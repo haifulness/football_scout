@@ -25,6 +25,7 @@ import { scenarioTick } from './systems/scenarios';
 import { coachTick } from './systems/coaching';
 import { eventsTick } from './systems/events';
 import { dilemmaTick } from './systems/dilemmas';
+import { unlockTick } from './systems/unlocks';
 import { isInboxItem } from './model/season';
 
 export interface AdvanceResult {
@@ -126,6 +127,7 @@ function playDay(state: GameState, date: GameDate, onMatch?: MatchListener): { m
     huntTick(state, date);
     eventsTick(state, date);
     dilemmaTick(state, date);
+    unlockTick(state, date);
     reportTick(state, date);
     objectiveTick(state, date);
     agencyTick(state, date);

@@ -37,7 +37,7 @@ import { WorldScreen } from './screens/world-screen';
 import { GazetteScreen } from './screens/gazette-screen';
 import { EventsScreen } from './screens/events-screen';
 import { SaveIndicator } from './components/save-indicator';
-import { Badge, HUBS, HubTabs, hubBadge, hubOf, type Hub } from './components/hub-tabs';
+import { Badge, HUBS, HubTabs, hubBadge, hubOf, openTabs, type Hub } from './components/hub-tabs';
 import { useGame, type Route } from './store/game-store';
 
 const NAV: { label: string; icon: string; screen: Route['screen']; hub?: Hub }[] = [
@@ -230,6 +230,10 @@ function Sidebar({ onClose }: { onClose: () => void }) {
       </div>
       <nav className="flex-1 space-y-0.5 px-3">
         {NAV.map((n) => {
+          // A hub whose screens are all locked stays out of the menu until something in it opens.
+          const tabs = n.hub && openTabs(n.hub, scout);
+          if (tabs && tabs.length === 0) return null;
+          const screen = tabs ? tabs[0]!.screen : n.screen;
           const active =
             route.screen === n.screen ||
             (n.hub && n.hub.tabs.some((t) => t.screen === route.screen)) ||
@@ -242,7 +246,7 @@ function Sidebar({ onClose }: { onClose: () => void }) {
           return (
             <button
               key={n.label}
-              onClick={() => navigate({ screen: n.screen } as Route)}
+              onClick={() => navigate({ screen } as Route)}
               className={`group relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors ${active ? 'bg-white/[0.06] text-mist-100' : 'text-mist-300 hover:bg-white/[0.04]'}`}
             >
               {active && (

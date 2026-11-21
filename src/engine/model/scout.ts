@@ -56,6 +56,8 @@ export interface Scout {
   lastMet: Record<string, GameDate>;
   /** How straight you deal, 0–100 (absent: 50). Hidden: honest clubs trust you faster, shady offers come less often. */
   integrity?: number;
+  /** Systems you have unlocked (announced once; never closed again). */
+  unlocks?: ('assistants' | 'mandates' | 'representation' | 'agency')[];
 }
 
 export interface CareerSetup {

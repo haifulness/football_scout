@@ -10,6 +10,7 @@ import type { GameState } from '../model/world-state';
 import { canWorkWith, clubRecord } from './employment';
 import { meetingInfo } from './fieldwork';
 import { OFFER_REMINDER_DAYS } from './missions';
+import { UNLOCKS, isUnlocked } from './unlocks';
 import { ovrAt } from './ratings';
 import { ScoutingError, addLedger } from './scouting';
 import { addNews } from './season';
@@ -151,6 +152,8 @@ export function representCheck(state: GameState, p: Player): RepresentCheck {
   const scout = state.scout;
   if (!scout) return { ok: false, reason: 'Set up your scout first.' };
   if (!isFreelance(state)) return { ok: false, reason: 'Only freelancers represent players.' };
+  if (!isUnlocked(state, 'representation'))
+    return { ok: false, reason: `Free agents want an established scout (reputation ${UNLOCKS.find((u) => u.key === 'representation')!.reputation}).` };
   if (p.clubId) return { ok: false, reason: 'Only free agents can be represented.' };
   if (scout.represented.includes(p.id)) return { ok: false, reason: 'You already represent him.' };
   if (scout.represented.length >= MAX_REPRESENTED) return { ok: false, reason: `You represent ${MAX_REPRESENTED} players already.` };
@@ -266,6 +269,7 @@ export function marketTick(state: GameState, date: GameDate) {
 
   const { day } = toParts(date);
   if (day !== 8 && day !== 22) return;
+  if (!isUnlocked(state, 'mandates')) return;
   const rng = Rng.derive(state.seed, `mandates:${date}`);
   for (const clubId of clients) {
     const club = state.clubs[clubId];

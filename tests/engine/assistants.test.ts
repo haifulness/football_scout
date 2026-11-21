@@ -26,6 +26,8 @@ function setup(seed = 8080): GameState {
   const w = generateWorld(seed);
   createCareer(w, { name: 'Jo', nationality: eng, homeCountry: eng, background: 'analyst', difficulty: 'easy' });
   w.scout!.money = usd(1_000_000);
+  // Assistants unlock with reputation; these tests start with them open at a starting reputation.
+  w.scout!.unlocks = ['assistants'];
   refreshMarket(w, w.date);
   return w;
 }

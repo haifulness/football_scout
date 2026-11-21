@@ -10,6 +10,7 @@ import type { GameState } from '../model/world-state';
 import { learn } from './knowledge';
 import { ovrAt } from './ratings';
 import { ScoutingError, addLedger, inLocation } from './scouting';
+import { UNLOCKS, isUnlocked } from './unlocks';
 import { addNews } from './season';
 import { staffCapacity } from './agency';
 
@@ -73,6 +74,7 @@ export function refreshMarket(state: GameState, date: GameDate) {
 export function hireAssistant(state: GameState, candidateId: number): Assistant {
   const scout = state.scout;
   if (!scout) throw new ScoutingError('Set up your scout first.');
+  if (!isUnlocked(state, 'assistants')) throw new ScoutingError(`Assistants want to work for a name they know (reputation ${UNLOCKS[0]!.reputation}).`);
   const c = state.assistantMarket.find((x) => x.id === candidateId);
   if (!c) throw new ScoutingError('That scout has taken another job.');
   const limit = staffCapacity(state);

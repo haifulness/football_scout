@@ -7,6 +7,8 @@ type Summary = NonNullable<ReturnType<typeof useGame.getState>['scout']>;
 export interface HubTab {
   screen: Screen;
   label: string;
+  /** Hidden until this system unlocks (with reputation). */
+  requires?: keyof Summary['unlocked'];
   /** A count worth your attention on this tab. */
   badge?: (s: Summary) => { n: number | string; tone: 'gold' | 'red' | 'violet' | 'muted' | 'green'; title?: string } | undefined;
 }
@@ -43,8 +45,8 @@ export const HUBS: Record<'weekly' | 'work' | 'agency' | 'career', Hub> = {
     label: 'Agency',
     icon: '◈',
     tabs: [
-      { screen: 'staff', label: 'Assistants', badge: (s) => count(s.idleAssistants, 'gold', 'Idle assistants') },
-      { screen: 'agency', label: 'Agency' },
+      { screen: 'staff', label: 'Assistants', requires: 'assistants', badge: (s) => count(s.idleAssistants, 'gold', 'Idle assistants') },
+      { screen: 'agency', label: 'Agency', requires: 'agency' },
     ],
   },
   career: {
@@ -56,12 +58,19 @@ export const HUBS: Record<'weekly' | 'work' | 'agency' | 'career', Hub> = {
         screen: 'goals',
         label: 'Goals',
         badge: (s) =>
-          s.goals.total ? { n: `${s.goals.done}/${s.goals.total}`, tone: s.goals.done === s.goals.total ? 'green' : 'muted', title: 'Season goals reached' } : undefined,
+          s.goals.total
+            ? { n: `${s.goals.done}/${s.goals.total}`, tone: s.goals.done === s.goals.total ? 'green' : 'muted', title: 'Season goals reached' }
+            : undefined,
       },
       { screen: 'rivals', label: 'Rivals', badge: (s) => count(s.rivalThreats, 'red', 'Rivals chasing your players') },
     ],
   },
 };
+
+/** Tabs you can see: locked systems stay hidden. */
+export function openTabs(hub: Hub, s: Summary | null | undefined): HubTab[] {
+  return hub.tabs.filter((t) => !t.requires || !!s?.unlocked[t.requires]);
+}
 
 export function hubOf(screen: Screen): Hub | undefined {
   return Object.values(HUBS).find((h) => h.tabs.some((t) => t.screen === screen));
@@ -70,7 +79,9 @@ export function hubOf(screen: Screen): Hub | undefined {
 /** The most urgent badge across a hub's tabs, for its menu item. */
 export function hubBadge(hub: Hub, s: Summary | null | undefined) {
   if (!s) return undefined;
-  const all = hub.tabs.map((t) => t.badge?.(s)).filter((b) => !!b);
+  const all = openTabs(hub, s)
+    .map((t) => t.badge?.(s))
+    .filter((b) => !!b);
   const rank = { red: 0, gold: 1, violet: 2, green: 3, muted: 4 } as const;
   return all.sort((a, b) => rank[a.tone] - rank[b.tone])[0];
 }
@@ -95,10 +106,13 @@ export function Badge({ b, className = '' }: { b: NonNullable<ReturnType<NonNull
 export function HubTabs({ hub, current, children }: { hub: Hub; current: Screen; children: ReactNode }) {
   const navigate = useGame((s) => s.navigate);
   const scout = useGame((s) => s.scout);
+  const tabs = openTabs(hub, scout);
+  const here = hub.tabs.find((t) => t.screen === current);
+  const locked = !!here?.requires && !scout?.unlocked[here.requires];
   return (
     <div className="flex flex-col gap-4">
       <div role="tablist" aria-label={hub.label} className="-mx-1 flex gap-1 overflow-x-auto border-b border-white/[0.06] px-1">
-        {hub.tabs.map((t) => {
+        {tabs.map((t) => {
           const active = t.screen === current;
           const b = scout && t.badge?.(scout);
           return (
@@ -117,7 +131,14 @@ export function HubTabs({ hub, current, children }: { hub: Hub; current: Screen;
           );
         })}
       </div>
-      {children}
+      {locked ? (
+        <div className="panel px-5 py-6 text-sm text-mist-300">
+          <div className="font-display text-2xl font-bold uppercase text-mist-100">Not yet</div>
+          This opens as your reputation grows. {scout?.nextUnlock && `Next up: ${scout.nextUnlock.label} at reputation ${scout.nextUnlock.reputation}.`}
+        </div>
+      ) : (
+        children
+      )}
     </div>
   );
 }

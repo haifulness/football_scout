@@ -12,7 +12,7 @@ screens, fewer overlapping numbers, and later systems revealed as you grow.
 | 3 | ✅ Background perks instead of fixed skill bars | UI (+ small engine) | Low | [phase-03-background-perks.md](phase-03-background-perks.md) |
 | 4 | ✅ Pitch dialog: one verdict, details on demand | UI | Low–medium | [phase-04-pitch-dialog.md](phase-04-pitch-dialog.md) |
 | 5 | Scout reports written from your pitch | Engine + UI | Medium | [phase-05-auto-reports.md](phase-05-auto-reports.md) |
-| 6 | Reveal later systems as reputation grows | Engine + UI | Low–medium | [phase-06-progressive-unlocks.md](phase-06-progressive-unlocks.md) |
+| 6 | ✅ Reveal later systems as reputation grows | Engine + UI | Low–medium | [phase-06-progressive-unlocks.md](phase-06-progressive-unlocks.md) |
 
 Order: 1 → 3 → 4 → 6 → 5 → 2 (2 last: it moves balance).
 

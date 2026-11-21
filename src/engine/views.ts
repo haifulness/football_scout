@@ -378,6 +378,10 @@ export interface ScoutView {
   employmentLabel: string;
   /** Full-time: who you work for and your job title. */
   employer?: { club: ClubBadge; title: string };
+  /** Which later systems are open (they unlock with reputation). */
+  unlocked: Record<'assistants' | 'mandates' | 'representation' | 'agency', boolean>;
+  /** The next thing your reputation will open. */
+  nextUnlock?: { label: string; reputation: number };
   pendingOffers: number;
   /** Mission offers waiting for an answer. */
   pendingMissions: number;

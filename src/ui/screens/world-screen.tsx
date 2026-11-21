@@ -43,7 +43,13 @@ export function WorldScreen() {
             empty="Nothing needs you right now. Search for players, meet a coach, or move time on."
             onOpen={go}
           />
-          <ItemPanel title="In progress" items={home?.inProgress} empty="Nothing running. Deals, briefs, hunts and assistants' trips show up here." onOpen={go} timeline />
+          <ItemPanel
+            title="In progress"
+            items={home?.inProgress}
+            empty="Nothing running. Deals, briefs, hunts and assistants' trips show up here."
+            onOpen={go}
+            timeline
+          />
         </div>
         <div className="flex min-w-0 flex-col gap-4">
           <MapPanel />
@@ -56,6 +62,7 @@ export function WorldScreen() {
 
 function SeasonStrip({ home, money }: { home: HomeView; money: number }) {
   const navigate = useGame((st) => st.navigate);
+  const scout = useGame((st) => st.scout);
   const s = home.season;
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -65,7 +72,13 @@ function SeasonStrip({ home, money }: { home: HomeView; money: number }) {
         </StatTile>
       </LinkTile>
       <LinkTile onClick={() => navigate({ screen: 'rivals' })} hint="See how you rank against the other scouts">
-        <StatTile label="Reputation" sub={`#${s.rank} of ${s.scouts} scouts`} accent="#ffc933">
+        <StatTile
+          label="Reputation"
+          sub={
+            scout?.nextUnlock ? `#${s.rank} of ${s.scouts} · ${scout.nextUnlock.label} at ${scout.nextUnlock.reputation}` : `#${s.rank} of ${s.scouts} scouts`
+          }
+          accent="#ffc933"
+        >
           {s.reputation}
           <span className="text-sm text-mist-400">/100</span>
         </StatTile>
@@ -146,13 +159,20 @@ function ItemPanel({
             <motion.li key={i.key} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(n * 0.03, 0.3) }}>
               <button onClick={() => onOpen(i.link)} className="data-row relative flex w-full items-center gap-3 py-2.5 pl-4 pr-3 text-left">
                 <span className={`absolute inset-y-2 left-0 w-[3px] rounded-full ${TONE[i.tone].bar}`} />
-                {i.club ? <Crest club={i.club} size={26} /> : <span className="flex h-[26px] w-[26px] items-center justify-center text-mist-400">{ICON[i.kind]}</span>}
+                {i.club ? (
+                  <Crest club={i.club} size={26} />
+                ) : (
+                  <span className="flex h-[26px] w-[26px] items-center justify-center text-mist-400">{ICON[i.kind]}</span>
+                )}
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold text-mist-100">{i.title}</span>
                   <span className="block truncate text-[11px] text-mist-400">{i.detail}</span>
                   {timeline && i.progress !== undefined && (
                     <span className="mt-1.5 block h-1 overflow-hidden rounded-full bg-white/[0.06]">
-                      <span className={`block h-full rounded-full ${i.tone === 'urgent' ? 'bg-alert-500' : 'bg-grass-400'}`} style={{ width: `${Math.max(4, i.progress * 100)}%` }} />
+                      <span
+                        className={`block h-full rounded-full ${i.tone === 'urgent' ? 'bg-alert-500' : 'bg-grass-400'}`}
+                        style={{ width: `${Math.max(4, i.progress * 100)}%` }}
+                      />
                     </span>
                   )}
                 </span>

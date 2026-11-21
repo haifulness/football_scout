@@ -100,6 +100,7 @@ import type { Objective } from './model/goals';
 import { VERDICT_LABEL, type ScoutReport, type Verdict } from './model/report';
 import { huntAction, huntOptions, huntPlace, type HuntMethod } from './systems/hunts';
 import { dilemmaText, resolveDilemma } from './systems/dilemmas';
+import { isUnlocked, nextUnlock } from './systems/unlocks';
 import { attendCheck, attendEvent, ensureSeasonEvents, eventEnd, eventLabel, eventStatus } from './systems/events';
 import { closeDeadline, DEADLINE_ACTION_HOURS, DEADLINE_FEE_PREMIUM, passDeadlineHours } from './systems/deadline';
 import type {
@@ -2393,6 +2394,13 @@ export class Engine {
           ? `${sc.employment.title} · ${s.clubs[sc.employment.clubId]!.shortName}`
           : `Freelance · ${sc.employment.clients.length}/${clientCapacity(s)} clients`,
       employer: sc.employment.mode === 'fulltime' ? { club: badge(s.clubs[sc.employment.clubId]!), title: sc.employment.title } : undefined,
+      unlocked: {
+        assistants: isUnlocked(s, 'assistants'),
+        mandates: isUnlocked(s, 'mandates'),
+        representation: isUnlocked(s, 'representation'),
+        agency: isUnlocked(s, 'agency'),
+      },
+      nextUnlock: nextUnlock(s),
       pendingOffers: s.offers.length,
       pendingMissions: s.missions.filter((m) => m.status === 'offered').length,
       pendingMandates: s.mandates.filter((m) => m.status === 'offered').length,
