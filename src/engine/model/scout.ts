@@ -76,6 +76,8 @@ export interface Knowledge {
   lastUpdated: GameDate;
   /** What you've seen of single attributes up close (attending a match), when it beats the overall level. */
   attrs?: Partial<Record<AttributeKey, number>>;
+  /** His attributes as they were the last time you looked (your read is of that player, not today's). */
+  seenAttrs?: Record<AttributeKey, number>;
 }
 
 export interface PoolEntry {

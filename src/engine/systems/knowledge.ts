@@ -50,7 +50,7 @@ export function learn(state: GameState, p: Player, gain: number, cap: number, da
   const current = state.knowledge[p.id]?.level ?? 0;
   const base = Math.max(current, publicLevel(state, p));
   const level = Math.max(current, Math.min(cap, base + gain));
-  state.knowledge[p.id] = { ...state.knowledge[p.id], level: Math.round(level), lastUpdated: date };
+  state.knowledge[p.id] = { ...state.knowledge[p.id], level: Math.round(level), lastUpdated: date, seenAttrs: { ...p.attributes } };
   // The moment your work reveals a prodigy (shown as a special reveal).
   if (!wasProdigyVisible && prodigyVisible(state, p) && !state.pendingDiscoveries.includes(p.id)) {
     state.pendingDiscoveries.push(p.id);
@@ -92,9 +92,27 @@ export function learnAttribute(state: GameState, p: Player, k: AttributeKey, gai
   const attrs = (known.attrs ??= {});
   attrs[k] = Math.round(Math.max(attrs[k] ?? 0, Math.min(cap, attributeLevel(state, p, k) + gain)));
   known.lastUpdated = date;
+  known.seenAttrs = { ...p.attributes };
 }
 
-export function attributeRanges(state: GameState, p: Player): Record<AttributeKey, Range> {
+/**
+ * The player as you last saw him: your read is a snapshot, so ranges are drawn around his attributes then,
+ * not now. Public information (TV, data sites) is current, so when it beats your own, he is seen as he is.
+ */
+export function seenAs(state: GameState, p: Player): Player {
+  const k = state.knowledge[p.id];
+  if (!k?.seenAttrs || k.level <= publicLevel(state, p)) return p;
+  return { ...p, attributes: k.seenAttrs };
+}
+
+/** When you last looked at him yourself (undefined: only public information). */
+export function seenOn(state: GameState, p: Player): GameDate | undefined {
+  const k = state.knowledge[p.id];
+  return k && k.level > publicLevel(state, p) ? k.lastUpdated : undefined;
+}
+
+export function attributeRanges(state: GameState, player: Player): Record<AttributeKey, Range> {
+  const p = seenAs(state, player);
   const skills = skillsOf(state);
   const out = {} as Record<AttributeKey, Range>;
   for (const k of ATTRIBUTES) {
@@ -156,7 +174,9 @@ export function fog(state: GameState, p: Player): FoggedPlayer {
   const skills = skillsOf(state);
   const attributes = attributeRanges(state, p);
   const hw = halfWidth(level, skills);
-  const positions = Object.fromEntries(POSITIONS.map((pos) => [pos, ovrRange(p, hw, pos)])) as Record<Position, Range>;
+  // Ratings are judged on the player as you last saw him.
+  const seen = seenAs(state, p);
+  const positions = Object.fromEntries(POSITIONS.map((pos) => [pos, ovrRange(seen, hw, pos)])) as Record<Position, Range>;
   const ovr = positions[p.naturalPosition];
 
   let potential: Range | undefined;
