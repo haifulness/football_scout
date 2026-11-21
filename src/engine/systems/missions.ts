@@ -12,7 +12,7 @@ import { clubPositionalAverage } from './deals';
 import { clubRecord, clubTrust } from './employment';
 import { positionGroup, specialties } from './goals';
 import { POSITION_WEIGHTS, ovrAt } from './ratings';
-import { brokeredWage } from './transfers';
+import { brokeredWage, hasWageRoomForSigning } from './transfers';
 import { ScoutingError, addLedger } from './scouting';
 import { addNews } from './season';
 import { squadNeeds } from './squad-needs';
@@ -52,9 +52,12 @@ function topPriorities(p: OfficialPriorities, n = 2): (keyof OfficialPriorities)
     .map(([k]) => k);
 }
 
-function makeMission(state: GameState, club: Club, rng: Rng): Mission {
+function makeMission(state: GameState, club: Club, rng: Rng): Mission | undefined {
   const squad = club.squad.map((id) => state.players[id]!);
-  const needs = squadNeeds(club.formation, squad).filter((n) => n.position !== 'GK' || rng.chance(0.3));
+  // Never two open briefs for the same position at one club.
+  const openHere = new Set(state.missions.filter((m) => m.clubId === club.id && OPEN(m)).map((m) => m.position));
+  const needs = squadNeeds(club.formation, squad).filter((n) => !openHere.has(n.position) && (n.position !== 'GK' || rng.chance(0.3)));
+  if (!needs.length) return undefined;
   // A club that knows your specialty asks for it when it has any need there.
   const group = specialties(state).find((s) => s.kind === 'position')?.group;
   const niche = group ? needs.find((n) => positionGroup(n.position) === group && n.severity >= 0.1) : undefined;
@@ -406,7 +409,10 @@ export function missionTick(state: GameState, date: GameDate) {
     const last = Math.max(-Infinity, ...state.missions.filter((m) => m.clubId === clubId).map((m) => m.postedOn));
     const quietDays = Number.isFinite(last) ? date - last : 90;
     if (!rng.chance(clamp((fulltime ? 0.5 : 0.3) + quietDays / 150, 0, 1))) continue;
+    // A club at its wage limit can't take on a new player, so it doesn't ask for one.
+    if (!hasWageRoomForSigning(state, club)) continue;
     const m = makeMission(state, club, rng);
+    if (!m) continue;
     state.missions.push(m);
     addNews(state, {
       date,

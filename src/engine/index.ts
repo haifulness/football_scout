@@ -55,7 +55,7 @@ import {
   resign,
 } from './systems/employment';
 import { REMOTE_PITCH_TRUST, clubPositionalAverage, formationPositions, pitch, pitchFee, remotePitchCheck, signOffProbability, type PitchArgs, playerChance, wageCeiling } from './systems/deals';
-import { WAGE_STRETCH, canAfford, freeAgentWage, offeredWage, transferFee, brokeredWage } from './systems/transfers';
+import { canAfford, wageRoom, freeAgentWage, offeredWage, transferFee, brokeredWage } from './systems/transfers';
 import type { Deal, Official, Placement } from './model/deal';
 import type { Mission } from './model/mission';
 import type { Position } from './model/player';
@@ -1836,7 +1836,6 @@ export class Engine {
     const wage = brokeredWage(s, p, club);
     const fullWage = offeredWage(s, p, club);
     const afford = canAfford(s, club, fee, wage);
-    const bill = club.squad.reduce((n, id) => n + s.players[id]!.wage, 0);
     const age = ageOn(p.birthDate, s.date);
     const policyOk = club.acceptsProspects === 'yes' || (club.acceptsProspects === 'prodigies' && f.prodigy);
     const officialView = (role: Official): OfficialPitchView => {
@@ -1873,7 +1872,7 @@ export class Engine {
         formation: club.formation,
         acceptsProspects: club.acceptsProspects,
         transferBudget: club.transferBudget,
-        wageRoom: usd(Math.max(0, Math.round(club.wageBudget * WAGE_STRETCH - bill))),
+        wageRoom: wageRoom(s, club),
       },
       positions,
       position: pos,

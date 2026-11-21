@@ -73,6 +73,19 @@ export function brokeredWage(state: GameState, p: Player, buyer: Club): USD {
 /** How far over its wage budget a club will stretch for a signing it wants. */
 export const WAGE_STRETCH = 1.1;
 
+/** What a club can still add to its weekly wage bill (its budget, stretched a little). */
+export function wageRoom(state: GameState, club: Club): USD {
+  const bill = club.squad.reduce((n, id) => n + state.players[id]!.wage, 0);
+  return usd(Math.max(0, Math.round(club.wageBudget * WAGE_STRETCH - bill)));
+}
+
+/** A club has room for a typical player's wages: at least its squad's median wage. */
+export function hasWageRoomForSigning(state: GameState, club: Club): boolean {
+  const wages = club.squad.map((id) => state.players[id]!.wage).sort((a, b) => a - b);
+  const median = wages.length ? wages[Math.floor(wages.length / 2)]! : 0;
+  return wageRoom(state, club) >= median;
+}
+
 export function canAfford(state: GameState, buyer: Club, fee: USD, wage: USD): { ok: boolean; reason?: string } {
   if (fee > buyer.transferBudget)
     return { ok: false, reason: `We can't afford the fee (about ${formatUSD(fee)}; our budget is ${formatUSD(buyer.transferBudget)}).` };

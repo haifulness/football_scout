@@ -86,6 +86,25 @@ describe('mission offers', () => {
     expect(new Set(positions).size).toBeGreaterThan(1);
   }, 180_000);
 
+  it('are not posted by a club with no room on its wage bill', () => {
+    const { w, club } = withClient();
+    club.wageBudget = usd(0);
+    for (let i = 0; i < 10; i++) advanceDays(w, 15);
+    expect(w.missions.filter((m) => m.clubId === club.id)).toEqual([]);
+  }, 180_000);
+
+  it('never leave two open briefs for the same position at one club', () => {
+    const { w, club } = withClient();
+    w.scout!.employment = { mode: 'fulltime', clubId: club.id, title: 'Scout', salary: usd(30_000), since: w.date, until: (w.date + 365) as typeof w.date };
+    for (let i = 0; i < 12; i++) {
+      advanceDays(w, 15);
+      const open = w.missions.filter((m) => m.clubId === club.id && (m.status === 'offered' || m.status === 'active'));
+      expect(new Set(open.map((m) => m.position)).size).toBe(open.length);
+      // Accept everything so briefs stay open and pile up to the limit.
+      for (const m of open) if (m.status === 'offered') acceptMission(w, m.id);
+    }
+  }, 180_000);
+
   it('lapse if you do not answer, and declining costs nothing', () => {
     const { w, club } = withClient();
     const m = firstMission(w);
