@@ -1114,3 +1114,42 @@ export interface GazetteView {
   /** Rival chases the rumour mill has revealed. */
   rumours: { rival: string; player: { id: PlayerId; name: string }; club: ClubBadge; advanced: boolean; yours: boolean }[];
 }
+
+/** Where a Home item leads: a UI route by screen name (and id for club/player pages). */
+export interface HomeLink {
+  screen: 'deals' | 'missions' | 'hunts' | 'staff' | 'career' | 'rivals' | 'inbox' | 'finances' | 'gazette' | 'goals' | 'club' | 'player' | 'deadline';
+  id?: string;
+}
+
+export interface HomeItem {
+  key: string;
+  kind: 'deal' | 'mission' | 'hunt' | 'assistant' | 'offer' | 'mandate' | 'inbox' | 'rival' | 'debt' | 'clients' | 'report';
+  /** urgent: act now or lose something; action: waiting on you; info: worth knowing. */
+  tone: 'urgent' | 'action' | 'info';
+  title: string;
+  detail: string;
+  daysLeft?: number;
+  /** 0–1, how far along (for running work). */
+  progress?: number;
+  club?: ClubBadge;
+  link: HomeLink;
+}
+
+export interface HomeView {
+  needsYou: HomeItem[];
+  inProgress: HomeItem[];
+  upcoming: { key: string; date: GameDate; daysAway: number; label: string; link?: HomeLink }[];
+  season: {
+    label: string;
+    placements: number;
+    earned: USD;
+    spent: USD;
+    reputation: number;
+    rank: number;
+    scouts: number;
+    goals: { done: number; total: number };
+    poolSize: number;
+    /** Freelance: clients used of slots. Full-time: the employer. */
+    work: { mode: 'freelance'; clients: number; slots: number } | { mode: 'fulltime'; club: ClubBadge };
+  };
+}

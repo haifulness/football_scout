@@ -1,22 +1,196 @@
-import { GettingStarted } from '../components/getting-started';
 import { AnimatePresence, motion } from 'motion/react';
 import { useMemo, useState } from 'react';
 import type { ContinentId } from '../../engine/core/ids';
-import type { CountrySummary } from '../../engine/views';
+import { formatDate } from '../../engine/core/calendar';
+import { formatUSD } from '../../engine/core/money';
+import type { CountrySummary, HomeItem, HomeLink, HomeView } from '../../engine/views';
+import { GettingStarted } from '../components/getting-started';
+import { Money, StatTile, StrengthPips } from '../components/ui';
+import { useSize } from '../components/use-size';
 import { Crest } from '../visuals/crest';
 import { WorldMap } from '../visuals/world-map';
-import { CountUp, StatTile, StrengthPips } from '../components/ui';
-import { useSize } from '../components/use-size';
-import { useGame } from '../store/game-store';
+import { engine } from '../store/engine-client';
+import { useEngineQuery, useGame, type Route } from '../store/game-store';
 
+const toRoute = (l: HomeLink) => (l.id ? { screen: l.screen, id: l.id } : { screen: l.screen }) as Route;
+
+const TONE = {
+  urgent: { bar: 'bg-alert-500', text: 'text-alert-400', label: 'Urgent' },
+  action: { bar: 'bg-flood-400', text: 'text-flood-300', label: 'Waiting on you' },
+  info: { bar: 'bg-white/20', text: 'text-mist-400', label: '' },
+} as const;
+
+/** Home: what needs you, what's running, what's coming up, and the map. */
 export function WorldScreen() {
+  const home = useEngineQuery(() => engine.getHome(), []);
+  const scout = useGame((s) => s.scout);
+  const navigate = useGame((s) => s.navigate);
+  const go = (l: HomeLink) => navigate(toRoute(l));
+
+  return (
+    <div className="flex flex-col gap-4">
+      <GettingStarted />
+      {home && scout && <SeasonStrip home={home} money={scout.money} />}
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+        <div className="flex min-w-0 flex-col gap-4">
+          <ItemPanel
+            title="Needs you"
+            count={home?.needsYou.filter((i) => i.tone !== 'info').length}
+            items={home?.needsYou}
+            empty="Nothing needs you right now. Search for players, meet a coach, or move time on."
+            onOpen={go}
+          />
+          <ItemPanel title="In progress" items={home?.inProgress} empty="Nothing running. Deals, briefs, hunts and assistants' trips show up here." onOpen={go} timeline />
+        </div>
+        <div className="flex min-w-0 flex-col gap-4">
+          <MapPanel />
+          {home && <Upcoming home={home} onOpen={go} />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SeasonStrip({ home, money }: { home: HomeView; money: number }) {
+  const s = home.season;
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <StatTile label="Money" sub={`${s.label}: +${formatUSD(s.earned)} in · −${formatUSD(s.spent)} out`} accent="#2fcf73">
+        <Money value={money} animated />
+      </StatTile>
+      <StatTile label="Reputation" sub={`#${s.rank} of ${s.scouts} scouts`} accent="#ffc933">
+        {s.reputation}
+        <span className="text-sm text-mist-400">/100</span>
+      </StatTile>
+      <StatTile label={s.work.mode === 'freelance' ? 'Clients' : 'Employer'} sub={s.work.mode === 'freelance' ? 'Freelance' : 'Full-time'} accent="#38bdf8">
+        {s.work.mode === 'freelance' ? (
+          <>
+            {s.work.clients}
+            <span className="text-sm text-mist-400">/{s.work.slots}</span>
+          </>
+        ) : (
+          <span className="flex items-center gap-2 text-lg">
+            <Crest club={s.work.club} size={22} />
+            <span className="truncate">{s.work.club.shortName}</span>
+          </span>
+        )}
+      </StatTile>
+      <StatTile label="Signings this season" sub={s.goals.total ? `Season goals ${s.goals.done}/${s.goals.total}` : undefined} accent="#a78bfa">
+        {s.placements}
+      </StatTile>
+      <StatTile label="Player pool" sub="Players you're tracking" accent="#a9bec7">
+        {s.poolSize}
+      </StatTile>
+    </div>
+  );
+}
+
+function ItemPanel({
+  title,
+  count,
+  items,
+  empty,
+  onOpen,
+  timeline,
+}: {
+  title: string;
+  count?: number;
+  items?: HomeItem[];
+  empty: string;
+  onOpen: (l: HomeLink) => void;
+  timeline?: boolean;
+}) {
+  return (
+    <section className="panel overflow-hidden">
+      <header className="flex items-center gap-2 border-b border-white/[0.05] px-4 py-2.5">
+        <h3 className="panel-title">{title}</h3>
+        {!!count && <span className="num rounded-full bg-flood-500 px-1.5 text-[10px] font-bold text-night-950">{count}</span>}
+      </header>
+      {!items ? (
+        <div className="px-4 py-6 text-sm text-mist-400">…</div>
+      ) : items.length === 0 ? (
+        <div className="px-4 py-5 text-sm text-mist-400">{empty}</div>
+      ) : (
+        <ul className="divide-y divide-white/[0.04]">
+          {items.map((i, n) => (
+            <motion.li key={i.key} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(n * 0.03, 0.3) }}>
+              <button onClick={() => onOpen(i.link)} className="data-row relative flex w-full items-center gap-3 py-2.5 pl-4 pr-3 text-left">
+                <span className={`absolute inset-y-2 left-0 w-[3px] rounded-full ${TONE[i.tone].bar}`} />
+                {i.club ? <Crest club={i.club} size={26} /> : <span className="flex h-[26px] w-[26px] items-center justify-center text-mist-400">{ICON[i.kind]}</span>}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold text-mist-100">{i.title}</span>
+                  <span className="block truncate text-[11px] text-mist-400">{i.detail}</span>
+                  {timeline && i.progress !== undefined && (
+                    <span className="mt-1.5 block h-1 overflow-hidden rounded-full bg-white/[0.06]">
+                      <span className={`block h-full rounded-full ${i.tone === 'urgent' ? 'bg-alert-500' : 'bg-grass-400'}`} style={{ width: `${Math.max(4, i.progress * 100)}%` }} />
+                    </span>
+                  )}
+                </span>
+                {i.daysLeft !== undefined && (
+                  <span className={`num shrink-0 text-right text-[12px] ${i.tone === 'urgent' ? 'text-alert-400' : 'text-mist-300'}`} title="Days left">
+                    {i.daysLeft === 0 ? 'today' : `${i.daysLeft}d`}
+                  </span>
+                )}
+                <span className="shrink-0 text-mist-400">›</span>
+              </button>
+            </motion.li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+const ICON: Record<HomeItem['kind'], string> = {
+  deal: '⇄',
+  mission: '◎',
+  hunt: '✧',
+  assistant: '☺',
+  offer: '★',
+  mandate: '$',
+  inbox: '✉',
+  rival: '👁',
+  debt: '!',
+  clients: '+',
+  report: '✎',
+};
+
+function Upcoming({ home, onOpen }: { home: HomeView; onOpen: (l: HomeLink) => void }) {
+  if (!home.upcoming.length) return null;
+  return (
+    <section className="panel overflow-hidden">
+      <header className="border-b border-white/[0.05] px-4 py-2.5">
+        <h3 className="panel-title">Coming up</h3>
+      </header>
+      <ul className="divide-y divide-white/[0.04]">
+        {home.upcoming.map((u) => (
+          <li key={u.key}>
+            <button
+              disabled={!u.link}
+              onClick={() => u.link && onOpen(u.link)}
+              className="flex w-full items-center gap-3 px-4 py-2 text-left enabled:hover:bg-white/[0.03] disabled:cursor-default"
+            >
+              <span className="num w-14 shrink-0 text-[12px] font-semibold text-grass-300">{u.daysAway === 0 ? 'Today' : `in ${u.daysAway}d`}</span>
+              <span className="min-w-0 flex-1 truncate text-sm text-mist-200">{u.label}</span>
+              <span className="shrink-0 text-[11px] text-mist-400">{formatDate(u.date)}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** The scouting map, with a list of countries one tap away. */
+function MapPanel() {
   const world = useGame((s) => s.world)!;
   const navigate = useGame((s) => s.navigate);
   const scout = useGame((s) => s.scout);
   const [hover, setHover] = useState<CountrySummary>();
+  const [view, setView] = useState<'map' | 'list'>('map');
   const [continent, setContinent] = useState<ContinentId | 'all'>('all');
   const [mapRef, mapSize] = useSize<HTMLDivElement>();
-
   const list = useMemo(
     () =>
       world.countries
@@ -27,40 +201,32 @@ export function WorldScreen() {
   const open = (c: CountrySummary) => navigate({ screen: 'country', id: c.id });
 
   return (
-    <div className="flex flex-col gap-4 xl:h-full">
-      <GettingStarted />
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile label="Countries" sub="Across 6 continents">
-          <CountUp value={world.countries.length} />
-        </StatTile>
-        <StatTile label="Leagues" sub="Full pyramids" accent="#38bdf8">
-          <CountUp value={world.totals.leagues} />
-        </StatTile>
-        <StatTile label="Clubs" sub="Each with a Head Coach" accent="#ffc933">
-          <CountUp value={world.totals.clubs} />
-        </StatTile>
-        <StatTile label="Players" sub={`${world.totals.freeAgents.toLocaleString('en-US')} free agents`} accent="#f87171">
-          <CountUp value={world.totals.players} />
-        </StatTile>
-      </div>
-
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 xl:grid-cols-[1fr_340px]">
-        <section className="panel relative min-h-[420px] overflow-hidden">
+    <section className="panel relative flex h-[380px] flex-col overflow-hidden">
+      <header className="relative z-10 flex items-center gap-2 border-b border-white/[0.05] px-4 py-2">
+        <h3 className="panel-title">Scouting map</h3>
+        <div className="ml-auto flex rounded-md bg-white/[0.04] p-0.5 text-[11px] font-semibold">
+          {(['map', 'list'] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className={`rounded px-2 py-0.5 capitalize ${view === v ? 'bg-white/10 text-mist-100' : 'text-mist-400 hover:text-mist-100'}`}
+            >
+              {v === 'map' ? 'Map' : 'Countries'}
+            </button>
+          ))}
+        </div>
+      </header>
+      {view === 'map' ? (
+        <div className="relative min-h-0 flex-1">
           <div ref={mapRef} className="absolute inset-0">
             {mapSize.width > 0 && (
               <WorldMap world={world} width={mapSize.width} height={mapSize.height} onSelect={open} onHover={setHover} you={scout?.location} />
             )}
           </div>
-          <div className="pointer-events-none absolute left-4 top-3 flex items-center gap-3">
-            <span className="panel-title">Scouting map</span>
-            <span className="chip">
-              <span className="h-1.5 w-1.5 rounded-full bg-flood-400" /> elite club city
-            </span>
-          </div>
-          <div className="pointer-events-none absolute bottom-3 left-4 flex items-center gap-2 text-[11px] text-mist-400">
+          <div className="pointer-events-none absolute bottom-2 left-3 flex items-center gap-2 text-[11px] text-mist-400">
             Football strength
             {[1, 2, 3, 4, 5].map((s) => (
-              <span key={s} className="h-2 w-5 rounded-sm" style={{ background: ['#1d4d3a', '#1f6a45', '#21874f', '#27a75c', '#2fcf73'][s - 1] }} />
+              <span key={s} className="h-2 w-4 rounded-sm" style={{ background: ['#1d4d3a', '#1f6a45', '#21874f', '#27a75c', '#2fcf73'][s - 1] }} />
             ))}
           </div>
           <AnimatePresence>
@@ -71,20 +237,18 @@ export function WorldScreen() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.18 }}
-                className="panel pointer-events-none absolute right-4 top-4 w-64 p-4"
+                className="panel pointer-events-none absolute right-3 top-3 w-60 p-3"
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-display text-2xl font-bold uppercase">{hover.name}</span>
+                  <span className="font-display text-xl font-bold uppercase">{hover.name}</span>
                   <StrengthPips value={hover.strength} />
                 </div>
-                <div className="mt-2 grid grid-cols-3 gap-2 text-center">
-                  <Mini label="Leagues" value={hover.leagueCount} />
-                  <Mini label="Clubs" value={hover.clubCount} />
-                  <Mini label="Wealth" value={`${hover.wealthIndex.toFixed(2)}×`} />
+                <div className="mt-1 text-[11px] text-mist-400">
+                  {hover.leagueCount} leagues · {hover.clubCount} clubs · wealth {hover.wealthIndex.toFixed(2)}×
                 </div>
                 {hover.topClub && (
-                  <div className="mt-3 flex items-center gap-2 border-t border-white/5 pt-3">
-                    <Crest club={hover.topClub} size={22} />
+                  <div className="mt-2 flex items-center gap-2 border-t border-white/5 pt-2">
+                    <Crest club={hover.topClub} size={20} />
                     <span className="text-xs text-mist-300">
                       Biggest club: <b className="text-mist-100">{hover.topClub.name}</b>
                     </span>
@@ -93,30 +257,25 @@ export function WorldScreen() {
               </motion.div>
             )}
           </AnimatePresence>
-        </section>
-
-        <section className="panel flex min-h-0 flex-col">
-          <div className="flex flex-wrap gap-1.5 border-b border-white/5 p-3">
+        </div>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="flex flex-wrap gap-1.5 border-b border-white/5 p-2.5">
             {(['all', ...world.continents.map((c) => c.id)] as const).map((id) => (
               <button
                 key={id}
                 onClick={() => setContinent(id)}
-                className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${continent === id ? 'bg-grass-500 text-night-950' : 'bg-white/[0.04] text-mist-300 hover:bg-white/[0.08]'}`}
+                className={`rounded-md px-2 py-0.5 text-[11px] font-semibold transition-colors ${continent === id ? 'bg-grass-500 text-night-950' : 'bg-white/[0.04] text-mist-300 hover:bg-white/[0.08]'}`}
               >
                 {id === 'all' ? 'All' : world.continents.find((c) => c.id === id)!.name.replace(' & Central', '')}
               </button>
             ))}
           </div>
           <ul className="min-h-0 flex-1 overflow-y-auto">
-            {list.map((c, i) => (
-              <motion.li key={c.id} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: Math.min(i * 0.015, 0.4) }}>
-                <button
-                  onClick={() => open(c)}
-                  onMouseEnter={() => setHover(c)}
-                  onMouseLeave={() => setHover(undefined)}
-                  className="data-row flex w-full items-center gap-3 px-4 py-2.5 text-left"
-                >
-                  {c.topClub ? <Crest club={c.topClub} size={22} /> : <span className="w-[22px]" />}
+            {list.map((c) => (
+              <li key={c.id}>
+                <button onClick={() => open(c)} className="data-row flex w-full items-center gap-3 px-4 py-2 text-left">
+                  {c.topClub ? <Crest club={c.topClub} size={20} /> : <span className="w-5" />}
                   <span className="flex-1">
                     <span className="block text-sm font-semibold">{c.name}</span>
                     <span className="block text-[11px] text-mist-400">
@@ -125,18 +284,11 @@ export function WorldScreen() {
                   </span>
                   <StrengthPips value={c.strength} />
                 </button>
-              </motion.li>
+              </li>
             ))}
           </ul>
-        </section>
-      </div>
-    </div>
+        </div>
+      )}
+    </section>
   );
 }
-
-const Mini = ({ label, value }: { label: string; value: string | number }) => (
-  <div className="rounded-md bg-white/[0.03] py-1.5">
-    <div className="num text-lg font-bold leading-none">{value}</div>
-    <div className="mt-1 text-[10px] uppercase tracking-wider text-mist-400">{label}</div>
-  </div>
-);

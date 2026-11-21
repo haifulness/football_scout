@@ -1,5 +1,5 @@
 import { ATTRIBUTE_LABEL } from './model/player';
-import { CAREER_START, ageOn, isTransferWindow, makeDate, type GameDate } from './core/calendar';
+import { CAREER_START, ageOn, isTransferWindow, makeDate, toParts, type GameDate } from './core/calendar';
 import type { CityId, ClubId, CountryId, LeagueId, PlayerId } from './core/ids';
 import { formatUSD, usd, type USD } from './core/money';
 import { generateWorld, type ProgressFn } from './generation/world-generator';
@@ -70,6 +70,7 @@ import {
   potentialGrade,
   RECORD_MIN_REVIEWED,
   REPORT_MIN_KNOWLEDGE,
+  REVIEW_DAYS,
   trackRecord,
   writeReport,
   type ReportArgs,
@@ -132,6 +133,8 @@ import type {
   RivalsView,
   GazetteNeed,
   GazetteView,
+  HomeItem,
+  HomeView,
   MarketView,
   DiscoveryView,
   PayoutView,
@@ -1496,6 +1499,217 @@ export class Engine {
       you: { name: sc.name, reputation: Math.round(sc.reputation), rank: 1 + s.rivals.filter((r) => r.reputation > sc.reputation).length },
       rivals,
       threats: rivals.filter((r) => r.chase?.yours).length,
+    };
+  }
+
+  /** Home: what needs you, what is running, what is coming up, and how the season is going. */
+  getHome(): HomeView {
+    const s = this.s;
+    const sc = s.scout!;
+    const scout = this.getScout()!;
+    const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+    const needsYou: HomeItem[] = [];
+    const inProgress: HomeItem[] = [];
+
+    if (scout.debt)
+      needsYou.push({
+        key: 'debt',
+        kind: 'debt',
+        tone: 'urgent',
+        title: `You're in debt: ${formatUSD(scout.money)}`,
+        detail: `Bankrupt in ${plural(scout.debt.daysLeft, 'day')} unless you get back above $0.`,
+        daysLeft: scout.debt.daysLeft,
+        link: { screen: 'finances' },
+      });
+
+    const missions = this.getMissions();
+    for (const m of missions.filter((x) => x.status === 'offered')) {
+      const left = m.acceptBy - s.date;
+      needsYou.push({
+        key: `offer-m${m.id}`,
+        kind: 'mission',
+        tone: left <= 3 ? 'urgent' : 'action',
+        title: `${m.club.name} want a ${m.position}`,
+        detail: `New brief · reward ${formatUSD(m.reward)} · answer within ${plural(left, 'day')}`,
+        daysLeft: left,
+        club: m.club,
+        link: { screen: 'missions' },
+      });
+    }
+    for (const m of missions.filter((x) => x.status === 'active')) {
+      const left = m.daysLeft ?? 0;
+      const item: HomeItem = {
+        key: `m${m.id}`,
+        kind: 'mission',
+        tone: left <= 14 && !m.recommendations.length ? 'urgent' : 'info',
+        title: `${m.club.name}: ${m.position} brief`,
+        detail: m.recommendations.length ? `${plural(m.recommendations.length, 'player')} put forward · ${formatUSD(m.reward)}` : `Nobody put forward yet · ${formatUSD(m.reward)}`,
+        daysLeft: left,
+        progress: m.deadline !== undefined ? Math.min(1, Math.max(0, 1 - left / (m.weeks * 7))) : undefined,
+        club: m.club,
+        link: { screen: 'missions' },
+      };
+      // A brief about to fail with nobody put forward needs you; otherwise it's running work.
+      (item.tone === 'urgent' ? needsYou : inProgress).push(item);
+    }
+    if (scout.pendingMandates)
+      needsYou.push({
+        key: 'mandates',
+        kind: 'mandate',
+        tone: 'action',
+        title: `${plural(scout.pendingMandates, 'club')} want${scout.pendingMandates === 1 ? 's' : ''} you to sell a player`,
+        detail: 'Selling mandates waiting for your answer.',
+        link: { screen: 'missions' },
+      });
+    if (scout.pendingOffers)
+      needsYou.push({
+        key: 'offers',
+        kind: 'offer',
+        tone: 'action',
+        title: `${plural(scout.pendingOffers, 'job offer')} on the table`,
+        detail: 'Clubs want to hire you full-time.',
+        link: { screen: 'career' },
+      });
+    if (scout.rivalThreats)
+      needsYou.push({
+        key: 'rivals',
+        kind: 'rival',
+        tone: 'urgent',
+        title: `Rivals are chasing ${plural(scout.rivalThreats, 'player')} of yours`,
+        detail: 'Move first, or lose them.',
+        link: { screen: 'rivals' },
+      });
+    if (scout.idleAssistants)
+      needsYou.push({
+        key: 'idle',
+        kind: 'assistant',
+        tone: 'action',
+        title: `${plural(scout.idleAssistants, 'assistant')} with nothing to do`,
+        detail: "You're paying their wages: give them an area to scout.",
+        link: { screen: 'staff' },
+      });
+    const e = sc.employment;
+    if (e.mode === 'freelance') {
+      const slots = clientCapacity(s);
+      if (e.clients.length < slots)
+        needsYou.push({
+          key: 'clients',
+          kind: 'clients',
+          tone: e.clients.length === 0 ? 'action' : 'info',
+          title: e.clients.length === 0 ? 'No clients yet' : `Room for ${plural(slots - e.clients.length, 'more client')}`,
+          detail: 'The Weekly lists clubs short of players with money to spend.',
+          link: { screen: 'gazette' },
+        });
+    }
+    if (scout.unreadInbox)
+      needsYou.push({
+        key: 'inbox',
+        kind: 'inbox',
+        tone: 'info',
+        title: `${plural(scout.unreadInbox, 'new message')}`,
+        detail: 'In your inbox.',
+        link: { screen: 'inbox' },
+      });
+
+    for (const d of this.getDeals().filter((x) => x.stage === 'negotiating' || x.stage === 'agreed')) {
+      const left = d.resolvesOn !== undefined ? Math.max(0, d.resolvesOn - s.date) : undefined;
+      inProgress.push({
+        key: `d${d.id}`,
+        kind: 'deal',
+        tone: d.rivals.length ? 'urgent' : 'info',
+        title: `${d.player?.name ?? 'Player'} → ${d.club.name}`,
+        detail:
+          d.stage === 'agreed'
+            ? 'Agreed: completes when the window opens'
+            : `Negotiating · ${formatUSD(d.fee)}${d.chance !== undefined ? ` · ${Math.round(d.chance * 100)}% to go through` : ''}${d.rivals.length ? ' · a rival is circling' : ''}`,
+        daysLeft: left,
+        club: d.club,
+        link: { screen: 'deals' },
+      });
+    }
+    for (const h of this.getHunts().filter((x) => x.status === 'active')) {
+      inProgress.push({
+        key: `h${h.id}`,
+        kind: 'hunt',
+        tone: h.rivals.some((r) => r.band === 'closing in' || r.band === 'found him') ? 'urgent' : 'info',
+        title: `Hunt: a ${h.age}-year-old ${h.position} in ${h.area.city?.name ?? h.area.region ?? h.area.country.name}`,
+        detail: `${plural(h.clues.length, 'clue')}${h.rivals.length ? ` · ${plural(h.rivals.length, 'rival')} on the trail` : ''}`,
+        daysLeft: h.daysLeft,
+        progress: Math.min(1, Math.max(0, (s.date - h.startedOn) / Math.max(1, h.expiresOn - h.startedOn))),
+        link: { screen: 'hunts' },
+      });
+    }
+    for (const a of s.assistants) {
+      if (!a.task) continue;
+      const left = Math.max(0, a.task.endsOn - s.date);
+      inProgress.push({
+        key: `a${a.id}`,
+        kind: 'assistant',
+        tone: 'info',
+        title: `${a.firstName} ${a.lastName} scouting ${describeArea(s, a.task)}`,
+        detail: `${plural(a.task.found, 'player')} found so far`,
+        daysLeft: left,
+        progress: Math.min(1, Math.max(0, (s.date - a.task.startedOn) / Math.max(1, a.task.endsOn - a.task.startedOn))),
+        link: { screen: 'staff' },
+      });
+    }
+    const pendingReports = (s.reports ?? []).filter((r) => !r.outcome && !r.voided);
+    if (pendingReports.length) {
+      const next = Math.min(...pendingReports.map((r) => r.date + REVIEW_DAYS));
+      inProgress.push({
+        key: 'reports',
+        kind: 'report',
+        tone: 'info',
+        title: `${plural(pendingReports.length, 'report')} waiting for review`,
+        detail: 'Each is checked a year after you wrote it.',
+        daysLeft: Math.max(0, next - s.date),
+        link: { screen: 'career' },
+      });
+    }
+    const rankTone = { urgent: 0, action: 1, info: 2 } as const;
+    needsYou.sort((a, b) => rankTone[a.tone] - rankTone[b.tone] || (a.daysLeft ?? 999) - (b.daysLeft ?? 999));
+    inProgress.sort((a, b) => (a.daysLeft ?? 999) - (b.daysLeft ?? 999));
+
+    // Calendar: windows, deadline days, the season, and brief deadlines in the next ~10 weeks.
+    const { year } = toParts(s.date);
+    const dates: { key: string; date: GameDate; label: string; link?: HomeView['upcoming'][number]['link'] }[] = [];
+    for (const y of [year, year + 1]) {
+      dates.push({ key: `jan-open-${y}`, date: makeDate(y, 1, 1), label: 'January window opens' });
+      dates.push({ key: `jan-dd-${y}`, date: makeDate(y, 1, 31), label: 'January deadline day' });
+      dates.push({ key: `sum-open-${y}`, date: makeDate(y, 7, 1), label: 'Summer window opens · new season' });
+      dates.push({ key: `sum-dd-${y}`, date: makeDate(y, 8, 31), label: 'Summer deadline day' });
+      const w = seasonWindow(y);
+      dates.push({ key: `kick-${y}`, date: w.start, label: 'League kick-off' });
+      dates.push({ key: `end-${y}`, date: w.end, label: 'Last day of the league season' });
+    }
+    for (const m of missions.filter((x) => x.status === 'active' && x.deadline !== undefined))
+      dates.push({ key: `md${m.id}`, date: m.deadline!, label: `${m.club.shortName} ${m.position} brief due`, link: { screen: 'missions' } });
+    const upcoming = dates
+      .filter((d) => d.date >= s.date && d.date - s.date <= 75)
+      .sort((a, b) => a.date - b.date)
+      .slice(0, 6)
+      .map((d) => ({ ...d, daysAway: d.date - s.date }));
+
+    const totals = s.ledgerTotals[s.season.year] ?? {};
+    const earned = Object.values(totals).reduce((n, v) => n + Math.max(0, v ?? 0), 0) - Math.max(0, totals['starting-funds'] ?? 0);
+    const spent = -Object.values(totals).reduce((n, v) => n + Math.min(0, v ?? 0), 0);
+    const seasonStart = makeDate(s.season.year, 7, 1);
+    return {
+      needsYou,
+      inProgress,
+      upcoming,
+      season: {
+        label: seasonLabel(s.season.year),
+        placements: s.placements.filter((p) => p.signedOn >= seasonStart).length,
+        earned: usd(earned),
+        spent: usd(spent),
+        reputation: Math.round(sc.reputation),
+        rank: 1 + s.rivals.filter((r) => r.reputation > sc.reputation).length,
+        scouts: s.rivals.length + 1,
+        goals: scout.goals,
+        poolSize: scout.poolSize,
+        work: e.mode === 'freelance' ? { mode: 'freelance', clients: e.clients.length, slots: clientCapacity(s) } : { mode: 'fulltime', club: badge(s.clubs[e.clubId]!) },
+      },
     };
   }
 
