@@ -236,6 +236,7 @@ export function pitch(state: GameState, args: PitchArgs): Deal {
     fee: rights.mandate ? rights.mandate.askingFee : transferFee(state, p),
     mandateId: rights.mandate?.id,
     represented: rights.represented,
+    open: rights.open || undefined,
     wage: brokeredWage(state, p, club),
     log: [],
   };
@@ -429,6 +430,7 @@ function completeDeal(state: GameState, deal: Deal, date: GameDate) {
     age: ageOn(p.birthDate, date),
     free: !deal.sellingClubId,
     mode: state.scout!.employment.mode === 'fulltime' ? 'fulltime' : 'freelance',
+    open: deal.open || undefined,
     bonus: usd(0),
     bonusPaid: false,
     earnings: emptyEarnings(),

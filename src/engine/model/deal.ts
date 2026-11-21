@@ -47,6 +47,8 @@ export interface Deal {
   mandateId?: number;
   /** A free agent you represent. */
   represented?: boolean;
+  /** Pitched without a scouting agreement (freelance): half the signing bonus, no match bonuses. */
+  open?: boolean;
   openedOn: GameDate;
   /** When negotiations conclude. */
   resolvesOn?: GameDate;
@@ -82,6 +84,8 @@ export interface Placement {
   /** Signed as a free agent. */
   free?: boolean;
   mode: 'freelance' | 'fulltime';
+  /** Signed from an open pitch (no scouting agreement): half the signing bonus, no match bonuses. */
+  open?: boolean;
   /** One-off signing bonus (0 for prospects). */
   bonus: USD;
   bonusPaid: boolean;

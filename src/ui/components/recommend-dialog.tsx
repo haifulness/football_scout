@@ -612,9 +612,14 @@ function PitchView({
       )}
       {error && <div className="rounded-lg border border-alert-500/40 bg-alert-500/10 px-3 py-2 text-sm text-alert-400">{error}</div>}
 
-      {!preview.work.ok && (
+      {(!preview.work.ok || preview.rights === 'open') && (
         <AgreementBox
-          reason={preview.work.reason}
+          reason={
+            preview.rights === 'open'
+              ? `Open pitch: ${preview.club.name} aren't a client, but you can still pitch in person. A signing earns half the signing bonus and no match bonuses. As a client they pay in full, post briefs, and take pitches by phone once they trust you.`
+              : preview.work.reason
+          }
+          optional={preview.rights === 'open'}
           agreement={preview.agreement}
           inCity={preview.inCity}
           cityName={preview.club.cityName}
@@ -645,7 +650,7 @@ function PitchView({
       <OfficialPitchCard
         o={preview.coach}
         disabled={advancing || !preview.work.ok || !!deal}
-        blockedReason={!preview.work.ok ? 'Not a client yet' : deal ? (deal.stage === 'rejected' ? 'Already decided' : 'Deal in progress') : undefined}
+        blockedReason={!preview.work.ok ? 'Not your employer' : deal ? (deal.stage === 'rejected' ? 'Already decided' : 'Deal in progress') : undefined}
         inCity={preview.inCity}
         onPitch={() => void doPitch('coach')}
         onPhone={() => void doPitch('coach', true)}
@@ -756,15 +761,14 @@ function OfficialPitchCard({
             onClick={onMeet}
             title="Spend a day with him: your relationship grows, and so do the odds of a yes"
           >
-            ☕ Meet him first ·{' '}
-            {o.meeting.colleague ? 'free' : `${o.meeting.firstMeeting ? 'first meeting' : 'catch up'} ${formatUSD(o.meeting.cost)}`} · 1 day
+            ☕ Meet him first · {o.meeting.colleague ? 'free' : `${o.meeting.firstMeeting ? 'first meeting' : 'catch up'} ${formatUSD(o.meeting.cost)}`} · 1 day
             {o.meeting.recentlyMet ? ' (met recently: less effect)' : ''}
           </button>
           {meetNote && <span className="text-[11px] text-grass-300">{meetNote}</span>}
         </div>
       )}
-      {blockedReason === 'Not a client yet' ? (
-        <div className="mt-3 text-[12px] text-mist-400">Pitching opens once they're a client.</div>
+      {blockedReason === 'Not your employer' ? (
+        <div className="mt-3 text-[12px] text-mist-400">Full-time scouts pitch only to their employer.</div>
       ) : !o.meeting.allowed ? (
         <div className="mt-3 text-[12px] text-alert-400">Won't see you yet: needs reputation {o.meeting.requiredReputation}.</div>
       ) : (
@@ -799,9 +803,10 @@ function OfficialPitchCard({
   );
 }
 
-/** Not a client yet: explain, and offer to propose a scouting agreement in person. */
+/** No agreement yet: explain, and offer to propose a scouting agreement in person. */
 function AgreementBox({
   reason,
+  optional,
   agreement,
   inCity,
   cityName,
@@ -810,6 +815,8 @@ function AgreementBox({
   onDone,
 }: {
   reason?: string;
+  /** You can pitch anyway (open pitch): the agreement is an upgrade, not a requirement. */
+  optional?: boolean;
   agreement: { ok: boolean; reason?: string };
   inCity: boolean;
   cityName: string;
@@ -830,23 +837,27 @@ function AgreementBox({
     }
   };
   return (
-    <div className="rounded-xl border border-flood-400/30 bg-flood-500/5 p-4">
-      <div className="text-sm text-flood-300">{reason}</div>
+    <div className={`rounded-xl border p-4 ${optional ? 'border-sky-400/25 bg-sky-400/[0.04]' : 'border-flood-400/30 bg-flood-500/5'}`}>
+      <div className={`text-sm ${optional ? 'text-mist-200' : 'text-flood-300'}`}>{reason}</div>
       {result ? (
         <div className={`mt-2 text-sm ${result.accepted ? 'text-grass-300' : 'text-alert-400'}`}>{result.reason}</div>
       ) : !agreement.ok ? (
         <div className="mt-2 text-[12px] text-mist-400">{agreement.reason}</div>
       ) : !inCity ? (
-        <button className="btn-ghost mt-3 text-xs" onClick={onTravel}>
-          Travel to {cityName} to propose an agreement
-        </button>
+        optional ? (
+          <div className="mt-2 text-[12px] text-mist-400">Propose a scouting agreement when you're in {cityName}.</div>
+        ) : (
+          <button className="btn-ghost mt-3 text-xs" onClick={onTravel}>
+            Travel to {cityName} to propose an agreement
+          </button>
+        )
       ) : (
         <div className="mt-3 flex flex-wrap gap-2">
           <span className="w-full text-[12px] text-mist-400">
             Ask the Head Coach in person (one day). He needs to know you a little first: relationship 10+.
           </span>
-          <button className="btn-primary text-xs" disabled={advancing} onClick={() => void propose()}>
-            Propose to the Head Coach
+          <button className={`${optional ? 'btn-ghost' : 'btn-primary'} text-xs`} disabled={advancing} onClick={() => void propose()}>
+            Propose a scouting agreement
           </button>
         </div>
       )}

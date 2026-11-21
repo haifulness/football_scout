@@ -47,11 +47,15 @@ export function bonusCategory(pos: Position): 'attacking' | 'defensive' | 'goalk
 }
 
 /** One-off signing bonus: a share of the fee (or market value for free agents), higher the more he beats the average. */
-export function signingBonus(p: { fee: USD; value: USD; tier: ClubTier; ovrGap: number; prospect: boolean; mode: Mode }): USD {
+/** Share of the signing bonus an open pitch (no scouting agreement) earns. */
+export const OPEN_PITCH_SHARE = 0.5;
+
+export function signingBonus(p: { fee: USD; value: USD; tier: ClubTier; ovrGap: number; prospect: boolean; mode: Mode; open?: boolean }): USD {
   if (p.prospect) return usd(0);
   const basis = p.fee > 0 ? p.fee : p.value;
   const gapFactor = clamp(1 + p.ovrGap / 10, 1, 1.5);
-  return usd(Math.max(SIGNING_FLOOR[p.mode][p.tier], (taperedFee(basis) * SIGNING_PCT[p.mode] * gapFactor) / 100));
+  const full = Math.max(SIGNING_FLOOR[p.mode][p.tier], (taperedFee(basis) * SIGNING_PCT[p.mode] * gapFactor) / 100);
+  return usd(Math.round(full * (p.open ? OPEN_PITCH_SHARE : 1)));
 }
 
 /**
@@ -94,7 +98,8 @@ const isActive = (pl: Placement) => !pl.endedOn;
 /** After each match: pay bonuses for any of your active placements who played. */
 export function payMatchBonuses(state: GameState, lines: PlayerMatchLine[], fixture: Fixture, date: GameDate) {
   if (!state.scout || state.careerOver) return;
-  const active = state.placements.filter((pl) => isActive(pl) && date >= pl.signedOn && date <= pl.expiresOn);
+  // Match bonuses are part of a scouting agreement: open pitches don't earn them.
+  const active = state.placements.filter((pl) => !pl.open && isActive(pl) && date >= pl.signedOn && date <= pl.expiresOn);
   if (!active.length) return;
   for (const line of lines) {
     const pl = active.find((x) => x.playerId === line.playerId && x.clubId === line.clubId);
@@ -128,7 +133,7 @@ export function settleSigningBonuses(state: GameState) {
     if (pl.bonusPaid) continue;
     const club = state.clubs[pl.clubId];
     const p = state.players[pl.playerId];
-    pl.bonus = signingBonus({ fee: pl.fee, value: p?.value ?? usd(0), tier: club?.tier ?? 5, ovrGap: pl.ovrGap, prospect: pl.prospect, mode: pl.mode });
+    pl.bonus = signingBonus({ fee: pl.fee, value: p?.value ?? usd(0), tier: club?.tier ?? 5, ovrGap: pl.ovrGap, prospect: pl.prospect, mode: pl.mode, open: pl.open });
     pl.bonusPaid = true;
     pl.earnings ??= emptyEarnings();
     if (pl.bonus > 0)

@@ -39,9 +39,15 @@ export interface PitchRights {
   mandate?: Mandate;
   /** Pitching a free agent you represent. */
   represented?: boolean;
+  /** A freelancer pitching to a club that isn't a client yet: allowed, but it pays less. */
+  open?: boolean;
 }
 
-/** May you pitch this player to this club? Employer/clients as usual, or any club for mandate players and represented free agents. */
+/**
+ * May you pitch this player to this club? Full-time scouts pitch only to their employer. Freelancers may pitch
+ * to any club: clients as usual, mandate players and represented free agents anywhere, and anyone else as an
+ * open pitch (no agreement: in person only, half the signing bonus, no match bonuses).
+ */
 export function pitchRights(state: GameState, p: Player, club: Club): PitchRights {
   const scout = state.scout;
   if (!scout) return { ok: false, reason: 'Set up your scout first.' };
@@ -49,6 +55,7 @@ export function pitchRights(state: GameState, p: Player, club: Club): PitchRight
     const mandate = state.mandates.find((m) => m.status === 'active' && m.playerId === p.id && m.clubId !== club.id);
     if (mandate) return { ok: true, mandate };
     if (!p.clubId && scout.represented.includes(p.id)) return { ok: true, represented: true };
+    if (!canWorkWith(state, club.id).ok) return { ok: true, open: true };
   }
   return canWorkWith(state, club.id);
 }

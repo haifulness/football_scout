@@ -90,7 +90,8 @@ describe('selling mandates', () => {
   it('let you pitch the player to any club once accepted', () => {
     const w = setup();
     const { buyer, p, mandate } = saleSetup(w);
-    expect(pitchRights(w, p, buyer).ok).toBe(false);
+    // Before the mandate it's only an open pitch (no agreement, reduced pay).
+    expect(pitchRights(w, p, buyer)).toMatchObject({ ok: true, open: true });
     acceptMandate(w, mandate.id);
     expect(mandate.deadline).toBe(w.date + mandate.weeks * 7);
     const rights = pitchRights(w, p, buyer);
@@ -166,7 +167,7 @@ describe('representing free agents', () => {
     w.scout!.rapport[p.id] = 30;
     w.scout!.location = Object.values(w.cities).find((c) => c.countryId === eng)!.id;
     const club = Object.values(w.clubs).find((c) => !clients(w).includes(c.id) && c.tier === 5)!;
-    expect(pitchRights(w, p, club).ok).toBe(false);
+    expect(pitchRights(w, p, club)).toMatchObject({ ok: true, open: true });
     represent(w, p.id);
     expect(w.scout!.represented).toContain(p.id);
     expect(pitchRights(w, p, club)).toMatchObject({ ok: true, represented: true });

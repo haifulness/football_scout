@@ -2128,7 +2128,7 @@ export class Engine {
       inCity: s.scout?.location === club.cityId,
       work: { ok: rights.ok, reason: rights.reason },
       rivalInterest: this.rivalInterest(p.id),
-      rights: !rights.ok ? 'none' : rights.mandate ? 'mandate' : rights.represented ? 'represented' : 'club',
+      rights: !rights.ok ? 'none' : rights.mandate ? 'mandate' : rights.represented ? 'represented' : rights.open ? 'open' : 'club',
       commission: rights.mandate ? usd(Math.round((fee * rights.mandate.commissionPct) / 100)) : undefined,
       agreement: s.scout ? (({ ok, reason }) => ({ ok, reason }))(agreementCheck(s, club.id)) : { ok: false },
       coach: officialView('coach'),

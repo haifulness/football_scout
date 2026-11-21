@@ -5,7 +5,8 @@ import { usd } from '../../src/engine/core/money';
 import { generateWorld } from '../../src/engine/generation/world-generator';
 import type { Club } from '../../src/engine/model/club';
 import type { GameState } from '../../src/engine/model/world-state';
-import { pitch } from '../../src/engine/systems/deals';
+import { formationPositions, pitch } from '../../src/engine/systems/deals';
+import { OPEN_PITCH_SHARE, signingBonus } from '../../src/engine/systems/payouts';
 import {
   acceptOffer,
   canWorkWith,
@@ -49,14 +50,29 @@ function hire(w: GameState, club: Club) {
 }
 
 describe('freelance clients', () => {
-  it('only lets you pitch to clients, and slots grow with reputation', () => {
+  it('lets you pitch to a club that is not a client as an open pitch: in person only, and it pays less', () => {
     const w = setup();
     const club = englishClub(w, 5);
     w.scout!.location = club.cityId;
-    const target = Object.values(w.players).find((p) => p.clubId && p.clubId !== club.id)!;
+    const position = formationPositions(club).find((x) => x !== 'GK')!;
+    const target = Object.values(w.players).find((p) => p.clubId && p.clubId !== club.id && p.naturalPosition === position)!;
     expect(canWorkWith(w, club.id).ok).toBe(false);
-    expect(() => pitch(w, { playerId: target.id, clubId: club.id, position: 'ST', to: 'coach' })).toThrow(/isn't one of your clients/);
+    expect(() => pitch(w, { playerId: target.id, clubId: club.id, position, to: 'coach', remote: true })).toThrow(/by phone/);
+    const deal = pitch(w, { playerId: target.id, clubId: club.id, position, to: 'coach' });
+    expect(deal.open).toBe(true);
+    const base = { fee: usd(2_000_000), value: usd(2_000_000), tier: 3 as const, ovrGap: 2, prospect: false, mode: 'freelance' as const };
+    expect(signingBonus({ ...base, open: true })).toBe(Math.round(signingBonus(base) * OPEN_PITCH_SHARE));
     expect([0, 15, 30, 50, 70].map(clientSlots)).toEqual([2, 2, 3, 4, 5]);
+  });
+
+  it('keeps a full-time scout to his employer', () => {
+    const w = setup();
+    const club = englishClub(w, 5);
+    hire(w, club);
+    const other = englishClub(w, 4);
+    w.scout!.location = other.cityId;
+    const target = Object.values(w.players).find((p) => p.clubId && p.clubId !== other.id && p.naturalPosition === 'ST')!;
+    expect(() => pitch(w, { playerId: target.id, clubId: other.id, position: 'ST', to: 'coach' })).toThrow(/full-time/);
   });
 
   it('needs a relationship before a club agrees to take you on', () => {

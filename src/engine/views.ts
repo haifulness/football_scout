@@ -737,7 +737,7 @@ export interface PitchPreview {
   /** Whether you may recommend to this club at all (employer / client rules). */
   work: { ok: boolean; reason?: string };
   /** Why you may pitch here: the club is yours, a client's sale, or a free agent you represent. */
-  rights: 'club' | 'mandate' | 'represented' | 'none';
+  rights: 'club' | 'mandate' | 'represented' | 'open' | 'none';
   rivalInterest: RivalInterestView[];
   /** Your cut if this is a mandate sale. */
   commission?: USD;
