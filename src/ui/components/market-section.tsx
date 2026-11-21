@@ -117,6 +117,25 @@ function MandateCard({ m, i }: { m: MandateView; i: number }) {
         </div>
         <OvrBadge ovr={mid(m.player.ovr)} range={m.player.ovr} size="sm" />
       </div>
+      {m.report && (
+        <div className="mt-3 rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-[12px]">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <span className="panel-title text-[10px]">Their report</span>
+            <span>
+              Rated <b className="num text-mist-50">{m.report.rating}</b> · potential <b>{m.report.potential}</b>
+            </span>
+            <span className="text-mist-400">Strengths: {m.report.strengths.join(', ')}</span>
+          </div>
+          <div className="mt-1 text-[11px] text-mist-400">
+            {m.report.precision === 'tight' ? 'A big club with analysts: precise.' : m.report.precision === 'fair' ? 'Fairly precise.' : 'A small club: could be well off.'}{' '}
+            {m.report.standing >= 70
+              ? 'They know you well and talk straight.'
+              : m.report.standing >= 35
+                ? 'They may talk him up a little: they want to sell.'
+                : "They barely know you, and they want to sell: expect it to flatter him."}
+          </div>
+        </div>
+      )}
       <div className="mt-3 grid grid-cols-3 gap-2 text-center">
         <Figure label="Asking" value={formatUSD(m.askingFee)} />
         <Figure label="Cut" value={`${m.commissionPct}%`} />

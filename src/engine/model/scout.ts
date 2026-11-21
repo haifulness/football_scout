@@ -83,7 +83,8 @@ export interface PoolEntry {
   source: 'search' | 'manual' | 'assistant';
   starred: boolean;
   /** An assistant's report: his own rating, which may be off. */
-  report?: { assistantId: number; by: string; rating: number; date: GameDate };
+  /** Someone else's rating: an assistant's, or a selling club's (no assistantId). */
+  report?: { assistantId?: number; by: string; rating: number; date: GameDate };
 }
 
 export type LocationScope =

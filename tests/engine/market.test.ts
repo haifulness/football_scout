@@ -241,3 +241,37 @@ describe('mandate view', () => {
     expect(view.deals).toEqual([expect.objectContaining({ dealId: deal.id, club: expect.objectContaining({ id: buyer.id }), stage: deal.stage })]);
   }, 60_000);
 });
+
+describe("the selling club's report", () => {
+  it('is tighter at big clubs and flatters the player when the club barely knows you', async () => {
+    const { Rng } = await import('../../src/engine/core/rng');
+    const { clubReport, CLUB_REPORT_FLATTERY } = await import('../../src/engine/systems/market');
+    const w = setup();
+    const big = Object.values(w.clubs).find((c) => c.tier === 1)!;
+    const small = Object.values(w.clubs).find((c) => c.tier === 5)!;
+    const p = w.players[big.squad.find((id) => w.players[id]!.naturalPosition !== 'GK')!]!;
+    const truth = ovrAt(p, p.naturalPosition);
+    const errors = (club: Club) => Array.from({ length: 200 }, (_, i) => clubReport(w, club, p, Rng.derive(i, 'r')).rating - truth);
+    const spread = (xs: number[]) => Math.max(...xs) - Math.min(...xs);
+    const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+
+    // Strangers: flattered by about the full amount.
+    expect(mean(errors(big))).toBeGreaterThan(CLUB_REPORT_FLATTERY - 1.5);
+    expect(spread(errors(big))).toBeLessThan(spread(errors(small)));
+    // Known well: straight.
+    w.scout!.relationships[big.headCoachId] = 100;
+    expect(Math.abs(mean(errors(big)))).toBeLessThan(1);
+  });
+
+  it('comes with the mandate, and accepting gets you his file: more knowledge, and their rating in your pool', () => {
+    const w = setup();
+    const { p, mandate } = saleSetup(w);
+    mandate.report = { rating: 70, potential: 'B', strengths: ['pace'] };
+    delete w.pool[p.id];
+    const before = w.knowledge[p.id]?.level ?? 0;
+    acceptMandate(w, mandate.id);
+    expect(w.knowledge[p.id]!.level).toBeGreaterThan(before);
+    expect(w.pool[p.id]?.report).toMatchObject({ rating: 70 });
+    expect(w.pool[p.id]!.report!.assistantId).toBeUndefined();
+  }, 60_000);
+});

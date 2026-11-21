@@ -1251,6 +1251,11 @@ export class Engine {
         deals: s.deals
           .filter((d) => d.mandateId === m.id && s.clubs[d.clubId])
           .map((d) => ({ dealId: d.id, club: badge(s.clubs[d.clubId]!), stage: d.stage, fee: d.fee })),
+        report: m.report && {
+          ...m.report,
+          precision: club.tier <= 2 ? 'tight' : club.tier === 3 ? 'fair' : 'rough',
+          standing: clubTrust(s, club.id),
+        },
       };
     });
     const represented = (sc?.represented ?? []).flatMap((id) => {

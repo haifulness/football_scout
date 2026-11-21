@@ -2,12 +2,14 @@ import { addDays, ageOn, formatDate, toParts, type GameDate } from '../core/cale
 import type { ClubId, PlayerId } from '../core/ids';
 import { formatUSD, roundPrice, usd } from '../core/money';
 import { Rng, clamp } from '../core/rng';
-import type { Club } from '../model/club';
+import type { Club, ClubTier } from '../model/club';
 import type { Deal } from '../model/deal';
 import type { Mandate } from '../model/mission';
-import type { Player } from '../model/player';
+import { ATTRIBUTE_LABEL, type AttributeKey, type Player } from '../model/player';
 import type { GameState } from '../model/world-state';
-import { canWorkWith, clubRecord } from './employment';
+import { canWorkWith, clubRecord, clubTrust } from './employment';
+import { learn } from './knowledge';
+import { potentialGrade } from './reports';
 import { meetingInfo } from './fieldwork';
 import { OFFER_REMINDER_DAYS } from './missions';
 import { UNLOCKS, isUnlocked } from './unlocks';
@@ -64,6 +66,34 @@ export function pitchRights(state: GameState, p: Player, club: Club): PitchRight
 
 // ── Selling mandates ────────────────────────────────────────────────────
 
+/** How far off a club's own rating can be, by tier: big clubs have analysts. */
+export const CLUB_REPORT_SPREAD: Record<ClubTier, number> = { 1: 2, 2: 3, 3: 4, 4: 6, 5: 8 };
+/** A selling club talks its player up, by up to this much, less the better it knows you. */
+export const CLUB_REPORT_FLATTERY = 6;
+/** Standing at which a club gives you a straight report. */
+export const STRAIGHT_STANDING = 70;
+/** How well you know him once you have his club's file, by tier. */
+const FILE_KNOWLEDGE_CAP: Record<ClubTier, number> = { 1: 65, 2: 60, 3: 55, 4: 50, 5: 45 };
+
+/** The selling club's report: its rating (precise at big clubs, flattering when it barely knows you), potential, strengths. */
+export function clubReport(state: GameState, club: Club, p: Player, rng: Rng): NonNullable<Mandate['report']> {
+  const truth = ovrAt(p, p.naturalPosition);
+  const standing = clubTrust(state, club.id);
+  const flattery = Math.round(CLUB_REPORT_FLATTERY * Math.max(0, 1 - standing / STRAIGHT_STANDING));
+  const spread = CLUB_REPORT_SPREAD[club.tier];
+  const rating = Math.round(clamp(truth + flattery + rng.int(-spread, spread), 1, 99));
+  const grades = ['D', 'C', 'B', 'A'] as const;
+  const real = potentialGrade(p.hidden.potential);
+  // Flattery reaches the potential grade too, sometimes.
+  const bump = flattery >= 3 && rng.chance(0.5) ? 1 : 0;
+  const potential = grades[Math.min(3, grades.indexOf(real) + bump)]!;
+  const strengths = (Object.entries(p.attributes) as [AttributeKey, number][])
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([k]) => ATTRIBUTE_LABEL[k].toLowerCase());
+  return { rating, potential, strengths };
+}
+
 /** Who a club would like to move on: unused, overpaid, or surplus at his position. */
 function surplusCandidate(state: GameState, club: Club, rng: Rng): { p: Player; reason: string } | undefined {
   const squad = club.squad.map((id) => state.players[id]!);
@@ -100,6 +130,14 @@ export function acceptMandate(state: GameState, id: number): Mandate {
     throw new ScoutingError(`You can handle at most ${MAX_ACTIVE_MANDATES} sales at once.`);
   m.status = 'active';
   m.deadline = addDays(state.date, m.weeks * 7);
+  // You get his file: you know him better, and his club's rating sits in your pool.
+  const p = state.players[m.playerId];
+  const club = state.clubs[m.clubId]!;
+  if (p) {
+    learn(state, p, 30, FILE_KNOWLEDGE_CAP[club.tier], state.date);
+    const entry = (state.pool[p.id] ??= { addedOn: state.date, source: 'manual', starred: false });
+    if (m.report) entry.report = { by: `${club.shortName} (selling)`, rating: m.report.rating, date: state.date };
+  }
   return m;
 }
 
@@ -280,6 +318,7 @@ export function marketTick(state: GameState, date: GameDate) {
     const pick = surplusCandidate(state, club, rng);
     if (!pick) continue;
     const mandate: Mandate = {
+      report: clubReport(state, club, pick.p, rng),
       id: state.counters.mandate++,
       clubId,
       playerId: pick.p.id,

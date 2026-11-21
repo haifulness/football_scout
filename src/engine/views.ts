@@ -933,6 +933,8 @@ export interface MandateView {
   soldTo?: string;
   /** Clubs you have pitched him to under this mandate, newest first. */
   deals: { dealId: number; club: ClubBadge; stage: DealStage; fee: USD }[];
+  /** The selling club's own report, and how far to trust it. */
+  report?: { rating: number; potential: 'A' | 'B' | 'C' | 'D'; strengths: string[]; precision: 'tight' | 'fair' | 'rough'; standing: number };
 }
 
 export interface RepresentedView {

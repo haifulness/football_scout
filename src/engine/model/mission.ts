@@ -72,4 +72,6 @@ export interface Mandate {
   resolvedOn?: GameDate;
   /** Why it ended, if not by your sale. */
   note?: string;
+  /** The selling club's own report: precise at big clubs, flattering when they don't know you well. */
+  report?: { rating: number; potential: 'A' | 'B' | 'C' | 'D'; strengths: string[] };
 }
