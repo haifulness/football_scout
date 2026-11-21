@@ -14,7 +14,7 @@ import { onDealSecured, preferenceBonus } from './missions';
 import { onMandateSecured, payCommission, pitchRights } from './market';
 import type { Player, Position } from '../model/player';
 import type { GameState } from '../model/world-state';
-import { meetingInfo } from './fieldwork';
+import { meetingInfo, metToday } from './fieldwork';
 import { ovrAt } from './ratings';
 import { ScoutingError, addLedger } from './scouting';
 import { addNews } from './season';
@@ -218,8 +218,11 @@ export function pitch(state: GameState, args: PitchArgs): Deal {
     if (!check.ok) throw new ScoutingError(check.reason!);
   } else {
     if (!info.inPlace) throw new ScoutingError(`You need to be in ${state.cities[club.cityId]!.name} to pitch in person.`);
-    if (scout.money < info.cost) throw new ScoutingError(`The pitch meeting costs ${formatUSD(info.cost)} but you only have ${formatUSD(scout.money)}.`);
-    addLedger(state, { amount: usd(-info.cost), kind: 'meeting', label: `Pitch: ${p.firstName} ${p.lastName} to ${club.name} (${roleName(args.to)})` });
+    // Already in the room with him today: put another name forward at no extra cost.
+    if (!metToday(state, officialId)) {
+      if (scout.money < info.cost) throw new ScoutingError(`The pitch meeting costs ${formatUSD(info.cost)} but you only have ${formatUSD(scout.money)}.`);
+      addLedger(state, { amount: usd(-info.cost), kind: 'meeting', label: `Pitch: ${p.firstName} ${p.lastName} to ${club.name} (${roleName(args.to)})` });
+    }
   }
   scout.lastMet[officialId] = state.date;
 

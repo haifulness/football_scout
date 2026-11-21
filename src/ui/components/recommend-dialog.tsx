@@ -761,7 +761,8 @@ function OfficialPitchCard({
             onClick={onMeet}
             title="Spend a day with him: your relationship grows, and so do the odds of a yes"
           >
-            ☕ Meet him first · {o.meeting.colleague ? 'free' : `${o.meeting.firstMeeting ? 'first meeting' : 'catch up'} ${formatUSD(o.meeting.cost)}`} · 1 day
+            ☕ Meet him first · {o.meeting.colleague ? 'free' : `${o.meeting.firstMeeting ? 'first meeting' : 'catch up'} ${formatUSD(o.meeting.cost)}`} ·{' '}
+            {o.meeting.metToday ? 'same day' : '1 day'}
             {o.meeting.recentlyMet ? ' (met recently: less effect)' : ''}
           </button>
           {meetNote && <span className="text-[11px] text-grass-300">{meetNote}</span>}
@@ -782,7 +783,7 @@ function OfficialPitchCard({
             >
               {blockedReason ?? (
                 <>
-                  ☏ Pitch by phone · free · 1 day <span className={`ml-1 ${READ[o.remote.read].c}`}>({READ[o.remote.read].label.toLowerCase()})</span>
+                  ☏ Pitch by phone · free · no time <span className={`ml-1 ${READ[o.remote.read].c}`}>({READ[o.remote.read].label.toLowerCase()})</span>
                 </>
               )}
             </button>
@@ -793,7 +794,8 @@ function OfficialPitchCard({
             </button>
           ) : (
             <button className="btn-primary w-full text-xs" disabled={disabled} onClick={onPitch}>
-              {blockedReason ?? `Pitch in person · ${formatUSD(o.meeting.cost)} · 1 day`}
+              {blockedReason ??
+                (o.meeting.metToday ? 'Pitch in person · same meeting: no extra cost or time' : `Pitch in person · ${formatUSD(o.meeting.cost)} · 1 day`)}
             </button>
           )}
           {!o.remote.ok && o.remote.reason && <div className="text-[11px] text-mist-400">☏ {o.remote.reason}</div>}

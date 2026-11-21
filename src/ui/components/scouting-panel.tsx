@@ -245,7 +245,9 @@ export function MeetingControls({
         <div className="mt-2 text-[11px] text-alert-400">Won't meet you yet: needs reputation {meeting.requiredReputation}.</div>
       ) : meeting.inPlace ? (
         <button className="btn-primary mt-2 w-full py-1.5 text-xs" disabled={busy || money < meeting.cost} onClick={onMeet}>
-          {meeting.colleague ? 'Meet your colleague · free' : `${meeting.firstMeeting ? 'First meeting' : 'Catch up'} · ${formatUSD(meeting.cost)}`} · 1 day{meeting.recentlyMet ? ' (met recently)' : ''}
+          {meeting.colleague ? 'Meet your colleague · free' : `${meeting.firstMeeting ? 'First meeting' : 'Catch up'} · ${formatUSD(meeting.cost)}`} ·{' '}
+          {meeting.metToday ? 'same day' : '1 day'}
+          {meeting.recentlyMet ? ' (met recently)' : ''}
         </button>
       ) : meeting.city ? (
         <button

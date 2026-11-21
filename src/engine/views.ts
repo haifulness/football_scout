@@ -455,6 +455,8 @@ export interface MeetingView {
   colleague: boolean;
   /** Never met: the full price. Catch-ups after the first meeting are cheaper. */
   firstMeeting: boolean;
+  /** You already met today: more meetings or pitches with them take no extra day (or fee). */
+  metToday: boolean;
 }
 
 export interface LiveView {

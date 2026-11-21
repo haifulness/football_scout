@@ -318,7 +318,7 @@ function OfficialCard({ official, club }: { official: OfficialView; club: ClubVi
                   .catch((e) => setError(e instanceof Error ? e.message : 'The meeting did not happen.'));
               }}
             >
-              Propose a scouting agreement · 1 day
+              Propose a scouting agreement · {official.meeting.metToday ? 'same day' : '1 day'}
             </button>
           )}
           {error && <div className="mt-1 text-[11px] text-alert-400">{error}</div>}

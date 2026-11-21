@@ -9,6 +9,7 @@ import type { Player } from '../model/player';
 import type { GameState } from '../model/world-state';
 import { canWorkWith, clubRecord } from './employment';
 import { meetingInfo } from './fieldwork';
+import { OFFER_REMINDER_DAYS } from './missions';
 import { ovrAt } from './ratings';
 import { ScoutingError, addLedger } from './scouting';
 import { addNews } from './season';
@@ -202,6 +203,29 @@ export function marketTick(state: GameState, date: GameDate) {
     } else if (m.status === 'offered' && (date > m.acceptBy || !clients.includes(m.clubId))) {
       m.status = 'expired';
       m.resolvedOn = date;
+      if (clients.includes(m.clubId)) {
+        const club = state.clubs[m.clubId]!;
+        addNews(state, {
+          date,
+          kind: 'career',
+          link: 'missions',
+          title: `Mandate lapsed: ${club.name}`,
+          body: `You didn't answer in time, so ${club.name} will sell ${p.firstName} ${p.lastName} without you.`,
+          clubIds: [club.id],
+          countryId: club.countryId,
+        });
+      }
+    } else if (m.status === 'offered' && m.acceptBy - date === OFFER_REMINDER_DAYS) {
+      const club = state.clubs[m.clubId]!;
+      addNews(state, {
+        date,
+        kind: 'career',
+        link: 'missions',
+        title: `Reply soon: ${club.name} want you to sell ${p.firstName} ${p.lastName}`,
+        body: `The mandate offer lapses in ${OFFER_REMINDER_DAYS} days. Accept or decline it in Missions.`,
+        clubIds: [club.id],
+        countryId: club.countryId,
+      });
     } else if (m.status === 'active' && m.deadline !== undefined && date > m.deadline) {
       m.status = 'failed';
       m.resolvedOn = date;

@@ -201,6 +201,11 @@ export interface MeetingResult {
 }
 
 /** A one-day meeting over coffee or dinner. Diminishing returns as you get closer. */
+/** You already sat down with this person today: more business with them takes no extra day or fee. */
+export function metToday(state: GameState, id: string): boolean {
+  return state.scout?.lastMet[id] === state.date;
+}
+
 export function meet(state: GameState, target: MeetTarget): MeetingResult {
   const scout = state.scout!;
   const info = meetingInfo(state, target);

@@ -6,7 +6,7 @@ import { Rng, clamp } from '../core/rng';
 import type { Club, ClubTier } from '../model/club';
 import type { ClubRecord, Employment, JobOffer, Scout } from '../model/scout';
 import type { GameState } from '../model/world-state';
-import { meetingInfo, COLLEAGUE_START } from './fieldwork';
+import { meetingInfo, metToday, COLLEAGUE_START } from './fieldwork';
 import { EXPENSE_COVER, ScoutingError, addLedger } from './scouting';
 
 export { EXPENSE_COVER };
@@ -108,8 +108,11 @@ export function proposeAgreement(state: GameState, clubId: ClubId): { accepted: 
   const info = meetingInfo(state, { kind: 'official', id: officialId });
   if (!info.allowed) throw new ScoutingError(`The Head Coach won't see you yet (needs reputation ${info.requiredReputation}).`);
   if (!info.inPlace) throw new ScoutingError(`You need to be in ${state.cities[club.cityId]!.name}.`);
-  if (scout.money < info.cost) throw new ScoutingError(`The meeting costs ${formatUSD(info.cost)} but you only have ${formatUSD(scout.money)}.`);
-  addLedger(state, { amount: usd(-info.cost), kind: 'meeting', label: `Agreement talks: ${club.name}` });
+  // Raising it at a meeting you already had today costs nothing extra.
+  if (!metToday(state, officialId)) {
+    if (scout.money < info.cost) throw new ScoutingError(`The meeting costs ${formatUSD(info.cost)} but you only have ${formatUSD(scout.money)}.`);
+    addLedger(state, { amount: usd(-info.cost), kind: 'meeting', label: `Agreement talks: ${club.name}` });
+  }
   scout.lastMet[officialId] = state.date;
   const rel = info.level;
   if (rel < 10) return { accepted: false, reason: "They don't know you well enough yet. Meet them a few times first." };

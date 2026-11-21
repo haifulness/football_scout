@@ -16,6 +16,7 @@ import {
   completeLiveScouting,
   meet,
   meetingInfo,
+  metToday,
   nextLiveOption,
   relationshipLabel,
   startLiveScouting,
@@ -276,6 +277,20 @@ export class Engine {
     closeDeadline(s);
     const day = advanceDays(s, 1);
     return this.summarize({ ...day, news: s.news.filter((n) => n.id >= newsBefore) });
+  }
+
+  /**
+   * A meeting's day has been spent; until time moves on for another reason, you're still with them, so the
+   * next pitch or chat with the same person is part of the same meeting (no extra day or fee).
+   */
+  private stillInMeeting(id: string) {
+    const sc = this.s.scout;
+    if (sc && !this.s.careerOver) sc.lastMet[id] = this.s.date;
+  }
+
+  /** An action that takes no time: the world doesn't move. */
+  private noTime(): AdvanceResult {
+    return this.hoursPassed(() => {});
   }
 
   /** An action on deadline day takes hours, not days. */
@@ -958,8 +973,11 @@ export class Engine {
 
   meet(target: MeetTarget): { result: MeetingResult; advance: AdvanceSummary } {
     this.assertActive();
+    const sameDay = metToday(this.s, target.id);
     const result = meet(this.s, target);
-    return { result, advance: this.summarize(this.spend(1)) };
+    const advance = sameDay ? this.noTime() : this.spend(1);
+    this.stillInMeeting(target.id);
+    return { result, advance: this.summarize(advance) };
   }
 
   // ── Career ──
@@ -1067,8 +1085,12 @@ export class Engine {
   proposeAgreement(clubId: ClubId): { accepted: boolean; reason: string; advance: AdvanceSummary } {
     this.assertActive();
     this.assertNoDeadline();
+    const coach = this.s.clubs[clubId]?.headCoachId;
+    const sameDay = !!coach && metToday(this.s, coach);
     const r = proposeAgreement(this.s, clubId);
-    return { ...r, advance: this.summarize(advanceDays(this.s, 1)) };
+    const advance = sameDay ? this.noTime() : advanceDays(this.s, 1);
+    if (coach) this.stillInMeeting(coach);
+    return { ...r, advance: this.summarize(advance) };
   }
 
   // ── Missions ──
@@ -1988,10 +2010,18 @@ export class Engine {
   // ── Recommendations ──
 
   /** Pitch a player to the Head Coach, in person or by phone (one day). */
+  /**
+   * A pitch takes a day in person, unless you already met the coach today (then put forward as many as you
+   * like). A phone call takes no time.
+   */
   pitch(args: PitchArgs): { deal: DealView; advance: AdvanceSummary } {
     this.assertActive();
+    const club = this.s.clubs[args.clubId];
+    const free = !!args.remote || (!!club && metToday(this.s, club.headCoachId));
     const deal = pitch(this.s, args);
-    return { deal: this.dealView(deal), advance: this.summarize(this.spend(1)) };
+    const advance = free ? this.noTime() : this.spend(1);
+    if (!args.remote && club) this.stillInMeeting(club.headCoachId);
+    return { deal: this.dealView(deal), advance: this.summarize(advance) };
   }
 
   getDeals(): DealView[] {
@@ -2643,6 +2673,7 @@ export class Engine {
       recentlyMet: m.recentlyMet,
       colleague: m.colleague,
       firstMeeting: m.firstMeeting,
+      metToday: metToday(s, target.id),
     };
   }
 

@@ -25,6 +25,8 @@ import { squadNeeds } from './squad-needs';
  */
 
 const OFFER_DAYS = 10;
+/** Days before an unanswered offer lapses when you get a reminder. */
+export const OFFER_REMINDER_DAYS = 2;
 const MAX_ACTIVE = 3;
 const FREELANCE_REWARD: Record<ClubTier, [number, number]> = {
   5: [1_000, 3_000],
@@ -375,6 +377,29 @@ export function missionTick(state: GameState, date: GameDate) {
     if (m.status === 'offered' && (date > m.acceptBy || !work.has(m.clubId))) {
       m.status = 'expired';
       m.resolvedOn = date;
+      const club = state.clubs[m.clubId]!;
+      // Say so: an offer shouldn't vanish without a word.
+      if (work.has(m.clubId))
+        addNews(state, {
+          date,
+          kind: 'career',
+          link: 'missions',
+          title: `Brief lapsed: ${club.name}`,
+          body: `You didn't answer ${club.name}'s ${m.position} brief in time, so they took it elsewhere.`,
+          clubIds: [club.id],
+          countryId: club.countryId,
+        });
+    } else if (m.status === 'offered' && m.acceptBy - date === OFFER_REMINDER_DAYS) {
+      const club = state.clubs[m.clubId]!;
+      addNews(state, {
+        date,
+        kind: 'career',
+        link: 'missions',
+        title: `Reply soon: ${club.name}'s ${m.position} brief`,
+        body: `The offer lapses in ${OFFER_REMINDER_DAYS} days (${formatDate(m.acceptBy)}). Accept or decline it in Missions.`,
+        clubIds: [club.id],
+        countryId: club.countryId,
+      });
     } else if (m.status === 'active' && m.deadline !== undefined && date > m.deadline) {
       m.status = 'failed';
       m.resolvedOn = date;
