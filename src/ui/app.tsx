@@ -35,6 +35,7 @@ import { AgencyScreen } from './screens/agency-screen';
 import { StartScreen } from './screens/start-screen';
 import { WorldScreen } from './screens/world-screen';
 import { GazetteScreen } from './screens/gazette-screen';
+import { EventsScreen } from './screens/events-screen';
 import { SaveIndicator } from './components/save-indicator';
 import { Badge, HUBS, HubTabs, hubBadge, hubOf, type Hub } from './components/hub-tabs';
 import { useGame, type Route } from './store/game-store';
@@ -186,6 +187,8 @@ function ScreenBody({ route }: { route: Route }): ReactNode {
       return <DeadlineScreen />;
     case 'hunts':
       return <HuntsScreen />;
+    case 'events':
+      return <EventsScreen />;
     case 'goals':
       return <GoalsScreen />;
     case 'agency':

@@ -37,7 +37,9 @@ export function clubTrust(state: GameState, clubId: ClubId): number {
   const r = clubRecord(scout, clubId);
   const employer = scout.employment.mode === 'fulltime' && scout.employment.clubId === clubId ? 10 : 0;
   const missions = Math.min(20, (r.missionsDone ?? 0) * 6) - Math.min(20, (r.missionsFailed ?? 0) * 8);
-  return Math.round(clamp(rel * 0.7 + Math.min(40, r.signings * 8) - Math.min(15, r.weakPitches * 3) + missions + employer + accuracyTrust(state), 0, 100));
+  // A reputation for straight dealing (integrity) moves trust up to ±8.
+  const integrity = ((scout.integrity ?? 50) - 50) / 6.25;
+  return Math.round(clamp(rel * 0.7 + Math.min(40, r.signings * 8) - Math.min(15, r.weakPitches * 3) + missions + employer + accuracyTrust(state) + integrity, 0, 100));
 }
 
 export function recordSigning(state: GameState, clubId: ClubId) {

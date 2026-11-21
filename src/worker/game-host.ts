@@ -3,6 +3,7 @@ import type { ProgressFn } from '../engine/generation/world-generator';
 import type { CareerSetup } from '../engine/model/scout';
 import type { WorldSummary } from '../engine/views';
 import { BACKGROUNDS } from '../engine/systems/scouting';
+import { ensureSeasonEvents } from '../engine/systems/events';
 import type { CareerSummary } from '../engine/systems/career-end';
 import { db, type HallEntry, type SaveMeta } from '../persistence/db';
 import { CURRENT_SCHEMA_VERSION, SaveError, decodeEnvelope, encodeEnvelope, gzip } from '../persistence/save-format';
@@ -145,6 +146,8 @@ export class GameHost extends Engine {
     if (!record) throw new SaveError('That save no longer exists.');
     const { meta, state } = await decodeEnvelope(record.data);
     this.state = state;
+    // Saves from before the scouting calendar get this season's events straight away.
+    ensureSeasonEvents(state);
     this.slotId = id;
     this.slotName = meta.name;
     this.createdAt = meta.createdAt;

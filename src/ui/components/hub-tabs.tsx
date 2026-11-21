@@ -36,6 +36,7 @@ export const HUBS: Record<'weekly' | 'work' | 'agency' | 'career', Hub> = {
       { screen: 'deals', label: 'Deals' },
       { screen: 'missions', label: 'Missions', badge: (s) => count(s.pendingMissions + s.pendingMandates, 'gold', 'Waiting for your answer') },
       { screen: 'hunts', label: 'Hunts', badge: (s) => count(s.activeHunts, 'violet', 'Open hunts') },
+      { screen: 'events', label: 'Events' },
     ],
   },
   agency: {

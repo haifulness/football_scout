@@ -54,6 +54,8 @@ export interface Scout {
   startReputation?: number;
   /** When you last met someone (staff or player id), to damp repeat meetings. */
   lastMet: Record<string, GameDate>;
+  /** How straight you deal, 0–100 (absent: 50). Hidden: honest clubs trust you faster, shady offers come less often. */
+  integrity?: number;
 }
 
 export interface CareerSetup {

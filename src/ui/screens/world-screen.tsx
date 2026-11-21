@@ -5,6 +5,7 @@ import { formatDate } from '../../engine/core/calendar';
 import { formatUSD } from '../../engine/core/money';
 import type { CountrySummary, HomeItem, HomeLink, HomeView } from '../../engine/views';
 import { GettingStarted } from '../components/getting-started';
+import { DilemmaCards } from '../components/dilemma-cards';
 import { Money, StatTile, StrengthPips } from '../components/ui';
 import { useSize } from '../components/use-size';
 import { Crest } from '../visuals/crest';
@@ -30,6 +31,7 @@ export function WorldScreen() {
   return (
     <div className="flex flex-col gap-4">
       <GettingStarted />
+      <DilemmaCards />
       {home && scout && <SeasonStrip home={home} money={scout.money} />}
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
@@ -181,6 +183,9 @@ const ICON: Record<HomeItem['kind'], string> = {
   debt: '!',
   clients: '+',
   report: '✎',
+  coach: '☺',
+  event: '⚑',
+  dilemma: '⚖',
 };
 
 function Upcoming({ home, onOpen }: { home: HomeView; onOpen: (l: HomeLink) => void }) {

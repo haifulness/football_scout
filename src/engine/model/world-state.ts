@@ -1,3 +1,5 @@
+import type { ScoutingEvent } from './event';
+import type { Dilemma } from './dilemma';
 import type { Assistant, AssistantCandidate } from './assistant';
 import type { DeadlineDay, ReviewBaseline, SeasonReview } from './review';
 import type { Hunt } from './hunt';
@@ -75,6 +77,10 @@ export interface GameState {
   prodigyFinds: ProdigyFind[];
   /** Wonderkid hunts: open, and the last ones that ended. */
   hunts: Hunt[];
+  /** This season's scouting events (absent in older saves until the next one is drawn). */
+  events?: ScoutingEvent[];
+  /** Choices put to you (recent ones kept for the record). */
+  dilemmas?: Dilemma[];
   /** Your season reviews, newest last (kept for the last 20 seasons). */
   seasonReviews: SeasonReview[];
   /** Season whose review you haven't opened yet. */

@@ -1121,13 +1121,13 @@ export interface GazetteView {
 
 /** Where a Home item leads: a UI route by screen name (and id for club/player pages). */
 export interface HomeLink {
-  screen: 'deals' | 'missions' | 'hunts' | 'staff' | 'career' | 'rivals' | 'inbox' | 'finances' | 'gazette' | 'goals' | 'club' | 'player' | 'deadline';
+  screen: 'deals' | 'missions' | 'hunts' | 'events' | 'staff' | 'career' | 'rivals' | 'inbox' | 'finances' | 'gazette' | 'goals' | 'club' | 'player' | 'deadline';
   id?: string;
 }
 
 export interface HomeItem {
   key: string;
-  kind: 'deal' | 'mission' | 'hunt' | 'assistant' | 'offer' | 'mandate' | 'inbox' | 'rival' | 'debt' | 'clients' | 'report';
+  kind: 'deal' | 'mission' | 'hunt' | 'assistant' | 'offer' | 'mandate' | 'inbox' | 'rival' | 'debt' | 'clients' | 'report' | 'coach' | 'event' | 'dilemma';
   /** urgent: act now or lose something; action: waiting on you; info: worth knowing. */
   tone: 'urgent' | 'action' | 'info';
   title: string;
@@ -1156,4 +1156,43 @@ export interface HomeView {
     /** Freelance: clients used of slots. Full-time: the employer. */
     work: { mode: 'freelance'; clients: number; slots: number } | { mode: 'fulltime'; club: ClubBadge };
   };
+}
+
+export interface ScoutingEventView {
+  id: number;
+  kind: 'youth-tournament' | 'u20-championship' | 'trial-day' | 'showcase';
+  label: string;
+  name: string;
+  city: { id: CityId; name: string };
+  countryName: string;
+  start: GameDate;
+  end: GameDate;
+  days: number;
+  ticket: USD;
+  size: number;
+  status: 'upcoming' | 'on' | 'over';
+  daysAway: number;
+  canAttend: { ok: boolean; reason?: string };
+  /** You're in the host city. */
+  here: boolean;
+  /** Days attending takes from today (the rest of the event). */
+  attendDays: number;
+  /** After you attend: who you saw, and whether they're in your pool. */
+  seen?: (PlayerRow & { inPool: boolean })[];
+}
+
+export interface DilemmaView {
+  id: number;
+  kind: 'agent-cut' | 'inflate-report' | 'talk-down' | 'family-fee';
+  title: string;
+  body: string;
+  choices: { key: string; label: string; hint: string }[];
+  /** Days left to answer (open ones). */
+  daysLeft?: number;
+  club?: ClubBadge;
+  player?: { id: PlayerId; name: string };
+  /** Settled: what you chose and what came of it (or that it lapsed). */
+  choice?: string;
+  outcome?: string;
+  lapsed?: boolean;
 }

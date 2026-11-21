@@ -22,6 +22,9 @@ import { reportTick } from './systems/reports';
 import { objectiveTick } from './systems/goals';
 import { agencyTick } from './systems/agency';
 import { scenarioTick } from './systems/scenarios';
+import { coachTick } from './systems/coaching';
+import { eventsTick } from './systems/events';
+import { dilemmaTick } from './systems/dilemmas';
 import { isInboxItem } from './model/season';
 
 export interface AdvanceResult {
@@ -110,6 +113,7 @@ function playDay(state: GameState, date: GameDate, onMatch?: MatchListener): { m
 
   if (!state.season.ended && date > seasonWindow(state.season.year).end) endSeason(state, date);
   if (isTransferWindow(date) && toParts(date).weekday === 1) aiTransferWeek(state, date);
+  coachTick(state, date);
   if (state.scout) rivalTick(state, date);
   if (state.scout) resolveDeals(state, date);
   if (state.scout) {
@@ -120,6 +124,8 @@ function playDay(state: GameState, date: GameDate, onMatch?: MatchListener): { m
     marketTick(state, date);
     assistantTick(state, date);
     huntTick(state, date);
+    eventsTick(state, date);
+    dilemmaTick(state, date);
     reportTick(state, date);
     objectiveTick(state, date);
     agencyTick(state, date);

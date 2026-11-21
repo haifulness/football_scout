@@ -1,3 +1,4 @@
+import { DilemmaCards } from '../components/dilemma-cards';
 import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { formatDate } from '../../engine/core/calendar';
@@ -48,6 +49,7 @@ export function InboxScreen() {
           Messages for you: deals, offers, missions, money, and rumours about players you are working on. World news is under News.
         </p>
       </header>
+      <DilemmaCards />
       <NewsFeed news={news} kinds={INBOX_KINDS} newFrom={newFrom} empty="No messages yet. Deals, offers and missions will land here." />
     </div>
   );

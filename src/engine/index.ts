@@ -1,5 +1,5 @@
 import { ATTRIBUTE_LABEL } from './model/player';
-import { CAREER_START, ageOn, isTransferWindow, makeDate, toParts, type GameDate } from './core/calendar';
+import { CAREER_START, ageOn, formatDate, isTransferWindow, makeDate, toParts, type GameDate } from './core/calendar';
 import type { CityId, ClubId, CountryId, LeagueId, PlayerId } from './core/ids';
 import { formatUSD, usd, type USD } from './core/money';
 import { generateWorld, type ProgressFn } from './generation/world-generator';
@@ -99,6 +99,8 @@ import { SPECIALTY_RULES, matchingSpecialties, objectiveProgress, specialtyProgr
 import type { Objective } from './model/goals';
 import { VERDICT_LABEL, type ScoutReport, type Verdict } from './model/report';
 import { huntAction, huntOptions, huntPlace, type HuntMethod } from './systems/hunts';
+import { dilemmaText, resolveDilemma } from './systems/dilemmas';
+import { attendCheck, attendEvent, ensureSeasonEvents, eventEnd, eventLabel, eventStatus } from './systems/events';
 import { closeDeadline, DEADLINE_ACTION_HOURS, DEADLINE_FEE_PREMIUM, passDeadlineHours } from './systems/deadline';
 import type {
   AdvanceSummary,
@@ -136,6 +138,8 @@ import type {
   GazetteView,
   HomeItem,
   HomeView,
+  ScoutingEventView,
+  DilemmaView,
   MarketView,
   DiscoveryView,
   PayoutView,
@@ -798,7 +802,83 @@ export class Engine {
 
   createCareer(setup: CareerSetup): ScoutView {
     createCareer(this.s, setup);
+    ensureSeasonEvents(this.s);
     return this.getScout()!;
+  }
+
+  // ── Scouting events ──
+
+  getEvents(): ScoutingEventView[] {
+    const s = this.s;
+    return (s.events ?? [])
+      .filter((e) => e.season === s.season.year)
+      .map((e) => ({
+        id: e.id,
+        kind: e.kind,
+        label: eventLabel(e.kind),
+        name: e.name,
+        city: { id: e.cityId, name: s.cities[e.cityId]!.name },
+        countryName: s.countries[e.countryId]!.name,
+        start: e.start,
+        end: eventEnd(e),
+        days: e.days,
+        ticket: e.ticket,
+        size: e.size,
+        status: eventStatus(s, e),
+        daysAway: Math.max(0, e.start - s.date),
+        canAttend: attendCheck(s, e),
+        here: s.scout?.location === e.cityId,
+        attendDays: Math.max(1, eventEnd(e) - Math.max(s.date, e.start) + 1),
+        seen: e.seen?.flatMap((id) => {
+          const p = s.players[id];
+          return p ? [{ ...this.playerRow(p), inPool: !!s.pool[id] }] : [];
+        }),
+      }));
+  }
+
+  /** Spend the rest of the event there: everyone you see becomes better known. */
+  attendEvent(id: number): { event: ScoutingEventView; advance: AdvanceSummary } {
+    this.assertActive();
+    this.assertNoDeadline();
+    const r = attendEvent(this.s, id);
+    const advance = this.summarize(this.spend(r.days));
+    return { event: this.getEvents().find((e) => e.id === id)!, advance };
+  }
+
+  // ── Dilemmas ──
+
+  /** Open choices first, then the last few you settled. */
+  getDilemmas(): DilemmaView[] {
+    const s = this.s;
+    const all = s.dilemmas ?? [];
+    const open = all.filter((d) => !d.resolvedOn);
+    const settled = all.filter((d) => d.resolvedOn && !d.lapsed).slice(-3).reverse();
+    return [...open, ...settled].map((d) => {
+      const t = dilemmaText(s, d);
+      const p = d.playerId ? s.players[d.playerId] : undefined;
+      return {
+        id: d.id,
+        kind: d.kind,
+        title: t.title,
+        body: t.body,
+        choices: t.choices,
+        daysLeft: d.resolvedOn ? undefined : Math.max(0, d.expiresOn - s.date),
+        club: d.clubId ? badge(s.clubs[d.clubId]!) : undefined,
+        player: p && { id: p.id, name: `${p.firstName} ${p.lastName}` },
+        choice: d.choice ? t.choices.find((c) => c.key === d.choice)?.label : undefined,
+        outcome: d.outcome,
+        lapsed: d.lapsed,
+      };
+    });
+  }
+
+  resolveDilemma(id: number, choice: string): { outcome: string } {
+    this.assertActive();
+    return resolveDilemma(this.s, id, choice);
+  }
+
+  addAllToPool(playerIds: PlayerId[]): void {
+    for (const id of playerIds) this.addToPool(id);
   }
 
   estimateSearch(filters: SearchFilters): SearchEstimateView {
@@ -1611,6 +1691,21 @@ export class Engine {
         link: { screen: 'staff' },
       });
     const e = sc.employment;
+    // A new coach at a club you work with: your standing there now rests on someone you may never have met.
+    for (const id of e.mode === 'fulltime' ? [e.clubId] : e.clients) {
+      const club = s.clubs[id]!;
+      const coach = s.officials[club.headCoachId]!;
+      if (coach.appointedOn === undefined || s.date - coach.appointedOn > 45 || (sc.relationships[coach.id] ?? 0) >= 15) continue;
+      needsYou.push({
+        key: `coach-${club.id}`,
+        kind: 'coach',
+        tone: 'action',
+        title: `New coach at ${club.name}: meet ${coach.firstName} ${coach.lastName}`,
+        detail: `Appointed ${formatDate(coach.appointedOn)}. Your relationship with him: ${Math.round(sc.relationships[coach.id] ?? 0)}.`,
+        club: badge(club),
+        link: { screen: 'club', id: club.id },
+      });
+    }
     if (e.mode === 'freelance') {
       const slots = clientCapacity(s);
       if (e.clients.length < slots)
@@ -1622,6 +1717,18 @@ export class Engine {
           detail: 'The Weekly lists clubs short of players with money to spend.',
           link: { screen: 'gazette' },
         });
+    }
+    for (const ev of this.getEvents().filter((x) => x.status === 'on' && !x.seen)) {
+      const left = ev.end - s.date + 1;
+      needsYou.push({
+        key: `ev-on${ev.id}`,
+        kind: 'event',
+        tone: 'action',
+        title: `On now: ${ev.name}`,
+        detail: `${ev.label} in ${ev.city.name} · about ${ev.size} players · ${ev.here ? 'you are here' : 'travel there to attend'}`,
+        daysLeft: left,
+        link: { screen: 'events' },
+      });
     }
     if (scout.unreadInbox)
       needsYou.push({
@@ -1706,6 +1813,9 @@ export class Engine {
     }
     for (const m of missions.filter((x) => x.status === 'active' && x.deadline !== undefined))
       dates.push({ key: `md${m.id}`, date: m.deadline!, label: `${m.club.shortName} ${m.position} brief due`, link: { screen: 'missions' } });
+    const events = this.getEvents();
+    for (const ev of events.filter((x) => x.status === 'upcoming'))
+      dates.push({ key: `ev${ev.id}`, date: ev.start, label: `${ev.name} · ${ev.city.name}`, link: { screen: 'events' } });
     const upcoming = dates
       .filter((d) => d.date >= s.date && d.date - s.date <= 75)
       .sort((a, b) => a.date - b.date)

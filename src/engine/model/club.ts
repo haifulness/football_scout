@@ -1,3 +1,4 @@
+import type { GameDate } from '../core/calendar';
 import type { CityId, ClubId, CountryId, LeagueId, PlayerId, StaffId } from '../core/ids';
 import type { USD } from '../core/money';
 import type { FormationId } from '../data/formations';
@@ -73,4 +74,10 @@ export interface ClubOfficial {
   priorities: OfficialPriorities;
   stubbornness: number; // 0–100
   portraitSeed: number;
+  /** When he took this job (absent: since before your career). */
+  appointedOn?: GameDate;
+  /** Sacked and looking for work (clubId is then his last club). */
+  unemployedSince?: GameDate;
+  /** The shape he likes to play: a club that hires him often switches to it. */
+  formation?: FormationId;
 }

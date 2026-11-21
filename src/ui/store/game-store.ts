@@ -96,6 +96,7 @@ export type Route =
   | { screen: 'staff' }
   | { screen: 'deadline' }
   | { screen: 'hunts' }
+  | { screen: 'events' }
   | { screen: 'goals' }
   | { screen: 'agency' }
   | { screen: 'matchday'; id: PlayerId }
@@ -161,6 +162,8 @@ interface GameStore {
   attendMatch: (playerId: PlayerId, focus: PlayerId[]) => Promise<AttendedMatchView>;
   /** Work a wonderkid hunt's trail (takes days). */
   huntAction: (huntId: number, method: 'calls' | 'visit') => Promise<{ success: boolean; text: string }>;
+  /** Attend a scouting event for its remaining days. */
+  attendEvent: (id: number) => Promise<void>;
   /** Destination of the open travel planner, if any. */
   travelTarget?: CityId;
   poolFilters: PoolFilters;
@@ -428,6 +431,14 @@ export const useGame = create<GameStore>((set, get) => {
         (x) => x.advance,
       );
       return r.match;
+    },
+
+    async attendEvent(id) {
+      await timed(
+        () => engine.attendEvent(id),
+        (x) => x.advance,
+      );
+      void get().saveNow();
     },
 
     async huntAction(huntId, method) {

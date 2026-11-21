@@ -4,8 +4,8 @@ import { snapshotReviewBaseline, writeSeasonReview } from './review';
 import type { ClubId, LeagueId } from '../core/ids';
 import { usd } from '../core/money';
 import { Rng, clamp } from '../core/rng';
-import { FORMATIONS, FORMATION_IDS, type FormationId } from '../data/formations';
-import { DOMESTIC_SHARE, PRODIGY_CHANCE, TOP_TIER_BASE, makeOfficial, newPlayerId, newStaffId, pickCaptain } from '../generation/world-generator';
+import { FORMATIONS, type FormationId } from '../data/formations';
+import { DOMESTIC_SHARE, PRODIGY_CHANCE, TOP_TIER_BASE, newPlayerId, pickCaptain } from '../generation/world-generator';
 import { generatePlayer } from '../generation/player-generator';
 import type { Club, ClubTier } from '../model/club';
 import type { Country } from '../model/geography';
@@ -17,6 +17,7 @@ import { scheduleLeague, seasonWindow } from './fixtures';
 import { ovrAt } from './ratings';
 import { bestXI } from './squad-needs';
 import { computeTable, promotionSpots, type TableRow } from './standings';
+import { announceChange, replaceCoach } from './coaching';
 
 const MIN_SQUAD = 22;
 const MAX_SQUAD = 32;
@@ -240,17 +241,12 @@ export function rolloverSeason(state: GameState, date: GameDate) {
     const { sacked } = promoteAndRelegate(state, country, rng);
     const lines: string[] = [];
     for (const { club, reason } of sacked) {
-      const old = state.officials[club.headCoachId]!;
-      const coach = makeOfficial(rng, newStaffId(state), 'coach', club.id, country, foreignPick);
-      delete state.officials[old.id];
-      if (state.scout) delete state.scout.relationships[old.id];
-      state.officials[coach.id] = coach;
-      club.headCoachId = coach.id;
-      const newFormation = rng.chance(0.4) ? rng.pick(FORMATION_IDS) : club.formation;
+      const ch = replaceCoach(state, club, rng, date, reason);
+      const { old, coach } = ch;
       lines.push(
-        `${club.name}: ${old.firstName} ${old.lastName} leaves ${reason}; ${coach.firstName} ${coach.lastName} takes over${newFormation !== club.formation ? ` and switches to ${newFormation}` : ''}.`,
+        `${club.name}: ${old.firstName} ${old.lastName} leaves ${reason}; ${coach.firstName} ${coach.lastName} takes over${club.formation !== ch.formationBefore ? ` and switches to ${club.formation}` : ''}.`,
       );
-      club.formation = newFormation;
+      announceChange(state, ch, date, false);
     }
     if (lines.length)
       addNews(state, {
