@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import type { ContinentId } from '../../engine/core/ids';
 import { formatDate } from '../../engine/core/calendar';
 import { formatUSD } from '../../engine/core/money';
@@ -53,36 +53,63 @@ export function WorldScreen() {
 }
 
 function SeasonStrip({ home, money }: { home: HomeView; money: number }) {
+  const navigate = useGame((st) => st.navigate);
   const s = home.season;
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-      <StatTile label="Money" sub={`${s.label}: +${formatUSD(s.earned)} in · −${formatUSD(s.spent)} out`} accent="#2fcf73">
-        <Money value={money} animated />
-      </StatTile>
-      <StatTile label="Reputation" sub={`#${s.rank} of ${s.scouts} scouts`} accent="#ffc933">
-        {s.reputation}
-        <span className="text-sm text-mist-400">/100</span>
-      </StatTile>
-      <StatTile label={s.work.mode === 'freelance' ? 'Clients' : 'Employer'} sub={s.work.mode === 'freelance' ? 'Freelance' : 'Full-time'} accent="#38bdf8">
-        {s.work.mode === 'freelance' ? (
-          <>
+      <LinkTile onClick={() => navigate({ screen: 'finances' })} hint="Open Finances">
+        <StatTile label="Money" sub={`${s.label}: +${formatUSD(s.earned)} in · −${formatUSD(s.spent)} out`} accent="#2fcf73">
+          <Money value={money} animated />
+        </StatTile>
+      </LinkTile>
+      <LinkTile onClick={() => navigate({ screen: 'rivals' })} hint="See how you rank against the other scouts">
+        <StatTile label="Reputation" sub={`#${s.rank} of ${s.scouts} scouts`} accent="#ffc933">
+          {s.reputation}
+          <span className="text-sm text-mist-400">/100</span>
+        </StatTile>
+      </LinkTile>
+      {s.work.mode === 'freelance' ? (
+        <LinkTile onClick={() => navigate({ screen: 'career' })} hint="Your clients and job offers">
+          <StatTile label="Clients" sub="Freelance" accent="#38bdf8">
             {s.work.clients}
             <span className="text-sm text-mist-400">/{s.work.slots}</span>
-          </>
-        ) : (
-          <span className="flex items-center gap-2 text-lg">
-            <Crest club={s.work.club} size={22} />
-            <span className="truncate">{s.work.club.shortName}</span>
-          </span>
-        )}
-      </StatTile>
-      <StatTile label="Signings this season" sub={s.goals.total ? `Season goals ${s.goals.done}/${s.goals.total}` : undefined} accent="#a78bfa">
-        {s.placements}
-      </StatTile>
-      <StatTile label="Player pool" sub="Players you're tracking" accent="#a9bec7">
-        {s.poolSize}
-      </StatTile>
+          </StatTile>
+        </LinkTile>
+      ) : (
+        <LinkTile onClick={() => s.work.mode === 'fulltime' && navigate({ screen: 'club', id: s.work.club.id })} hint="Open your employer's page">
+          <StatTile label="Employer" sub="Full-time" accent="#38bdf8">
+            <span className="flex items-center gap-2 text-lg">
+              <Crest club={s.work.club} size={22} />
+              <span className="truncate">{s.work.club.shortName}</span>
+            </span>
+          </StatTile>
+        </LinkTile>
+      )}
+      <LinkTile onClick={() => navigate({ screen: 'deals' })} hint="Your deals and signings">
+        <StatTile label="Signings this season" sub={s.goals.total ? `Season goals ${s.goals.done}/${s.goals.total}` : undefined} accent="#a78bfa">
+          {s.placements}
+        </StatTile>
+      </LinkTile>
+      <LinkTile onClick={() => navigate({ screen: 'pool' })} hint="Open your player pool">
+        <StatTile label="Player pool" sub="Players you're tracking" accent="#a9bec7">
+          {s.poolSize}
+        </StatTile>
+      </LinkTile>
     </div>
+  );
+}
+
+/** A stat tile you can tap to open the screen behind it. */
+function LinkTile({ onClick, hint, children }: { onClick: () => void; hint: string; children: ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      title={hint}
+      className="group relative block rounded-xl text-left transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-grass-400 [&>.panel]:transition-colors [&>.panel]:group-hover:border-white/20"
+    >
+      {children}
+      <span className="pointer-events-none absolute right-3 top-2.5 text-mist-400 opacity-0 transition-opacity group-hover:opacity-100">›</span>
+    </button>
   );
 }
 

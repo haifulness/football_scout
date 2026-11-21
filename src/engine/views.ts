@@ -376,6 +376,8 @@ export interface ScoutView {
   careerOver?: { date: GameDate; reason: string; kind?: 'bankrupt' | 'retired' | 'scenario' };
   /** Short employment label for the top bar, e.g. "Freelance · 2/3 clients". */
   employmentLabel: string;
+  /** Full-time: who you work for and your job title. */
+  employer?: { club: ClubBadge; title: string };
   pendingOffers: number;
   /** Mission offers waiting for an answer. */
   pendingMissions: number;

@@ -2251,6 +2251,7 @@ export class Engine {
         sc.employment.mode === 'fulltime'
           ? `${sc.employment.title} · ${s.clubs[sc.employment.clubId]!.shortName}`
           : `Freelance · ${sc.employment.clients.length}/${clientCapacity(s)} clients`,
+      employer: sc.employment.mode === 'fulltime' ? { club: badge(s.clubs[sc.employment.clubId]!), title: sc.employment.title } : undefined,
       pendingOffers: s.offers.length,
       pendingMissions: s.missions.filter((m) => m.status === 'offered').length,
       pendingMandates: s.mandates.filter((m) => m.status === 'offered').length,

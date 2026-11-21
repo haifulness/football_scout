@@ -27,6 +27,7 @@ import { GlobalSearch } from './components/global-search';
 import { CareerEnd } from './components/career-end';
 import { CountUp } from './components/ui';
 import { Crest } from './visuals/crest';
+import type { ScoutView } from '../engine/views';
 import { formatUSD } from '../engine/core/money';
 import { PlayerScreen } from './screens/player-screen';
 import { GoalsScreen } from './screens/goals-screen';
@@ -204,6 +205,18 @@ function Sidebar({ onClose }: { onClose: () => void }) {
             Football <span className="text-grass-400">Scout</span>
           </div>
           <div className="mt-1 truncate text-[11px] text-mist-400">{save.name ?? `World #${world?.seed}`}</div>
+          {scout?.employer && (
+            <button
+              onClick={() => navigate({ screen: 'club', id: scout.employer!.club.id })}
+              className="mt-2 flex w-full items-center gap-2 rounded-md bg-white/[0.04] px-2 py-1.5 text-left hover:bg-white/[0.07]"
+            >
+              <Crest club={scout.employer.club} size={20} />
+              <span className="min-w-0">
+                <span className="block truncate text-[12px] font-semibold text-mist-100">{scout.employer.club.name}</span>
+                <span className="block truncate text-[10px] text-mist-400">{scout.employer.title}</span>
+              </span>
+            </button>
+          )}
         </div>
         <button className="btn-ghost h-8 w-8 p-0 lg:hidden" onClick={onClose} aria-label="Close menu">
           ✕
@@ -294,18 +307,39 @@ function TopBar({ onMenu }: { onMenu: () => void }) {
   );
 }
 
-/** Your bank balance, counting up/down as it changes. */
+/** Your bank balance, counting up/down as it changes, and who you work for. */
 function MoneyPill() {
   const scout = useGame((s) => s.scout);
+  const navigate = useGame((s) => s.navigate);
   if (!scout) return null;
   const low = scout.money < 1000;
   return (
-    <div className="text-right">
-      <div className={`num text-lg font-bold leading-none ${low ? 'text-alert-400' : 'text-grass-300'}`}>
-        <CountUp value={scout.money} format={(n) => formatUSD(Math.round(n), { compact: false })} />
+    <div className="flex items-center gap-3">
+      {scout.employer && <EmployerChip employer={scout.employer} onOpen={() => navigate({ screen: 'club', id: scout.employer!.club.id })} />}
+      <div className="text-right">
+        <div className={`num text-lg font-bold leading-none ${low ? 'text-alert-400' : 'text-grass-300'}`}>
+          <CountUp value={scout.money} format={(n) => formatUSD(Math.round(n), { compact: false })} />
+        </div>
+        <div className="text-[10px] uppercase tracking-wider text-mist-400">{scout.employer ? 'Full-time' : scout.employmentLabel}</div>
       </div>
-      <div className="text-[10px] uppercase tracking-wider text-mist-400">{scout.employmentLabel}</div>
     </div>
+  );
+}
+
+/** Your employer's crest, name and your title, one tap from its page. */
+function EmployerChip({ employer, onOpen }: { employer: NonNullable<ScoutView['employer']>; onOpen: () => void }) {
+  return (
+    <button
+      onClick={onOpen}
+      className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] py-1 pl-1.5 pr-2.5 text-left hover:border-white/25"
+      title={`You work full-time for ${employer.club.name}`}
+    >
+      <Crest club={employer.club} size={26} />
+      <span className="hidden min-w-0 sm:block">
+        <span className="block max-w-[10rem] truncate text-[13px] font-semibold leading-tight text-mist-100">{employer.club.name}</span>
+        <span className="block text-[10px] uppercase tracking-wider text-mist-400">{employer.title}</span>
+      </span>
+    </button>
   );
 }
 
