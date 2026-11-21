@@ -11,7 +11,7 @@ import { engine } from '../store/engine-client';
 import { useEngineQuery, useGame, type RecommendBrief } from '../store/game-store';
 import { DealStageBadge } from './deal-stage';
 import { RelationshipBar } from './relationship';
-import { OvrBadge, PosBadge, ratingColor, useCultureLookup } from './ui';
+import { OvrBadge, PosBadge, autoFocusText, ratingColor, useCultureLookup } from './ui';
 import { RivalWarning } from './rival-warning';
 
 /** Recommend a player to a club: pick the pair, check the bar, choose who to pitch to. */
@@ -180,7 +180,7 @@ function PlayerPicker({ onPick, brief }: { onPick: (id: PlayerId) => void; brief
       )}
       <div className="flex flex-wrap items-center gap-2 border-b border-white/[0.06] px-5 py-3">
         <input
-          autoFocus
+          autoFocus={autoFocusText()}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search name or club…"

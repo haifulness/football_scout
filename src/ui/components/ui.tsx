@@ -270,6 +270,18 @@ export function useCultureLookup(): (countryId: string) => string | undefined {
   return (id) => countries?.find((c) => c.id === id)?.culture;
 }
 
+/**
+ * Whether a text field may grab focus when it appears: only with a mouse and keyboard. On a phone, focusing a
+ * field pops the on-screen keyboard over whatever just opened, so there we wait for a tap.
+ */
+export function autoFocusText(): boolean {
+  try {
+    return window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  } catch {
+    return false;
+  }
+}
+
 export function Loading({ label = 'Loading' }: { label?: string }) {
   return (
     <div className="flex h-64 items-center justify-center gap-3 text-mist-400">

@@ -1,3 +1,4 @@
+import { autoFocusText } from './ui';
 import { motion } from 'motion/react';
 import { useState } from 'react';
 import type { CountryId } from '../../engine/core/ids';
@@ -44,17 +45,20 @@ export function CareerSetup({ onSubmit, submitLabel, busy }: { onSubmit: (setup:
       className="flex flex-col gap-5"
       onSubmit={(e) => {
         e.preventDefault();
-        onSubmit({ name: name.trim() || randomName(nationality), nationality, homeCountry: home, background, difficulty: def?.difficulty ?? difficulty, scenario });
+        onSubmit({
+          name: name.trim() || randomName(nationality),
+          nationality,
+          homeCountry: home,
+          background,
+          difficulty: def?.difficulty ?? difficulty,
+          scenario,
+        });
       }}
     >
       <div>
         <div className="panel-title mb-2 text-[11px]">Mode</div>
         <div className="flex flex-wrap gap-1.5">
-          <button
-            type="button"
-            className={`chip ${!scenario ? 'border-grass-400/60 text-grass-300' : 'text-mist-300'}`}
-            onClick={() => setScenario(undefined)}
-          >
+          <button type="button" className={`chip ${!scenario ? 'border-grass-400/60 text-grass-300' : 'text-mist-300'}`} onClick={() => setScenario(undefined)}>
             Free career
           </button>
           {(Object.keys(SCENARIOS) as ScenarioId[]).map((id) => (
@@ -89,7 +93,7 @@ export function CareerSetup({ onSubmit, submitLabel, busy }: { onSubmit: (setup:
           <span className="panel-title text-[11px]">Your name</span>
           <div className="flex gap-1.5">
             <input
-              autoFocus
+              autoFocus={autoFocusText()}
               value={name}
               maxLength={40}
               onFocus={(e) => !nameTouched && e.target.select()}
@@ -134,7 +138,9 @@ export function CareerSetup({ onSubmit, submitLabel, busy }: { onSubmit: (setup:
           />
         </label>
         <label className="flex flex-col gap-1.5" htmlFor="home">
-          <span className="panel-title text-[11px]">Home market{scenario === 'shoestring' && <span className="ml-1 normal-case text-violet-300">(set by the scenario)</span>}</span>
+          <span className="panel-title text-[11px]">
+            Home market{scenario === 'shoestring' && <span className="ml-1 normal-case text-violet-300">(set by the scenario)</span>}
+          </span>
           <CountrySelect
             disabled={scenario === 'shoestring'}
             id="home"
@@ -188,25 +194,25 @@ export function CareerSetup({ onSubmit, submitLabel, busy }: { onSubmit: (setup:
           Difficulty: <span className="font-semibold capitalize text-mist-200">{def.difficulty}</span> (set by the scenario)
         </div>
       ) : (
-      <div>
-        <div className="panel-title mb-2 text-[11px]">Difficulty</div>
-        <div className="grid grid-cols-3 gap-2">
-          {(Object.keys(DIFFICULTY) as Difficulty[]).map((d) => (
-            <button
-              type="button"
-              key={d}
-              onClick={() => setDifficulty(d)}
-              className={`rounded-xl border p-3 text-left transition-colors ${d === difficulty ? 'border-flood-400/60 bg-flood-500/10' : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.05]'}`}
-            >
-              <div className="flex items-baseline justify-between">
-                <span className="font-semibold capitalize">{d}</span>
-                <span className="num text-sm text-flood-300">{formatUSD(STARTING_MONEY[d])}</span>
-              </div>
-              <div className="mt-1 text-[11px] text-mist-400">{DIFFICULTY[d]}</div>
-            </button>
-          ))}
+        <div>
+          <div className="panel-title mb-2 text-[11px]">Difficulty</div>
+          <div className="grid grid-cols-3 gap-2">
+            {(Object.keys(DIFFICULTY) as Difficulty[]).map((d) => (
+              <button
+                type="button"
+                key={d}
+                onClick={() => setDifficulty(d)}
+                className={`rounded-xl border p-3 text-left transition-colors ${d === difficulty ? 'border-flood-400/60 bg-flood-500/10' : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.05]'}`}
+              >
+                <div className="flex items-baseline justify-between">
+                  <span className="font-semibold capitalize">{d}</span>
+                  <span className="num text-sm text-flood-300">{formatUSD(STARTING_MONEY[d])}</span>
+                </div>
+                <div className="mt-1 text-[11px] text-mist-400">{DIFFICULTY[d]}</div>
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
       )}
 
       <button type="submit" disabled={busy} className="btn-primary py-3 text-base">
