@@ -50,7 +50,7 @@ export function learn(state: GameState, p: Player, gain: number, cap: number, da
   const current = state.knowledge[p.id]?.level ?? 0;
   const base = Math.max(current, publicLevel(state, p));
   const level = Math.max(current, Math.min(cap, base + gain));
-  state.knowledge[p.id] = { ...state.knowledge[p.id], level: Math.round(level), lastUpdated: date, seenAttrs: { ...p.attributes } };
+  state.knowledge[p.id] = { ...state.knowledge[p.id], level: Math.round(level), lastUpdated: date, seenAttrs: { ...p.attributes }, stale: undefined };
   // The moment your work reveals a prodigy (shown as a special reveal).
   if (!wasProdigyVisible && prodigyVisible(state, p) && !state.pendingDiscoveries.includes(p.id)) {
     state.pendingDiscoveries.push(p.id);
@@ -93,6 +93,7 @@ export function learnAttribute(state: GameState, p: Player, k: AttributeKey, gai
   attrs[k] = Math.round(Math.max(attrs[k] ?? 0, Math.min(cap, attributeLevel(state, p, k) + gain)));
   known.lastUpdated = date;
   known.seenAttrs = { ...p.attributes };
+  known.stale = undefined;
 }
 
 /**
@@ -103,6 +104,20 @@ export function seenAs(state: GameState, p: Player): Player {
   const k = state.knowledge[p.id];
   if (!k?.seenAttrs || k.level <= publicLevel(state, p)) return p;
   return { ...p, attributes: k.seenAttrs };
+}
+
+export type Freshness = 'fresh' | 'ageing' | 'stale';
+/** A read older than this is ageing; older than STALE_DAYS, stale. */
+export const AGEING_DAYS = 90;
+export const STALE_DAYS = 180;
+
+/** How current your own read on him is (undefined: you only have public information). */
+export function freshness(state: GameState, p: Player): Freshness | undefined {
+  const on = seenOn(state, p);
+  if (on === undefined) return undefined;
+  if (state.knowledge[p.id]?.stale) return 'stale';
+  const age = state.date - on;
+  return age >= STALE_DAYS ? 'stale' : age >= AGEING_DAYS ? 'ageing' : 'fresh';
 }
 
 /** When you last looked at him yourself (undefined: only public information). */

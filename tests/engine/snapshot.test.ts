@@ -3,7 +3,7 @@ import type { CountryId } from '../../src/engine/core/ids';
 import { generateWorld } from '../../src/engine/generation/world-generator';
 import type { Player } from '../../src/engine/model/player';
 import type { GameState } from '../../src/engine/model/world-state';
-import { fog, learn, publicLevel, seenOn } from '../../src/engine/systems/knowledge';
+import { AGEING_DAYS, STALE_DAYS, fog, freshness, learn, publicLevel, seenOn } from '../../src/engine/systems/knowledge';
 import { ovrAt } from '../../src/engine/systems/ratings';
 import { createCareer } from '../../src/engine/systems/scouting';
 
@@ -66,5 +66,31 @@ describe('your read is a snapshot', () => {
     const r = fog(w, p).ovr;
     expect(r[0]).toBeLessThanOrEqual(now);
     expect(r[1]).toBeGreaterThanOrEqual(now);
+  });
+});
+
+describe('how current your read is', () => {
+  it('is fresh, then ageing after three months, stale after six, and fresh again when you look', () => {
+    const { w, p } = setup();
+    expect(freshness(w, p)).toBeUndefined();
+    learn(w, p, 60, 80, w.date);
+    const start = w.date;
+    expect(freshness(w, p)).toBe('fresh');
+    w.date = (start + AGEING_DAYS) as typeof w.date;
+    expect(freshness(w, p)).toBe('ageing');
+    w.date = (start + STALE_DAYS) as typeof w.date;
+    expect(freshness(w, p)).toBe('stale');
+    learn(w, p, 5, 80, w.date);
+    expect(freshness(w, p)).toBe('fresh');
+  });
+
+  it('goes stale at once when something happens, until you look again', () => {
+    const { w, p } = setup();
+    learn(w, p, 60, 80, w.date);
+    w.knowledge[p.id]!.stale = 'he moved club';
+    expect(freshness(w, p)).toBe('stale');
+    learn(w, p, 5, 80, w.date);
+    expect(freshness(w, p)).toBe('fresh');
+    expect(w.knowledge[p.id]!.stale).toBeUndefined();
   });
 });

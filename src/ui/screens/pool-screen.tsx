@@ -27,6 +27,8 @@ export function PoolScreen() {
           (f.maxValue === undefined || p.value <= f.maxValue) &&
           (f.maxWage === undefined || p.wage <= f.maxWage) &&
           (f.knowledge === 'any' || (f.knowledge === 'high' ? p.knowledge >= 60 : p.knowledge < 40)) &&
+          (f.freshness === 'any' ||
+            (f.freshness === 'old' ? p.freshness === 'ageing' || p.freshness === 'stale' : p.freshness === 'fresh')) &&
           (!f.starred || p.starred) &&
           (!f.assistant || p.report) &&
           (!f.freeAgents || !p.club) &&
@@ -244,6 +246,11 @@ function FilterBar({ f, set, active }: { f: PoolFilters; set: (f: Partial<PoolFi
         <option value="any">Any knowledge</option>
         <option value="high">Well known (60+)</option>
         <option value="low">Need scouting (&lt;40)</option>
+      </select>
+      <select className={control} aria-label="How current" value={f.freshness ?? 'any'} onChange={(e) => set({ freshness: e.target.value as PoolFilters['freshness'] })}>
+        <option value="any">Any read</option>
+        <option value="old">Needs a fresh look</option>
+        <option value="fresh">Seen recently</option>
       </select>
       {toggle('starred', '★ Starred')}
       {toggle('assistant', 'From assistants')}

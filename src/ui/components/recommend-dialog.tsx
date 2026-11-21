@@ -754,6 +754,13 @@ function Verdict({ preview, wageOffer, deal }: { preview: Preview; wageOffer: nu
   ];
   if (brief) chips.push({ text: `Fits the ${brief.position} brief (${formatUSD(brief.reward)})`, tone: 'good' });
   else if (briefNo) chips.push({ text: "Doesn't fit their brief", tone: 'warn' });
+  if (preview.freshness === 'stale' || preview.freshness === 'ageing') {
+    const m = preview.seenMonthsAgo ?? 0;
+    chips.push({
+      text: preview.staleReason ? `Your read is out of date: ${preview.staleReason}` : `Your read is ${m} month${m === 1 ? '' : 's'} old`,
+      tone: preview.freshness === 'stale' ? 'bad' : 'warn',
+    });
+  }
   if (preview.rivalInterest.length)
     chips.push({ text: `${preview.rivalInterest.length} rival${preview.rivalInterest.length > 1 ? 's' : ''} after him`, tone: 'warn' });
   if (preview.rights === 'open') chips.push({ text: 'Open pitch: half bonus', tone: 'warn' });

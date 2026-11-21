@@ -113,6 +113,13 @@ export interface PlayerRow {
   club?: ClubBadge;
   /** Your deal in progress for him, if any. */
   openDeal?: { club: string; stage: 'negotiating' | 'agreed' };
+  /** When you last looked at him yourself, and how current that read is (absent: public information only). */
+  seenOn?: GameDate;
+  /** Whole months since you looked (0 = this month). */
+  seenMonthsAgo?: number;
+  freshness?: 'fresh' | 'ageing' | 'stale';
+  /** Why your read went stale early (a move, an injury…). */
+  staleReason?: string;
 }
 
 export interface OfficialView extends Pick<ClubOfficial, 'id' | 'role' | 'firstName' | 'lastName' | 'age' | 'priorities' | 'stubbornness' | 'portraitSeed'> {
@@ -162,6 +169,8 @@ export interface PlayerView {
   positionRatings: { position: Position; ovr: Range; familiarity: number }[];
   attributes: Record<AttributeKey, Range>;
   knowledge: number;
+  /** How current your own read is (absent: public information only). */
+  seen?: { on: GameDate; monthsAgo: number; freshness: 'fresh' | 'ageing' | 'stale'; reason?: string };
   potential?: Range;
   prodigy: boolean;
   traits?: { consistency: string; injuryRisk: string; ambition?: string };
@@ -757,6 +766,12 @@ export interface PitchPreview {
   missions: MissionFitView[];
   coach: OfficialPitchView;
   existing?: DealView;
+  /** How current your read on him is. */
+  freshness?: 'fresh' | 'ageing' | 'stale';
+  seenOn?: GameDate;
+  /** Whole months since you last looked (for the warning). */
+  seenMonthsAgo?: number;
+  staleReason?: string;
   /** After a no: whether you may pitch him again now, from when, and what would open it sooner. */
   repitch?: { ok: boolean; because?: string; from: GameDate; conditions: string[]; message: string };
 }

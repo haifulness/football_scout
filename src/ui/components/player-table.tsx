@@ -8,7 +8,7 @@ import { useGame } from '../store/game-store';
 import { KnowledgeMeter, OvrBadge, PosBadge, ratingColor, useCultureLookup } from './ui';
 
 type Row = PlayerRow & { ask?: number; wageFits?: boolean };
-type Key = 'name' | 'age' | 'ovr' | 'potential' | 'value' | 'wage' | 'ask' | 'knowledge';
+type Key = 'name' | 'age' | 'ovr' | 'potential' | 'value' | 'wage' | 'ask' | 'knowledge' | 'seen';
 const SORT: Record<Key, (p: Row) => number | string> = {
   name: (p) => p.name,
   age: (p) => p.age,
@@ -18,7 +18,24 @@ const SORT: Record<Key, (p: Row) => number | string> = {
   wage: (p) => p.wage || (p.expectedWage ?? 0),
   ask: (p) => p.ask ?? Infinity,
   knowledge: (p) => p.knowledge,
+  // Oldest read first when sorted descending; public-only players last.
+  seen: (p) => (p.freshness === 'stale' && p.staleReason ? 10_000 : (p.seenMonthsAgo ?? -1)),
 };
+
+/** How current your read is: nothing when fresh, an amber or red tag when ageing or stale. */
+export function FreshnessTag({ p }: { p: Pick<PlayerRow, 'freshness' | 'seenMonthsAgo' | 'staleReason'> }) {
+  if (p.freshness !== 'ageing' && p.freshness !== 'stale') return null;
+  const months = p.seenMonthsAgo ?? 0;
+  const text = p.staleReason ? 'out of date' : `${months} mo`;
+  return (
+    <span
+      className={`rounded border px-1 text-[10px] font-semibold ${p.freshness === 'stale' ? 'border-alert-500/40 text-alert-400' : 'border-flood-400/40 text-flood-300'}`}
+      title={p.staleReason ? `Your read is out of date: ${p.staleReason}` : `You last looked at him ${months} months ago: he may have changed`}
+    >
+      {text}
+    </span>
+  );
+}
 
 /** Scouting list: fogged ratings, potential once revealed, and how well you know each player. */
 /** `askFor`: the club a search was made for; adds the wage each player would ask it (red when its wage budget has no room). */
@@ -84,6 +101,9 @@ export function PlayerTable<T extends Row>({
             <Th k="knowledge" pad className="hidden 2xl:table-cell">
               Knowledge
             </Th>
+            <Th k="seen" right className="hidden xl:table-cell">
+              Seen
+            </Th>
             {actions && <th className="pr-4" />}
           </tr>
         </thead>
@@ -144,6 +164,7 @@ export function PlayerTable<T extends Row>({
                     {p.ovr}
                   </span>
                   <OvrBadge ovr={p.ovr} range={p.ovrRange} size="sm" />
+                  <FreshnessTag p={p} />
                 </span>
               </td>
               {askFor && (
@@ -185,6 +206,9 @@ export function PlayerTable<T extends Row>({
               </td>
               <td className="hidden pl-4 2xl:table-cell">
                 <KnowledgeMeter level={p.knowledge} compact />
+              </td>
+              <td className="num hidden text-right text-[12px] text-mist-400 xl:table-cell" title="When you last looked at him yourself">
+                {p.seenMonthsAgo === undefined ? '–' : p.seenMonthsAgo === 0 ? 'this month' : `${p.seenMonthsAgo} mo ago`}
               </td>
               {actions && (
                 <td className="pr-4 text-right" onClick={(e) => e.stopPropagation()}>

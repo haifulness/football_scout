@@ -78,6 +78,8 @@ export interface Knowledge {
   attrs?: Partial<Record<AttributeKey, number>>;
   /** His attributes as they were the last time you looked (your read is of that player, not today's). */
   seenAttrs?: Record<AttributeKey, number>;
+  /** Something happened that makes your read out of date at once (until you look again). */
+  stale?: string;
 }
 
 export interface PoolEntry {

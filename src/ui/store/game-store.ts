@@ -62,6 +62,8 @@ export interface PoolFilters {
   maxValue?: number;
   maxWage?: number;
   knowledge: 'any' | 'low' | 'high';
+  /** Ageing or stale reads only ('old'), or fresh ones. */
+  freshness: 'any' | 'old' | 'fresh';
   starred: boolean;
   assistant: boolean;
   freeAgents: boolean;
@@ -75,6 +77,7 @@ export const DEFAULT_POOL_FILTERS: PoolFilters = {
   age: [15, 40],
   minRating: 0,
   knowledge: 'any',
+  freshness: 'any',
   starred: false,
   assistant: false,
   freeAgents: false,

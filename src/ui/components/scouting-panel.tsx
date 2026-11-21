@@ -72,6 +72,17 @@ export function ScoutingPanel({ player: p }: { player: PlayerView }) {
               <span className="text-sm text-mist-400">/100</span>
             </span>
           </div>
+          {p.seen && (
+            <div
+              className={`mt-1 text-[12px] ${p.seen.freshness === 'stale' ? 'text-alert-400' : p.seen.freshness === 'ageing' ? 'text-flood-300' : 'text-mist-400'}`}
+            >
+              {p.seen.reason
+                ? `Your read is out of date: ${p.seen.reason}. Look again to see how he is now.`
+                : p.seen.monthsAgo === 0
+                  ? 'You looked at him this month.'
+                  : `You last looked ${p.seen.monthsAgo} month${p.seen.monthsAgo === 1 ? '' : 's'} ago${p.seen.freshness === 'fresh' ? '.' : ': he may have changed since. Look again to see how he is now.'}`}
+            </div>
+          )}
           <div className="relative mt-3 h-2 rounded-full bg-white/[0.06]">
             <motion.div
               className="h-full rounded-full bg-gradient-to-r from-mist-400 via-flood-400 to-grass-400"

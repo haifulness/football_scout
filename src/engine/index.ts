@@ -10,7 +10,7 @@ import { isInboxItem, type Fixture, type NewsItem, type PlayerMatchLine, type Se
 import type { CareerSetup, SearchFilters, SearchRecord } from './model/scout';
 import type { GameState } from './model/world-state';
 import { seasonWindow } from './systems/fixtures';
-import { VIDEO_KNOWLEDGE_CAP, attributeRanges, estimate, fog, knowledgeLevel } from './systems/knowledge';
+import { VIDEO_KNOWLEDGE_CAP, attributeRanges, estimate, fog, freshness, knowledgeLevel, seenOn } from './systems/knowledge';
 import { MAX_FOCUS, validateFocus, writeAttendedMatch } from './systems/matchday';
 import {
   completeLiveScouting,
@@ -2283,6 +2283,13 @@ export class Engine {
       agreement: s.scout ? (({ ok, reason }) => ({ ok, reason }))(agreementCheck(s, club.id)) : { ok: false },
       coach: officialView('coach'),
       existing: existing && this.dealView(existing),
+      freshness: freshness(s, p),
+      seenOn: seenOn(s, p),
+      seenMonthsAgo: (() => {
+        const on = seenOn(s, p);
+        return on === undefined ? undefined : Math.max(1, Math.round((s.date - on) / 30));
+      })(),
+      staleReason: s.knowledge[p.id]?.stale,
       repitch: again && {
         ok: again.ok,
         because: again.because,
@@ -2857,6 +2864,13 @@ export class Engine {
       injury: p.injury && p.injury.until > this.s.date ? p.injury.description : undefined,
       club: p.clubId ? badge(this.s.clubs[p.clubId]!) : undefined,
       openDeal: this.openDeal(p.id),
+      seenOn: seenOn(this.s, p),
+      seenMonthsAgo: (() => {
+        const on = seenOn(this.s, p);
+        return on === undefined ? undefined : Math.floor((this.s.date - on) / 30);
+      })(),
+      freshness: freshness(this.s, p),
+      staleReason: this.s.knowledge[p.id]?.stale,
     };
   }
 
@@ -2889,6 +2903,10 @@ export class Engine {
       positionRatings: POSITIONS.map((pos) => ({ position: pos, ovr: f.positions[pos], familiarity: p.positions[pos] ?? 0 })),
       attributes: f.attributes,
       knowledge: f.level,
+      seen: (() => {
+        const on = seenOn(s, p);
+        return on === undefined ? undefined : { on, monthsAgo: Math.floor((s.date - on) / 30), freshness: freshness(s, p)!, reason: s.knowledge[p.id]?.stale };
+      })(),
       potential: f.potential,
       prodigy: f.prodigy,
       traits: f.traits,
