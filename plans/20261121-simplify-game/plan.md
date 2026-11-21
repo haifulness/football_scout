@@ -1,13 +1,13 @@
 # Simplify the game before adding features
 
-Status: planned (search value fields done separately, 2026-11-21)
+Status: in progress. Phase 1 done 2026-11-21 (search value fields done separately)
 
 The core loop (fuzzy estimates → club needs → convince the coach) stays. The aim is fewer
 screens, fewer overlapping numbers, and later systems revealed as you grow.
 
 | # | Phase | Kind | Risk | File |
 |---|-------|------|------|------|
-| 1 | Merge the menu (15 → 9 items) | UI only | Low | [phase-01-merge-menu.md](phase-01-merge-menu.md) |
+| 1 | ✅ Merge the menu (15 → 9 items) | UI only | Low | [phase-01-merge-menu.md](phase-01-merge-menu.md) |
 | 2 | One club standing instead of trust + coach relationship | Engine + balance | Medium | [phase-02-club-standing.md](phase-02-club-standing.md) |
 | 3 | Background perks instead of fixed skill bars | UI (+ small engine) | Low | [phase-03-background-perks.md](phase-03-background-perks.md) |
 | 4 | Pitch dialog: one verdict, details on demand | UI | Low–medium | [phase-04-pitch-dialog.md](phase-04-pitch-dialog.md) |

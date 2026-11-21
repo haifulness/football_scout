@@ -35,24 +35,19 @@ import { StartScreen } from './screens/start-screen';
 import { WorldScreen } from './screens/world-screen';
 import { GazetteScreen } from './screens/gazette-screen';
 import { SaveIndicator } from './components/save-indicator';
+import { Badge, HUBS, HubTabs, hubBadge, hubOf, type Hub } from './components/hub-tabs';
 import { useGame, type Route } from './store/game-store';
 
-const NAV: { label: string; icon: string; screen?: Route['screen']; phase?: string }[] = [
+const NAV: { label: string; icon: string; screen: Route['screen']; hub?: Hub }[] = [
   { label: 'Home', icon: '⌂', screen: 'world' },
   { label: 'Inbox', icon: '✉', screen: 'inbox' },
-  { label: 'News', icon: '▤', screen: 'news' },
-  { label: 'Weekly', icon: '¶', screen: 'gazette' },
+  { label: HUBS.weekly.label, icon: HUBS.weekly.icon, screen: 'gazette', hub: HUBS.weekly },
   { label: 'Search', icon: '⌕', screen: 'search' },
   { label: 'Player Pool', icon: '☰', screen: 'pool' },
-  { label: 'Deals', icon: '⇄', screen: 'deals' },
-  { label: 'Missions', icon: '◎', screen: 'missions' },
-  { label: 'Hunts', icon: '✧', screen: 'hunts' },
+  { label: HUBS.work.label, icon: HUBS.work.icon, screen: 'deals', hub: HUBS.work },
   { label: 'Finances', icon: '$', screen: 'finances' },
-  { label: 'Rivals', icon: '👁', screen: 'rivals' },
-  { label: 'Staff', icon: '☺', screen: 'staff' },
-  { label: 'Goals', icon: '✪', screen: 'goals' },
-  { label: 'Agency', icon: '◈', screen: 'agency' },
-  { label: 'Career', icon: '★', screen: 'career' },
+  { label: HUBS.agency.label, icon: HUBS.agency.icon, screen: 'staff', hub: HUBS.agency },
+  { label: HUBS.career.label, icon: HUBS.career.icon, screen: 'career', hub: HUBS.career },
 ];
 
 export function App() {
@@ -132,9 +127,29 @@ export function App() {
   );
 }
 
+/** Breadcrumb label: the menu name, or "Hub · Tab" inside a hub. */
+function crumb(screen: Route['screen']): string {
+  const hub = hubOf(screen);
+  const tab = hub?.tabs.find((t) => t.screen === screen);
+  if (hub && tab) return tab.label === hub.label ? hub.label : `${hub.label} · ${tab.label}`;
+  return NAV.find((n) => n.screen === screen)?.label ?? screen;
+}
+
 const routeKey = (r: Route) => ('id' in r ? `${r.screen}:${r.id}` : r.screen);
 
 function Screen({ route }: { route: Route }): ReactNode {
+  const hub = hubOf(route.screen);
+  const screen = ScreenBody({ route });
+  return hub ? (
+    <HubTabs hub={hub} current={route.screen}>
+      {screen}
+    </HubTabs>
+  ) : (
+    screen
+  );
+}
+
+function ScreenBody({ route }: { route: Route }): ReactNode {
   switch (route.screen) {
     case 'inbox':
       return <InboxScreen />;
@@ -199,14 +214,20 @@ function Sidebar({ onClose }: { onClose: () => void }) {
       </div>
       <nav className="flex-1 space-y-0.5 px-3">
         {NAV.map((n) => {
-          const active = n.screen && (route.screen === n.screen || (n.screen === 'world' && ['country', 'club', 'player'].includes(route.screen)));
+          const active =
+            route.screen === n.screen ||
+            (n.hub && n.hub.tabs.some((t) => t.screen === route.screen)) ||
+            (n.screen === 'world' && ['country', 'club', 'player'].includes(route.screen));
+          const badge = n.hub
+            ? hubBadge(n.hub, scout)
+            : n.screen === 'inbox' && scout?.unreadInbox
+              ? { n: scout.unreadInbox > 99 ? '99+' : scout.unreadInbox, tone: 'gold' as const, title: 'New messages' }
+              : undefined;
           return (
             <button
               key={n.label}
-              disabled={!n.screen}
-              title={n.phase ? `Coming with: ${n.phase}` : undefined}
-              onClick={() => n.screen && navigate({ screen: n.screen } as Route)}
-              className={`group relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors ${active ? 'bg-white/[0.06] text-mist-100' : n.screen ? 'text-mist-300 hover:bg-white/[0.04]' : 'cursor-not-allowed text-mist-400/50'}`}
+              onClick={() => navigate({ screen: n.screen } as Route)}
+              className={`group relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors ${active ? 'bg-white/[0.06] text-mist-100' : 'text-mist-300 hover:bg-white/[0.04]'}`}
             >
               {active && (
                 <motion.span
@@ -216,41 +237,7 @@ function Sidebar({ onClose }: { onClose: () => void }) {
               )}
               <span className="w-4 text-center opacity-80">{n.icon}</span>
               {n.label}
-              {!n.screen && <span className="ml-auto text-[10px] uppercase tracking-wider opacity-70">soon</span>}
-              {n.screen === 'inbox' && !!scout?.unreadInbox && (
-                <span className="num ml-auto rounded-full bg-flood-500 px-1.5 text-[10px] font-bold text-night-950" title="New messages">
-                  {scout.unreadInbox > 99 ? '99+' : scout.unreadInbox}
-                </span>
-              )}
-              {n.screen === 'missions' && !!(scout?.pendingMissions || scout?.pendingMandates) && (
-                <span className="num ml-auto rounded-full bg-flood-500 px-1.5 text-[10px] font-bold text-night-950">
-                  {scout.pendingMissions + scout.pendingMandates}
-                </span>
-              )}
-              {n.screen === 'hunts' && !!scout?.activeHunts && (
-                <span className="num ml-auto rounded-full bg-violet-500 px-1.5 text-[10px] font-bold text-white" title="Open hunts">
-                  {scout.activeHunts}
-                </span>
-              )}
-              {n.screen === 'goals' && !!scout?.goals.total && (
-                <span
-                  className={`num ml-auto rounded-full px-1.5 text-[10px] font-bold ${scout.goals.done === scout.goals.total ? 'bg-grass-400 text-night-950' : 'bg-white/10 text-mist-200'}`}
-                  title="Season goals reached"
-                >
-                  {scout.goals.done}/{scout.goals.total}
-                </span>
-              )}
-              {n.screen === 'staff' && !!scout?.idleAssistants && (
-                <span className="num ml-auto rounded-full bg-flood-500 px-1.5 text-[10px] font-bold text-night-950" title="Idle assistants">
-                  {scout.idleAssistants}
-                </span>
-              )}
-              {n.screen === 'rivals' && !!scout?.rivalThreats && (
-                <span className="num ml-auto rounded-full bg-alert-500 px-1.5 text-[10px] font-bold text-white">{scout.rivalThreats}</span>
-              )}
-              {n.screen === 'career' && !!scout?.pendingOffers && (
-                <span className="num ml-auto rounded-full bg-flood-500 px-1.5 text-[10px] font-bold text-night-950">{scout.pendingOffers}</span>
-              )}
+              {badge && <Badge b={badge} className="ml-auto" />}
             </button>
           );
         })}
@@ -287,7 +274,7 @@ function TopBar({ onMenu }: { onMenu: () => void }) {
         {route.screen !== 'world' && (
           <>
             <span>/</span>
-            <span className="truncate capitalize text-mist-100">{NAV.find((n) => n.screen === route.screen)?.label ?? route.screen}</span>
+            <span className="truncate capitalize text-mist-100">{crumb(route.screen)}</span>
           </>
         )}
       </nav>
