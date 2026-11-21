@@ -80,6 +80,8 @@ export interface Knowledge {
   seenAttrs?: Record<AttributeKey, number>;
   /** Something happened that makes your read out of date at once (until you look again). */
   stale?: string;
+  /** His circumstances when you looked: a change since makes your read stale. */
+  seenContext?: { clubId?: ClubId; age: number; form?: number; injuredUntil?: GameDate };
 }
 
 export interface PoolEntry {

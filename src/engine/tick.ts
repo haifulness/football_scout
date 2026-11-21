@@ -3,7 +3,7 @@ import { Rng } from './core/rng';
 import type { NewsItem, PlayerMatchLine } from './model/season';
 import type { GameState } from './model/world-state';
 import { monthlyUpdate } from './systems/development';
-import { decayKnowledge } from './systems/knowledge';
+import { decayKnowledge, staleTick } from './systems/knowledge';
 import { chargeAccommodation } from './systems/travel';
 import { aiTransferWeek } from './systems/transfers';
 import { resolveDeals } from './systems/deals';
@@ -128,6 +128,7 @@ function playDay(state: GameState, date: GameDate, onMatch?: MatchListener): { m
     eventsTick(state, date);
     dilemmaTick(state, date);
     unlockTick(state, date);
+    staleTick(state, date);
     reportTick(state, date);
     objectiveTick(state, date);
     agencyTick(state, date);

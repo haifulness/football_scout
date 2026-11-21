@@ -1,10 +1,10 @@
-import { addDays, type GameDate } from '../core/calendar';
+import { addDays, ageOn, formatDate, toParts, type GameDate } from '../core/calendar';
 import { recordProdigyFind } from './goals';
-import type { CountryId } from '../core/ids';
+import type { CountryId, PlayerId } from '../core/ids';
 import { clamp, hashString } from '../core/rng';
 import type { ClubTier } from '../model/club';
 import { ATTRIBUTES, POSITIONS, type AttributeKey, type Player, type Position } from '../model/player';
-import type { ScoutSkills } from '../model/scout';
+import type { Knowledge, ScoutSkills } from '../model/scout';
 import type { GameState } from '../model/world-state';
 import { ovrAt } from './ratings';
 import { addNews } from './season';
@@ -44,13 +44,21 @@ export function knowledgeLevel(state: GameState, p: Player): number {
   return clamp(Math.max(own, publicLevel(state, p)), 0, 100);
 }
 
+/** Average match rating this season, once he has played enough to mean something. */
+const formOf = (p: Player): number | undefined => (p.stats.apps >= 5 ? p.stats.ratingSum / p.stats.apps : undefined);
+
+/** His circumstances as you see him: club, age, form, injury. */
+function contextOf(p: Player, date: GameDate): NonNullable<Knowledge['seenContext']> {
+  return { clubId: p.clubId, age: ageOn(p.birthDate, date), form: formOf(p), injuredUntil: p.injury && p.injury.until > date ? p.injury.until : undefined };
+}
+
 /** Raise what you know about a player (never lowers it). */
 export function learn(state: GameState, p: Player, gain: number, cap: number, date: GameDate) {
   const wasProdigyVisible = prodigyVisible(state, p);
   const current = state.knowledge[p.id]?.level ?? 0;
   const base = Math.max(current, publicLevel(state, p));
   const level = Math.max(current, Math.min(cap, base + gain));
-  state.knowledge[p.id] = { ...state.knowledge[p.id], level: Math.round(level), lastUpdated: date, seenAttrs: { ...p.attributes }, stale: undefined };
+  state.knowledge[p.id] = { ...state.knowledge[p.id], level: Math.round(level), lastUpdated: date, seenAttrs: { ...p.attributes }, seenContext: contextOf(p, date), stale: undefined };
   // The moment your work reveals a prodigy (shown as a special reveal).
   if (!wasProdigyVisible && prodigyVisible(state, p) && !state.pendingDiscoveries.includes(p.id)) {
     state.pendingDiscoveries.push(p.id);
@@ -93,6 +101,7 @@ export function learnAttribute(state: GameState, p: Player, k: AttributeKey, gai
   attrs[k] = Math.round(Math.max(attrs[k] ?? 0, Math.min(cap, attributeLevel(state, p, k) + gain)));
   known.lastUpdated = date;
   known.seenAttrs = { ...p.attributes };
+  known.seenContext = contextOf(p, date);
   known.stale = undefined;
 }
 
@@ -211,6 +220,52 @@ export function fog(state: GameState, p: Player): FoggedPlayer {
         }
       : undefined;
   return { level, attributes, ovr, positions, potential, prodigy, traits };
+}
+
+/** Weeks out that make your read stale, how far form must move, and the ages when players change fastest. */
+const LONG_INJURY_DAYS = 28;
+const FORM_SHIFT = 0.8;
+const YOUNG_AGE = 21;
+const VETERAN_AGE = 31;
+
+/** Why your read on him is out of date, if something happened since you looked. */
+export function staleReason(state: GameState, p: Player): string | undefined {
+  const ctx = state.knowledge[p.id]?.seenContext;
+  if (!ctx) return undefined;
+  const date = state.date;
+  if (p.clubId !== ctx.clubId) return p.clubId ? `he moved to ${state.clubs[p.clubId]!.name}` : 'he left his club';
+  if (p.injury && p.injury.until !== ctx.injuredUntil && p.injury.until - date >= LONG_INJURY_DAYS)
+    return `he's out injured until ${formatDate(p.injury.until)}`;
+  const age = ageOn(p.birthDate, date);
+  if (age > ctx.age && (age <= YOUNG_AGE || age >= VETERAN_AGE)) return `he turned ${age}, when players change fast`;
+  const form = formOf(p);
+  if (form !== undefined && ctx.form !== undefined && p.stats.apps >= 8 && Math.abs(form - ctx.form) >= FORM_SHIFT)
+    return `his form has ${form > ctx.form ? 'jumped' : 'dropped'} (average ${form.toFixed(1)}, was ${ctx.form.toFixed(1)})`;
+  return undefined;
+}
+
+/** Weekly: players in your pool whose circumstances changed since you looked go stale, with one note. */
+export function staleTick(state: GameState, date: GameDate) {
+  if (!state.scout || toParts(date).weekday !== 1) return;
+  const changed: { p: Player; reason: string }[] = [];
+  for (const id of Object.keys(state.pool) as PlayerId[]) {
+    const p = state.players[id];
+    const k = state.knowledge[id];
+    if (!p || !k || k.stale || seenOn(state, p) === undefined) continue;
+    const reason = staleReason(state, p);
+    if (!reason) continue;
+    k.stale = reason;
+    changed.push({ p, reason });
+  }
+  if (!changed.length) return;
+  const name = (p: Player) => `${p.firstName} ${p.lastName}`;
+  addNews(state, {
+    date,
+    kind: 'career',
+    title: changed.length === 1 ? `Your read on ${name(changed[0]!.p)} is out of date` : `Your read on ${changed.length} pool players is out of date`,
+    body: `${changed.map((c) => `${name(c.p)}: ${c.reason}.`).join(' ')} Look again (video, a match, or a check-in) to see how ${changed.length === 1 ? 'he is' : 'they are'} now.`,
+    playerIds: changed.map((c) => c.p.id),
+  });
 }
 
 /** Monthly: what you learned long ago slowly goes stale as players change. */
