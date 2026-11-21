@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { formatDate } from '../../engine/core/calendar';
 import type { CityId, ContinentId, CountryId, LeagueId, RegionId } from '../../engine/core/ids';
 import { formatUSD } from '../../engine/core/money';
@@ -349,15 +349,15 @@ function FilterBuilder({ tree, homeCountry, onResult }: { tree: LocationTree; ho
           </div>
         </Section>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Section label="Age">
             <label className="mb-1.5 flex items-center gap-2 text-xs text-mist-300">
               <input type="checkbox" checked={ageOn} onChange={(e) => setAgeOn(e.target.checked)} className="accent-grass-500" /> Limit age
             </label>
             <div className={`flex items-center gap-1.5 ${ageOn ? '' : 'pointer-events-none opacity-40'}`}>
-              <NumInput value={age[0]} min={15} max={age[1]} onChange={(v) => setAge([v, age[1]])} />
+              <NumInput label="minimum age" value={age[0]} min={15} max={age[1]} onChange={(v) => setAge([v, age[1]])} />
               <span className="text-mist-400">–</span>
-              <NumInput value={age[1]} min={age[0]} max={40} onChange={(v) => setAge([age[0], v])} />
+              <NumInput label="maximum age" value={age[1]} min={age[0]} max={40} onChange={(v) => setAge([age[0], v])} />
             </div>
           </Section>
           <Section label="Market value">
@@ -393,7 +393,7 @@ function FilterBuilder({ tree, homeCountry, onResult }: { tree: LocationTree; ho
           })}
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Section label="Rating">
             {floors && Object.keys(floors).length > 0 && (
               <div className="mb-1.5 flex flex-wrap items-center gap-1" title="Each candidate must beat the club's average at the position he would play">
@@ -408,16 +408,13 @@ function FilterBuilder({ tree, homeCountry, onResult }: { tree: LocationTree; ho
                 </button>
               </div>
             )}
-            <label
-              className="mb-1.5 flex items-center gap-2 text-xs text-mist-300"
-              title="Your estimate at the searched position, as the results will show it"
-            >
+            <label className="mb-1.5 flex items-center gap-2 text-xs text-mist-300" title="Your estimate at the searched position, as the results will show it">
               <input type="checkbox" checked={ratingOn} onChange={(e) => setRatingOn(e.target.checked)} className="accent-grass-500" /> Limit rating
             </label>
             <div className={`flex items-center gap-1.5 ${ratingOn ? '' : 'pointer-events-none opacity-40'}`}>
-              <NumInput value={rating[0]} min={1} max={rating[1]} onChange={(v) => setRating([v, rating[1]])} />
+              <NumInput label="minimum rating" value={rating[0]} min={1} max={rating[1]} onChange={(v) => setRating([v, rating[1]])} />
               <span className="text-mist-400">–</span>
-              <NumInput value={rating[1]} min={rating[0]} max={99} onChange={(v) => setRating([rating[0], v])} />
+              <NumInput label="maximum rating" value={rating[1]} min={rating[0]} max={99} onChange={(v) => setRating([rating[0], v])} />
             </div>
           </Section>
           <Section label={forClub ? 'Wage they’d ask (per week)' : 'Wage (per week)'}>
@@ -455,9 +452,23 @@ function FilterBuilder({ tree, homeCountry, onResult }: { tree: LocationTree; ho
                   ))}
                 </select>
                 <div className="flex w-32 shrink-0 items-center gap-1" title="Judged by your network: expect a few near misses">
-                  <NumInput value={a.min} min={1} max={a.max ?? 20} onChange={(v) => setAttrs(attrs.map((x, j) => (j === i ? { ...x, min: v } : x)))} />
+                  <NumInput
+                    steppers={false}
+                    label={`minimum ${ATTRIBUTE_LABEL[a.attribute]}`}
+                    value={a.min}
+                    min={1}
+                    max={a.max ?? 20}
+                    onChange={(v) => setAttrs(attrs.map((x, j) => (j === i ? { ...x, min: v } : x)))}
+                  />
                   <span className="text-mist-400">–</span>
-                  <NumInput value={a.max ?? 20} min={a.min} max={20} onChange={(v) => setAttrs(attrs.map((x, j) => (j === i ? { ...x, max: v } : x)))} />
+                  <NumInput
+                    steppers={false}
+                    label={`maximum ${ATTRIBUTE_LABEL[a.attribute]}`}
+                    value={a.max ?? 20}
+                    min={a.min}
+                    max={20}
+                    onChange={(v) => setAttrs(attrs.map((x, j) => (j === i ? { ...x, max: v } : x)))}
+                  />
                 </div>
                 <button onClick={() => setAttrs(attrs.filter((_, j) => j !== i))} className="text-mist-400 hover:text-alert-400" aria-label="Remove filter">
                   ✕
@@ -537,7 +548,34 @@ const Section = ({ label, children }: { label: string; children: React.ReactNode
   </div>
 );
 
-/** Money field: type 250k, 1.5m or a plain number; formats on blur, blank = no limit. */
+/** A money step that suits the amount: $1k under $10k, $10k under $100k, and so on. */
+function moneyStep(v: number): number {
+  return v < 10_000 ? 1_000 : v < 100_000 ? 10_000 : v < 1_000_000 ? 50_000 : v < 10_000_000 ? 500_000 : 5_000_000;
+}
+
+const fieldClass = (bad: boolean) =>
+  `num w-full min-w-0 rounded-lg border bg-night-950/70 px-2 py-1.5 text-center text-sm outline-none focus:border-grass-400/60 ${bad ? 'border-alert-500/60' : 'border-white/10'}`;
+
+/** − / + buttons either side of a field. */
+function Stepper({ onStep, label, children }: { onStep: (dir: 1 | -1) => void; label: string; children: ReactNode }) {
+  const btn = 'h-8 w-7 shrink-0 rounded-md border border-white/10 text-mist-300 hover:border-white/25 hover:text-mist-100 active:bg-white/[0.06]';
+  return (
+    <div className="flex min-w-0 flex-1 items-center gap-1">
+      <button type="button" className={btn} onClick={() => onStep(-1)} aria-label={`Lower ${label}`}>
+        −
+      </button>
+      {children}
+      <button type="button" className={btn} onClick={() => onStep(1)} aria-label={`Raise ${label}`}>
+        +
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Money field: type 250k, 1.5m or a plain number. Tapping selects the whole amount so typing replaces it;
+ * − / + (or the arrow keys) step by a sensible amount. Blank = no limit.
+ */
 function MoneyInput({
   value,
   placeholder,
@@ -549,52 +587,127 @@ function MoneyInput({
   onChange: (v: number | undefined) => void;
   label: string;
 }) {
+  // Short and editable: "$41.8M" shows as "41.8m" while you type.
   const show = (v?: number) => (v === undefined ? '' : formatUSD(v));
+  const edit = (v?: number) => show(v).replace('$', '').toLowerCase();
   const [text, setText] = useState(show(value));
   const [bad, setBad] = useState(false);
   const [focused, setFocused] = useState(false);
   useEffect(() => {
     if (!focused) setText(show(value));
   }, [value, focused]);
-  const commit = () => {
-    const v = parseMoney(text);
-    if (Number.isNaN(v)) return setBad(true);
+  const step = (dir: 1 | -1) => {
+    const base = value ?? 0;
+    const next = Math.max(0, base + dir * moneyStep(dir < 0 ? Math.max(0, base - 1) : base));
     setBad(false);
-    onChange(v);
-    setText(show(v));
+    onChange(next);
+    if (focused) setText(edit(next));
   };
   return (
+    <Stepper onStep={step} label={label}>
+      <input
+        aria-label={label}
+        title="Type 250k, 1.5m or a number. Blank means no limit."
+        inputMode="text"
+        enterKeyHint="done"
+        value={text}
+        placeholder={placeholder}
+        onFocus={(e) => {
+          setFocused(true);
+          setText(edit(value));
+          const el = e.currentTarget;
+          requestAnimationFrame(() => el.select());
+        }}
+        onChange={(e) => {
+          setText(e.target.value);
+          const v = parseMoney(e.target.value);
+          setBad(Number.isNaN(v));
+          if (!Number.isNaN(v)) onChange(v);
+        }}
+        onBlur={() => {
+          setFocused(false);
+          const v = parseMoney(text);
+          if (Number.isNaN(v)) {
+            setBad(false);
+            setText(show(value));
+          } else setText(show(v));
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+          else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+            e.preventDefault();
+            step(e.key === 'ArrowUp' ? 1 : -1);
+          }
+        }}
+        className={fieldClass(bad)}
+      />
+    </Stepper>
+  );
+}
+
+/** Whole-number field: you can clear it and type freely; it is kept within min–max when you leave it. */
+function NumInput({
+  value,
+  min,
+  max,
+  onChange,
+  label,
+  steppers = true,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  onChange: (v: number) => void;
+  label: string;
+  /** − / + buttons (off where space is tight). */
+  steppers?: boolean;
+}) {
+  const [text, setText] = useState(String(value));
+  const [focused, setFocused] = useState(false);
+  useEffect(() => {
+    if (!focused) setText(String(value));
+  }, [value, focused]);
+  const clamp = (v: number) => Math.max(min, Math.min(max, v));
+  const commit = () => {
+    const n = parseInt(text, 10);
+    const v = Number.isNaN(n) ? value : clamp(n);
+    onChange(v);
+    setText(String(v));
+  };
+  const input = (
     <input
       aria-label={label}
+      inputMode="numeric"
+      enterKeyHint="done"
       value={text}
-      placeholder={placeholder}
-      onFocus={() => setFocused(true)}
-      onChange={(e) => {
-        setText(e.target.value);
-        const v = parseMoney(e.target.value);
-        setBad(Number.isNaN(v));
-        if (!Number.isNaN(v)) onChange(v);
+      onFocus={(e) => {
+        setFocused(true);
+        const el = e.currentTarget;
+        requestAnimationFrame(() => el.select());
       }}
+      onChange={(e) => setText(e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
       onBlur={() => {
         setFocused(false);
         commit();
       }}
-      onKeyDown={(e) => e.key === 'Enter' && commit()}
-      className={`num w-full min-w-0 rounded-lg border bg-night-950/70 px-2 py-1 text-center text-sm outline-none focus:border-grass-400/60 ${bad ? 'border-alert-500/60' : 'border-white/10'}`}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') e.currentTarget.blur();
+        else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          const v = clamp(value + (e.key === 'ArrowUp' ? 1 : -1));
+          onChange(v);
+          setText(String(v));
+        }
+      }}
+      className={fieldClass(false)}
     />
   );
-}
-
-function NumInput({ value, min, max, onChange }: { value: number; min: number; max: number; onChange: (v: number) => void }) {
-  return (
-    <input
-      type="number"
-      value={value}
-      min={min}
-      max={max}
-      onChange={(e) => onChange(Math.max(min, Math.min(max, Number(e.target.value) || min)))}
-      className="num w-full rounded-lg border border-white/10 bg-night-950/70 px-2 py-1 text-center text-sm outline-none focus:border-grass-400/60"
-    />
+  return steppers ? (
+    <Stepper onStep={(dir) => onChange(clamp(value + dir))} label={label}>
+      {input}
+    </Stepper>
+  ) : (
+    input
   );
 }
 
