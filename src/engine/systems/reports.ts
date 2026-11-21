@@ -1,10 +1,10 @@
-import { addDays, type GameDate } from '../core/calendar';
+import { addDays, ageOn, type GameDate } from '../core/calendar';
 import type { PlayerId } from '../core/ids';
 import { clamp } from '../core/rng';
 import type { Position } from '../model/player';
 import { VERDICT_LABEL, type PotentialGrade, type ReportGrade, type ScoutReport, type Verdict } from '../model/report';
 import type { GameState } from '../model/world-state';
-import { knowledgeLevel } from './knowledge';
+import { estimate, fog, knowledgeLevel } from './knowledge';
 import { ovrAt } from './ratings';
 import { addNews } from './season';
 import { ScoutingError } from './scouting';
@@ -66,6 +66,29 @@ export function writeReport(state: GameState, args: ReportArgs): ScoutReport {
   if (existing) state.reports[state.reports.indexOf(existing)] = report;
   else state.reports.unshift(report);
   return report;
+}
+
+/** What your read of him says: rating at a role, potential grade, verdict (from your current estimate). */
+export function reportFromEstimate(state: GameState, playerId: PlayerId, role?: Position): ReportArgs | undefined {
+  const p = state.players[playerId];
+  if (!p) return undefined;
+  const f = fog(state, p);
+  const as = role ?? p.naturalPosition;
+  const rating = estimate(f.positions[as] ?? f.positions[p.naturalPosition]);
+  const age = ageOn(p.birthDate, state.date);
+  const pot = f.potential ? estimate(f.potential) : rating + Math.max(0, 24 - age) * 2;
+  return { playerId, role: as, rating, potential: potentialGrade(pot), verdict: pot >= 85 && age <= 21 ? 'star' : age <= 20 ? 'future' : 'ready' };
+}
+
+/**
+ * A pitch puts your name to a player: if you know him well enough and have no report waiting for review,
+ * one is filed from your estimate. It backs your later pitches of him and is checked a year on.
+ */
+export function fileReportOnPitch(state: GameState, playerId: PlayerId, role: Position): ScoutReport | undefined {
+  const p = state.players[playerId];
+  if (!p || openReport(state, playerId) || knowledgeLevel(state, p) < REPORT_MIN_KNOWLEDGE) return undefined;
+  const args = reportFromEstimate(state, playerId, role);
+  return args && writeReport(state, args);
 }
 
 export interface TrackRecord {

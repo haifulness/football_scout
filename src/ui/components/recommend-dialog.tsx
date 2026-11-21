@@ -606,9 +606,9 @@ function PitchView({
           >
             {preview.report
               ? preview.report.sameRole
-                ? `Your signed report goes with the pitch (rated ${preview.report.rating} as a ${preview.report.role}): the coach is keener.`
+                ? `Your report goes with the pitch (rated ${preview.report.rating} as a ${preview.report.role}): the coach is keener.`
                 : `Your report rates him as a ${preview.report.role} (${preview.report.rating}), not a ${position}: it helps half as much here.`
-              : 'No report on him yet. A signed report from his player page makes coaches keener, more so once your reports have a good track record.'}
+              : 'No report on him yet. This pitch files one from your read; it backs your later pitches of him, more so once your reports have a good track record.'}
           </div>
           {preview.specialties.length > 0 && (
             <div className="rounded-lg border border-violet-400/30 px-3 py-2 text-[12px] text-violet-300">

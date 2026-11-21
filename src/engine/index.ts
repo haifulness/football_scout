@@ -68,12 +68,13 @@ import { advanceDays, advanceToNextMatchday, advanceUntilEvent, nextMatchDate, t
 import {
   accuracyTrust,
   openReport,
-  potentialGrade,
   RECORD_MIN_REVIEWED,
   REPORT_MIN_KNOWLEDGE,
   REVIEW_DAYS,
   trackRecord,
   writeReport,
+  fileReportOnPitch,
+  reportFromEstimate,
   type ReportArgs,
 } from './systems/reports';
 import { careerSummary, retire, type CareerSummary } from './systems/career-end';
@@ -326,21 +327,14 @@ export class Engine {
     const f = fog(s, p);
     const roles = [p.naturalPosition, ...POSITIONS.filter((x) => x !== p.naturalPosition && (p.positions[x] ?? 0) >= 0.75)];
     const existing = openReport(s, p.id);
-    const age = ageOn(p.birthDate, s.date);
-    const rating = estimate(f.positions[p.naturalPosition]);
-    const pot = f.potential ? estimate(f.potential) : rating + Math.max(0, 24 - age) * 2;
+    const read = reportFromEstimate(s, p.id)!;
     return {
       allowed: f.level >= REPORT_MIN_KNOWLEDGE,
       reason: f.level >= REPORT_MIN_KNOWLEDGE ? undefined : `Get your knowledge of him to ${REPORT_MIN_KNOWLEDGE} first (watch him, or meet him).`,
       knowledge: f.level,
       minKnowledge: REPORT_MIN_KNOWLEDGE,
       roles,
-      suggestion: {
-        role: existing?.role ?? p.naturalPosition,
-        rating: existing?.rating ?? rating,
-        potential: existing?.potential ?? potentialGrade(pot),
-        verdict: existing?.verdict ?? (pot >= 85 && age <= 21 ? 'star' : age <= 20 ? 'future' : 'ready'),
-      },
+      suggestion: existing ? { role: existing.role, rating: existing.rating, potential: existing.potential, verdict: existing.verdict } : read,
       existing: existing && this.reportView(existing),
       verdicts: (Object.keys(VERDICT_LABEL) as Verdict[]).map((key) => ({ key, label: VERDICT_LABEL[key] })),
     };
@@ -2131,6 +2125,8 @@ export class Engine {
     const club = this.s.clubs[args.clubId];
     const free = !!args.remote || (!!club && metToday(this.s, club.headCoachId));
     const deal = pitch(this.s, args);
+    // Your name now goes with him: a report is filed from your estimate (after this pitch's answer).
+    fileReportOnPitch(this.s, args.playerId, args.position);
     const advance = free ? this.noTime() : this.spend(1);
     if (!args.remote && club) this.stillInMeeting(club.headCoachId);
     return { deal: this.dealView(deal), advance: this.summarize(advance) };

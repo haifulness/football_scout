@@ -115,3 +115,39 @@ describe('scouting reports', () => {
     expect(s.counters.report).toBe(0);
   });
 });
+
+describe('reports filed on pitch', () => {
+  it('a pitch files a report from your read when you know him well enough, once, and not for strangers', async () => {
+    const { Engine } = await import('../../src/engine/index');
+    const { formationPositions } = await import('../../src/engine/systems/deals');
+    const { usd } = await import('../../src/engine/core/money');
+    const e = new Engine();
+    e.generate(2468);
+    e.createCareer({ name: 'Jo', nationality: eng, homeCountry: eng, background: 'agent-assistant', difficulty: 'easy' });
+    const w = (e as unknown as { state: GameState }).state;
+    w.scout!.reputation = 100;
+    w.scout!.money = usd(1_000_000);
+    const clubs = Object.values(w.clubs).filter((c) => c.countryId === eng && c.tier === 3).slice(0, 2);
+    const position = formationPositions(clubs[0]!).find((x) => x !== 'GK' && formationPositions(clubs[1]!).includes(x))!;
+    const candidates = Object.values(w.players).filter((p) => p.clubId && !clubs.some((c) => c.id === p.clubId) && p.naturalPosition === position);
+    const known = candidates[0]!;
+    w.knowledge[known.id] = { level: 60, lastUpdated: w.date };
+    // Someone you've never looked at, and too obscure for public knowledge to count.
+    const stranger = candidates.find((p) => p.id !== known.id && knowledgeLevel(w, p) < 40)!;
+
+    w.scout!.location = clubs[0]!.cityId;
+    e.pitch({ playerId: known.id, clubId: clubs[0]!.id, position, to: 'coach' });
+    const r = w.reports.find((x) => x.playerId === known.id)!;
+    expect(r).toBeDefined();
+    expect(r.role).toBe(position);
+    expect(e.getReportDraft(known.id)!.existing?.rating).toBe(r.rating);
+
+    // Pitching him again elsewhere keeps the first report.
+    w.scout!.location = clubs[1]!.cityId;
+    e.pitch({ playerId: known.id, clubId: clubs[1]!.id, position, to: 'coach' });
+    expect(w.reports.filter((x) => x.playerId === known.id).length).toBe(1);
+
+    e.pitch({ playerId: stranger.id, clubId: clubs[1]!.id, position, to: 'coach' });
+    expect(w.reports.some((x) => x.playerId === stranger.id)).toBe(false);
+  }, 120_000);
+});
