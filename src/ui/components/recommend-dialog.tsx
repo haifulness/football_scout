@@ -381,6 +381,11 @@ function PitchView({
   const [meetNote, setMeetNote] = useState<string>();
   const [result, setResult] = useState<DealView>();
   const [error, setError] = useState<string>();
+  const [details, setDetails] = useState(readDetailsPref);
+  const toggleDetails = () => {
+    setDetails(!details);
+    writeDetailsPref(!details);
+  };
   if (!preview) return <div className="p-8 text-center text-sm text-mist-400">Studying the squad…</div>;
   const wageOffer = Math.min(Math.max(offer ?? preview.wage, preview.wage), preview.wageCeiling);
   const span = preview.wageCeiling - preview.wage;
@@ -441,143 +446,176 @@ function PitchView({
         </span>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_260px]">
-        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
-          <div className="flex items-center justify-between">
-            <span className="panel-title text-[11px]">The bar at</span>
-            <span className="flex flex-wrap gap-1">
-              {preview.positions.map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setPosition(p)}
-                  className={`rounded ${p === preview.position ? 'ring-2 ring-grass-400' : 'opacity-60 hover:opacity-100'}`}
-                >
-                  <PosBadge pos={p} />
-                </button>
-              ))}
-            </span>
-          </div>
-          <BarCompare avg={preview.positionalAverage} est={preview.estimate} />
-          <div className={`mt-2 text-sm ${preview.clearsBar === 'yes' ? 'text-grass-300' : preview.clearsBar === 'no' ? 'text-alert-400' : 'text-flood-300'}`}>
-            {preview.clearsBar === 'yes'
-              ? 'Even your cautious estimate beats their average.'
-              : preview.clearsBar === 'no'
-                ? "By your estimate he isn't better than what they have."
-                : 'Too close to call with what you know. Scout him more, or take the gamble.'}
-          </div>
-          {preview.clearsBar !== 'yes' && (
-            <div className="mt-1 text-[12px] text-mist-400">
-              {preview.prospectRoute
-                ? `He's young enough to be pitched as a prospect (club policy: ${preview.club.acceptsProspects === 'yes' ? 'welcome' : 'prodigies only'}). Prospects earn no signing bonus.`
-                : preview.player.age <= 21
-                  ? `Prospect route closed: ${preview.club.acceptsProspects === 'never' ? 'this club never takes projects' : 'prodigies only, and you haven’t identified him as one'}.`
-                  : 'A rejection costs a little goodwill with whoever you pitch to.'}
-            </div>
-          )}
-        </div>
-        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 text-sm">
-          <Row label={preview.rights === 'mandate' ? 'Asking fee' : 'Est. fee'} value={preview.fee ? formatUSD(preview.fee) : 'Free'} />
-          {preview.commission !== undefined && <Row label="Your commission" value={formatUSD(preview.commission)} />}
-          <Row label="Transfer budget" value={formatUSD(preview.club.transferBudget)} warn={preview.fee > preview.club.transferBudget} />
-          <Row label="He asks" value={`${formatUSD(preview.wage)}/wk`} />
-          {preview.wageSaving > 0 && (
-            <div className="-mt-0.5 mb-1 text-right text-[11px] text-grass-300">{formatUSD(preview.wageSaving)}/wk less: he trusts you</div>
-          )}
-          {preview.wageCeiling > preview.wage && (
-            <div className="my-1.5 rounded-lg bg-white/[0.03] px-2.5 py-2">
-              <div className="flex items-baseline justify-between text-[12px]">
-                <span className="text-mist-300">You offer</span>
-                <span className="num font-semibold">{formatUSD(wageOffer)}/wk</span>
-              </div>
-              <input
-                type="range"
-                aria-label="Wage offer"
-                min={preview.wage}
-                max={preview.wageCeiling}
-                step={Math.max(10, Math.round((preview.wageCeiling - preview.wage) / 40))}
-                value={wageOffer}
-                onChange={(e) => setOffer(Number(e.target.value))}
-                className="w-full accent-grass-500"
-              />
-              <div className="flex justify-between text-[10px] text-mist-400">
-                <span>his ask</span>
-                <span>club ceiling {formatUSD(preview.wageCeiling)}</span>
-              </div>
-              <div className="mt-1 text-[11px] text-mist-300">
-                He'd likely say yes: <b className="num text-grass-300">{Math.round(acceptance * 100)}%</b>
-                {wageOffer > preview.wage && <span className="text-mist-400"> (vs {Math.round(preview.acceptance.atAsk * 100)}% at his ask)</span>}
-              </div>
-            </div>
-          )}
-          <Row label="Wage room" value={`${formatUSD(preview.club.wageRoom)}/wk`} warn={wageOffer > preview.club.wageRoom} />
-          {wageOffer > preview.club.wageRoom && preview.affordable && (
-            <div className="mt-1 text-[11px] text-alert-400">That offer is more than their wage room: the club may turn it down.</div>
-          )}
-          {!preview.affordable && <div className="mt-2 text-[12px] text-alert-400">{preview.affordReason}</div>}
-        </div>
-      </div>
+      <Verdict preview={preview} wageOffer={wageOffer} deal={deal} />
 
-      <RivalWarning rivals={preview.rivalInterest} compact />
+      <button
+        className="-mt-1 flex items-center gap-1.5 self-start text-[12px] font-semibold text-mist-300 hover:text-mist-100"
+        onClick={toggleDetails}
+        aria-expanded={details}
+      >
+        <span className={`inline-block transition-transform ${details ? 'rotate-90' : ''}`}>▸</span>
+        {details ? 'Hide details' : 'Details & terms'}
+        <span className="font-normal text-mist-400">· the bar, money, wage offer{preview.missions.length ? ', briefs' : ''}</span>
+      </button>
 
-      {(preview.rights === 'mandate' || preview.rights === 'represented') && (
-        <div className="rounded-xl border border-flood-400/25 bg-flood-500/[0.06] px-4 py-3 text-sm text-mist-200">
-          {preview.rights === 'mandate'
-            ? "You're selling him for a client: any club can be pitched. The sale earns your commission, not a placement bonus."
-            : 'You represent him: any club can be pitched. A signing earns your usual placement bonus.'}
-        </div>
-      )}
-
-      {preview.missions.length > 0 && (
-        <div className="rounded-xl border border-sky-400/25 bg-sky-400/[0.04] p-4">
-          <div className="panel-title text-[11px] text-sky-400">Active missions from {preview.club.name}</div>
-          {preview.missions.map((m) => {
-            const allYes = m.checks.every((c) => c.status === 'yes');
-            const anyNo = m.checks.some((c) => c.status === 'no');
-            return (
-              <div key={m.id} className="mt-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span>
-                    {m.position} brief · reward <b className="num">{formatUSD(m.reward)}</b>
-                    {!m.samePosition && <span className="ml-2 text-[11px] text-flood-300">(pitch him as a {m.position} to count)</span>}
-                  </span>
-                  <span className={`text-xs font-semibold ${anyNo ? 'text-alert-400' : allYes ? 'text-grass-300' : 'text-flood-300'}`}>
-                    {anyNo ? "Doesn't fit" : allYes ? 'Fits the brief' : 'Might fit'}
-                  </span>
-                </div>
-                <ul className="mt-1 flex flex-wrap gap-1.5">
-                  {m.checks.map((c) => (
-                    <li key={c.label} className="chip">
-                      <span className={c.status === 'yes' ? 'text-grass-300' : c.status === 'no' ? 'text-alert-400' : 'text-flood-300'}>
-                        {c.status === 'yes' ? '✓' : c.status === 'no' ? '✕' : '?'}
-                      </span>{' '}
-                      {c.label}
-                    </li>
+      {details && (
+        <>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_260px]">
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+              <div className="flex items-center justify-between">
+                <span className="panel-title text-[11px]">The bar at</span>
+                <span className="flex flex-wrap gap-1">
+                  {preview.positions.map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setPosition(p)}
+                      className={`rounded ${p === preview.position ? 'ring-2 ring-grass-400' : 'opacity-60 hover:opacity-100'}`}
+                    >
+                      <PosBadge pos={p} />
+                    </button>
                   ))}
-                </ul>
-                {m.preferences && (
-                  <div className="mt-1.5 text-[10px] uppercase tracking-wider text-flood-300">
-                    Their preferences{' '}
-                    <span className="normal-case tracking-normal text-mist-400">
-                      {m.preferences.every((c) => c.status === 'yes') ? '· all met: better odds of a yes' : '· meet them all for better odds'}
-                    </span>
-                  </div>
-                )}
-                {m.preferences && (
-                  <ul className="mt-1 flex flex-wrap gap-1.5">
-                    {m.preferences.map((c) => (
-                      <li key={c.label} className="chip border-flood-400/20">
-                        <span className={c.status === 'yes' ? 'text-grass-300' : c.status === 'no' ? 'text-alert-400' : 'text-flood-300'}>
-                          {c.status === 'yes' ? '✓' : c.status === 'no' ? '✕' : '?'}
-                        </span>{' '}
-                        {c.label}
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                </span>
               </div>
-            );
-          })}
-        </div>
+              <BarCompare avg={preview.positionalAverage} est={preview.estimate} />
+              <div
+                className={`mt-2 text-sm ${preview.clearsBar === 'yes' ? 'text-grass-300' : preview.clearsBar === 'no' ? 'text-alert-400' : 'text-flood-300'}`}
+              >
+                {preview.clearsBar === 'yes'
+                  ? 'Even your cautious estimate beats their average.'
+                  : preview.clearsBar === 'no'
+                    ? "By your estimate he isn't better than what they have."
+                    : 'Too close to call with what you know. Scout him more, or take the gamble.'}
+              </div>
+              {preview.clearsBar !== 'yes' && (
+                <div className="mt-1 text-[12px] text-mist-400">
+                  {preview.prospectRoute
+                    ? `He's young enough to be pitched as a prospect (club policy: ${preview.club.acceptsProspects === 'yes' ? 'welcome' : 'prodigies only'}). Prospects earn no signing bonus.`
+                    : preview.player.age <= 21
+                      ? `Prospect route closed: ${preview.club.acceptsProspects === 'never' ? 'this club never takes projects' : 'prodigies only, and you haven’t identified him as one'}.`
+                      : 'A rejection costs a little goodwill with whoever you pitch to.'}
+                </div>
+              )}
+            </div>
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 text-sm">
+              <Row label={preview.rights === 'mandate' ? 'Asking fee' : 'Est. fee'} value={preview.fee ? formatUSD(preview.fee) : 'Free'} />
+              {preview.commission !== undefined && <Row label="Your commission" value={formatUSD(preview.commission)} />}
+              <Row label="Transfer budget" value={formatUSD(preview.club.transferBudget)} warn={preview.fee > preview.club.transferBudget} />
+              <Row label="He asks" value={`${formatUSD(preview.wage)}/wk`} />
+              {preview.wageSaving > 0 && (
+                <div className="-mt-0.5 mb-1 text-right text-[11px] text-grass-300">{formatUSD(preview.wageSaving)}/wk less: he trusts you</div>
+              )}
+              {preview.wageCeiling > preview.wage && (
+                <div className="my-1.5 rounded-lg bg-white/[0.03] px-2.5 py-2">
+                  <div className="flex items-baseline justify-between text-[12px]">
+                    <span className="text-mist-300">You offer</span>
+                    <span className="num font-semibold">{formatUSD(wageOffer)}/wk</span>
+                  </div>
+                  <input
+                    type="range"
+                    aria-label="Wage offer"
+                    min={preview.wage}
+                    max={preview.wageCeiling}
+                    step={Math.max(10, Math.round((preview.wageCeiling - preview.wage) / 40))}
+                    value={wageOffer}
+                    onChange={(e) => setOffer(Number(e.target.value))}
+                    className="w-full accent-grass-500"
+                  />
+                  <div className="flex justify-between text-[10px] text-mist-400">
+                    <span>his ask</span>
+                    <span>club ceiling {formatUSD(preview.wageCeiling)}</span>
+                  </div>
+                  <div className="mt-1 text-[11px] text-mist-300">
+                    He'd likely say yes: <b className="num text-grass-300">{Math.round(acceptance * 100)}%</b>
+                    {wageOffer > preview.wage && <span className="text-mist-400"> (vs {Math.round(preview.acceptance.atAsk * 100)}% at his ask)</span>}
+                  </div>
+                </div>
+              )}
+              <Row label="Wage room" value={`${formatUSD(preview.club.wageRoom)}/wk`} warn={wageOffer > preview.club.wageRoom} />
+              {wageOffer > preview.club.wageRoom && preview.affordable && (
+                <div className="mt-1 text-[11px] text-alert-400">That offer is more than their wage room: the club may turn it down.</div>
+              )}
+              {!preview.affordable && <div className="mt-2 text-[12px] text-alert-400">{preview.affordReason}</div>}
+            </div>
+          </div>
+
+          <RivalWarning rivals={preview.rivalInterest} compact />
+
+          {(preview.rights === 'mandate' || preview.rights === 'represented') && (
+            <div className="rounded-xl border border-flood-400/25 bg-flood-500/[0.06] px-4 py-3 text-sm text-mist-200">
+              {preview.rights === 'mandate'
+                ? "You're selling him for a client: any club can be pitched. The sale earns your commission, not a placement bonus."
+                : 'You represent him: any club can be pitched. A signing earns your usual placement bonus.'}
+            </div>
+          )}
+
+          {preview.missions.length > 0 && (
+            <div className="rounded-xl border border-sky-400/25 bg-sky-400/[0.04] p-4">
+              <div className="panel-title text-[11px] text-sky-400">Active missions from {preview.club.name}</div>
+              {preview.missions.map((m) => {
+                const allYes = m.checks.every((c) => c.status === 'yes');
+                const anyNo = m.checks.some((c) => c.status === 'no');
+                return (
+                  <div key={m.id} className="mt-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span>
+                        {m.position} brief · reward <b className="num">{formatUSD(m.reward)}</b>
+                        {!m.samePosition && <span className="ml-2 text-[11px] text-flood-300">(pitch him as a {m.position} to count)</span>}
+                      </span>
+                      <span className={`text-xs font-semibold ${anyNo ? 'text-alert-400' : allYes ? 'text-grass-300' : 'text-flood-300'}`}>
+                        {anyNo ? "Doesn't fit" : allYes ? 'Fits the brief' : 'Might fit'}
+                      </span>
+                    </div>
+                    <ul className="mt-1 flex flex-wrap gap-1.5">
+                      {m.checks.map((c) => (
+                        <li key={c.label} className="chip">
+                          <span className={c.status === 'yes' ? 'text-grass-300' : c.status === 'no' ? 'text-alert-400' : 'text-flood-300'}>
+                            {c.status === 'yes' ? '✓' : c.status === 'no' ? '✕' : '?'}
+                          </span>{' '}
+                          {c.label}
+                        </li>
+                      ))}
+                    </ul>
+                    {m.preferences && (
+                      <div className="mt-1.5 text-[10px] uppercase tracking-wider text-flood-300">
+                        Their preferences{' '}
+                        <span className="normal-case tracking-normal text-mist-400">
+                          {m.preferences.every((c) => c.status === 'yes') ? '· all met: better odds of a yes' : '· meet them all for better odds'}
+                        </span>
+                      </div>
+                    )}
+                    {m.preferences && (
+                      <ul className="mt-1 flex flex-wrap gap-1.5">
+                        {m.preferences.map((c) => (
+                          <li key={c.label} className="chip border-flood-400/20">
+                            <span className={c.status === 'yes' ? 'text-grass-300' : c.status === 'no' ? 'text-alert-400' : 'text-flood-300'}>
+                              {c.status === 'yes' ? '✓' : c.status === 'no' ? '✕' : '?'}
+                            </span>{' '}
+                            {c.label}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div
+            className={`rounded-lg border px-3 py-2 text-[12px] ${preview.report ? 'border-violet-400/30 text-violet-300' : 'border-white/[0.06] text-mist-400'}`}
+          >
+            {preview.report
+              ? preview.report.sameRole
+                ? `Your signed report goes with the pitch (rated ${preview.report.rating} as a ${preview.report.role}): the coach is keener.`
+                : `Your report rates him as a ${preview.report.role} (${preview.report.rating}), not a ${position}: it helps half as much here.`
+              : 'No report on him yet. A signed report from his player page makes coaches keener, more so once your reports have a good track record.'}
+          </div>
+          {preview.specialties.length > 0 && (
+            <div className="rounded-lg border border-violet-400/30 px-3 py-2 text-[12px] text-violet-300">
+              Right in your niche ({preview.specialties.join(', ')}): the coach trusts your eye here.
+            </div>
+          )}
+        </>
       )}
 
       {deal && (
@@ -632,21 +670,6 @@ function PitchView({
         />
       )}
 
-      <div
-        className={`rounded-lg border px-3 py-2 text-[12px] ${preview.report ? 'border-violet-400/30 text-violet-300' : 'border-white/[0.06] text-mist-400'}`}
-      >
-        {preview.report
-          ? preview.report.sameRole
-            ? `Your signed report goes with the pitch (rated ${preview.report.rating} as a ${preview.report.role}): the coach is keener.`
-            : `Your report rates him as a ${preview.report.role} (${preview.report.rating}), not a ${position}: it helps half as much here.`
-          : 'No report on him yet. A signed report from his player page makes coaches keener, more so once your reports have a good track record.'}
-      </div>
-      {preview.specialties.length > 0 && (
-        <div className="rounded-lg border border-violet-400/30 px-3 py-2 text-[12px] text-violet-300">
-          Right in your niche ({preview.specialties.join(', ')}): the coach trusts your eye here.
-        </div>
-      )}
-
       <OfficialPitchCard
         o={preview.coach}
         disabled={advancing || !preview.work.ok || !!deal}
@@ -668,6 +691,84 @@ function PitchView({
         }}
         cityName={preview.club.cityName}
       />
+    </div>
+  );
+}
+
+const DETAILS_KEY = 'pitch-details-open';
+function readDetailsPref(): boolean {
+  try {
+    return localStorage.getItem(DETAILS_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+function writeDetailsPref(open: boolean) {
+  try {
+    localStorage.setItem(DETAILS_KEY, open ? '1' : '0');
+  } catch {
+    /* storage unavailable: the choice just isn't remembered */
+  }
+}
+
+type Preview = NonNullable<Awaited<ReturnType<typeof engine.getPitchPreview>>>;
+
+/** The case in one line, the reasons as chips, and anything that blocks the pitch. */
+function Verdict({ preview, wageOffer, deal }: { preview: Preview; wageOffer: number; deal?: DealView }) {
+  const blocked = !preview.work.ok ? preview.work.reason : !preview.affordable ? preview.affordReason : undefined;
+  const read = preview.coach.read;
+  const tone = blocked
+    ? 'blocked'
+    : preview.clearsBar === 'no' && !preview.prospectRoute
+      ? 'weak'
+      : preview.clearsBar === 'yes' && read === 'good'
+        ? 'strong'
+        : 'toss-up';
+  const head = deal
+    ? deal.stage === 'rejected'
+      ? 'They said no to him'
+      : 'Deal in progress'
+    : {
+        blocked: 'Blocked',
+        weak: "Weak case: he isn't better than what they have",
+        strong: "Strong case: they'll likely say yes",
+        'toss-up': preview.clearsBar === 'yes' ? 'Good player, hard sell: a toss-up' : 'A toss-up',
+      }[tone];
+  const color = deal ? 'text-mist-100' : { blocked: 'text-alert-400', weak: 'text-alert-400', strong: 'text-grass-300', 'toss-up': 'text-flood-300' }[tone];
+  const brief = preview.missions.find((m) => m.checks.every((c) => c.status === 'yes') && m.samePosition);
+  const briefNo = !brief && preview.missions.some((m) => m.checks.some((c) => c.status === 'no'));
+  const chips: { text: string; tone: 'good' | 'bad' | 'warn' }[] = [
+    {
+      text: `${preview.position}: you ${preview.estimate[0]}–${preview.estimate[1]} vs their avg ${preview.positionalAverage}`,
+      tone: preview.clearsBar === 'yes' ? 'good' : preview.clearsBar === 'no' ? 'bad' : 'warn',
+    },
+    {
+      text: preview.fee ? `Fee ${formatUSD(preview.fee)} of ${formatUSD(preview.club.transferBudget)} budget` : 'Free transfer',
+      tone: preview.fee > preview.club.transferBudget ? 'bad' : 'good',
+    },
+    {
+      text: `Wage ${formatUSD(wageOffer)}/wk · room ${formatUSD(preview.club.wageRoom)}/wk`,
+      tone: wageOffer > preview.club.wageRoom ? 'bad' : 'good',
+    },
+    { text: `Coach: ${READ[read].label.toLowerCase()}`, tone: read === 'good' ? 'good' : read === 'long-shot' ? 'bad' : 'warn' },
+  ];
+  if (brief) chips.push({ text: `Fits the ${brief.position} brief (${formatUSD(brief.reward)})`, tone: 'good' });
+  else if (briefNo) chips.push({ text: "Doesn't fit their brief", tone: 'warn' });
+  if (preview.rivalInterest.length)
+    chips.push({ text: `${preview.rivalInterest.length} rival${preview.rivalInterest.length > 1 ? 's' : ''} after him`, tone: 'warn' });
+  if (preview.rights === 'open') chips.push({ text: 'Open pitch: half bonus', tone: 'warn' });
+  const chipColor = { good: 'border-grass-400/25 text-grass-200', bad: 'border-alert-500/40 text-alert-400', warn: 'border-flood-400/30 text-flood-300' };
+  return (
+    <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4">
+      <div className={`font-display text-2xl font-bold uppercase leading-tight ${color}`}>{head}</div>
+      {blocked && !deal && <div className="mt-1 text-sm text-alert-400">{blocked}</div>}
+      <ul className="mt-2.5 flex flex-wrap gap-1.5">
+        {chips.map((c) => (
+          <li key={c.text} className={`rounded-md border px-2 py-0.5 text-[12px] ${chipColor[c.tone]}`}>
+            {c.text}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
