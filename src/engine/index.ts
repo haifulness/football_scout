@@ -62,7 +62,7 @@ import { canAfford, wageRoom, freeAgentWage, offeredWage, transferFee, brokeredW
 import type { Deal, Official, Placement } from './model/deal';
 import type { Mission } from './model/mission';
 import type { Position } from './model/player';
-import { BACKGROUNDS, completeSearch, createCareer, estimateSearch, startSearch, videoCost, videoGain, watchVideo, ScoutingError } from './systems/scouting';
+import { BACKGROUNDS, checkIn, checkInCheck, completeSearch, createCareer, estimateSearch, startSearch, videoCost, videoGain, watchVideo, ScoutingError } from './systems/scouting';
 import { leagueTable } from './systems/season';
 import { bestXI, squadNeeds } from './systems/squad-needs';
 import { promotionSpots } from './systems/standings';
@@ -890,6 +890,12 @@ export class Engine {
     const advance = this.summarize(advanceDays(this.s, record.days));
     completeSearch(this.s, record);
     return { search: this.getSearch(record.id)!, advance };
+  }
+
+  /** Bring your read on him up to date: a small fee, no time, no new knowledge. */
+  checkIn(playerId: PlayerId): { cost: number } {
+    this.assertActive();
+    return checkIn(this.s, playerId);
   }
 
   watchVideo(playerId: PlayerId): { cost: number; before: number; after: number; advance: AdvanceSummary } {
@@ -2907,6 +2913,7 @@ export class Engine {
         const on = seenOn(s, p);
         return on === undefined ? undefined : { on, monthsAgo: Math.floor((s.date - on) / 30), freshness: freshness(s, p)!, reason: s.knowledge[p.id]?.stale };
       })(),
+      checkIn: s.scout && seenOn(s, p) !== undefined ? checkInCheck(s, p) : undefined,
       potential: f.potential,
       prodigy: f.prodigy,
       traits: f.traits,

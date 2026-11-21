@@ -1,5 +1,5 @@
 import { formatUSD } from '../../engine/core/money';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { POSITIONS, type Position } from '../../engine/model/player';
 import type { PlayerId } from '../../engine/core/ids';
 import { PlayerTable } from '../components/player-table';
@@ -11,6 +11,7 @@ import { DEFAULT_POOL_FILTERS, useEngineQuery, useGame, type PoolFilters } from 
 export function PoolScreen() {
   const pool = useEngineQuery(() => engine.getPool(), []);
   const { touch, navigate, poolFilters: f, setPoolFilters, searchFor, poolAdded, setPoolAdded } = useGame();
+  const [note, setNote] = useState<string>();
   const added = new Set(poolAdded?.ids ?? []);
   const { pos } = f;
   const setPos = (p: Position | 'all') => setPoolFilters({ pos: p });
@@ -45,6 +46,15 @@ export function PoolScreen() {
   };
   const remove = async (id: PlayerId) => {
     await engine.removeFromPool(id);
+    await touch();
+  };
+  const checkIn = async (id: PlayerId, name: string) => {
+    try {
+      const r = await engine.checkIn(id);
+      setNote(`Checked in on ${name} for ${formatUSD(r.cost)}: your read is up to date.`);
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : 'That did not work.');
+    }
     await touch();
   };
 
@@ -110,6 +120,14 @@ export function PoolScreen() {
           </div>
         )}
         <FilterBar f={f} set={setPoolFilters} active={active} />
+        {note && (
+          <div className="flex items-center gap-2 border-b border-white/[0.05] px-4 py-2 text-[12px] text-mist-200">
+            {note}
+            <button className="ml-auto text-mist-400 hover:text-mist-100" onClick={() => setNote(undefined)} aria-label="Dismiss">
+              ✕
+            </button>
+          </div>
+        )}
         {rows.length === 0 ? (
           <div className="p-10 text-center text-sm text-mist-400">
             {pool.length === 0 ? 'Your pool is empty. Run a search and the players it finds will appear here.' : 'No players match this view.'}
@@ -126,8 +144,17 @@ export function PoolScreen() {
                     className="num rounded border border-grass-400/30 bg-grass-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-grass-300"
                     title={`${p.report.by} rates him ${p.report.rating}. Your own estimate may differ.`}
                   >
-                    A {p.report.rating}
+                    {p.report.by.endsWith('(selling)') ? 'Club' : 'A'} {p.report.rating}
                   </span>
+                )}
+                {(p.freshness === 'ageing' || p.freshness === 'stale') && (
+                  <button
+                    onClick={() => void checkIn(p.id, p.name)}
+                    className="rounded px-1.5 text-sm leading-none text-flood-300 hover:text-flood-200"
+                    title="Check in: a small fee, no time. Your read catches up with how he is now."
+                  >
+                    ↻
+                  </button>
                 )}
                 <button
                   onClick={() => void star(p.id, !p.starred)}

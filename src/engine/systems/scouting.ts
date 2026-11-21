@@ -1,4 +1,4 @@
-import { ageOn, type GameDate } from '../core/calendar';
+import { ageOn, formatDate, type GameDate } from '../core/calendar';
 import { setSeasonObjectives } from './goals';
 import { scenarioSetup, startScenario } from './scenarios';
 import { snapshotReviewBaseline } from './review';
@@ -11,7 +11,7 @@ import { ATTRIBUTE_LABEL, type Player, type Position } from '../model/player';
 import type { Background, CareerSetup, Difficulty, LedgerEntry, LedgerKind, Scout, ScoutSkills, SearchFilters, SearchRecord } from '../model/scout';
 import { VALUE_NO_MAX } from '../model/scout';
 import type { GameState } from '../model/world-state';
-import { VIDEO_KNOWLEDGE_CAP, estimate, knowledgeLevel, learn, marketOf, searchLearning, searchRange } from './knowledge';
+import { CHECK_IN_DAYS, VIDEO_KNOWLEDGE_CAP, estimate, knowledgeLevel, learn, marketOf, refreshRead, searchLearning, searchRange, seenOn } from './knowledge';
 import { searchWage } from './transfers';
 import { seedRivals } from './rivals';
 import { refreshMarket } from './assistants';
@@ -393,6 +393,34 @@ const VIDEO_COST: Record<ClubTier, number> = { 1: 400, 2: 250, 3: 150, 4: 90, 5:
 export function videoCost(state: GameState, p: Player): USD {
   const tier = p.clubId ? state.clubs[p.clubId]!.tier : 5;
   return usd(Math.round((VIDEO_COST[tier] * state.countries[marketOf(state, p)]!.costIndex) / 5) * 5);
+}
+
+/** A check-in costs a fraction of a video session. */
+export function checkInCost(state: GameState, p: Player): USD {
+  return usd(Math.max(20, Math.round((videoCost(state, p) * 0.25) / 5) * 5));
+}
+
+/** May you check in on him now? Only on players you've scouted yourself, once a month each. */
+export function checkInCheck(state: GameState, p: Player): { ok: boolean; reason?: string; cost: USD } {
+  const scout = requireScout(state);
+  const cost = checkInCost(state, p);
+  const k = state.knowledge[p.id];
+  if (seenOn(state, p) === undefined) return { ok: false, reason: 'You have nothing of your own on him to update yet.', cost };
+  if (k?.checkedOn !== undefined && state.date - k.checkedOn < CHECK_IN_DAYS)
+    return { ok: false, reason: `You checked in on ${formatDate(k.checkedOn)}: once a month.`, cost };
+  if (scout.money < cost) return { ok: false, reason: `A check-in costs ${formatUSD(cost)} but you only have ${formatUSD(scout.money)}.`, cost };
+  return { ok: true, cost };
+}
+
+/** A quick call to his club and a look at recent highlights: your read is up to date again (no new knowledge, no time). */
+export function checkIn(state: GameState, playerId: PlayerId): { cost: USD } {
+  const p = state.players[playerId];
+  if (!p) throw new ScoutingError('That player has retired.');
+  const check = checkInCheck(state, p);
+  if (!check.ok) throw new ScoutingError(check.reason!);
+  addLedger(state, { amount: usd(-check.cost), kind: 'video', label: `Check-in: ${p.firstName} ${p.lastName}` });
+  refreshRead(state, p, state.date);
+  return { cost: check.cost };
 }
 
 export function videoGain(state: GameState): number {

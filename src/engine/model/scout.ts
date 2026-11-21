@@ -82,6 +82,8 @@ export interface Knowledge {
   stale?: string;
   /** His circumstances when you looked: a change since makes your read stale. */
   seenContext?: { clubId?: ClubId; age: number; form?: number; injuredUntil?: GameDate };
+  /** Last quick check-in: your read was brought up to date (no new knowledge). */
+  checkedOn?: GameDate;
 }
 
 export interface PoolEntry {

@@ -49,6 +49,12 @@ export function ScoutingPanel({ player: p }: { player: PlayerView }) {
       const r = await meet({ kind: 'player', id: p.id });
       return `Rapport ${r.before} → ${r.after}`;
     });
+  const checkIn = () =>
+    act(async () => {
+      const r = await engine.checkIn(p.id);
+      await touch();
+      return `Checked in for ${formatUSD(r.cost)}: your read is up to date`;
+    });
   const togglePool = async () => {
     if (p.inPool) await engine.removeFromPool(p.id);
     else await engine.addToPool(p.id);
@@ -81,6 +87,16 @@ export function ScoutingPanel({ player: p }: { player: PlayerView }) {
                 : p.seen.monthsAgo === 0
                   ? 'You looked at him this month.'
                   : `You last looked ${p.seen.monthsAgo} month${p.seen.monthsAgo === 1 ? '' : 's'} ago${p.seen.freshness === 'fresh' ? '.' : ': he may have changed since. Look again to see how he is now.'}`}
+              {p.checkIn && p.seen.freshness !== 'fresh' && (
+                <button
+                  className="btn-ghost ml-2 px-2 py-0.5 text-[11px]"
+                  disabled={!p.checkIn.ok || advancing}
+                  title={p.checkIn.ok ? 'A call to his club and recent highlights: your read catches up, without adding knowledge' : p.checkIn.reason}
+                  onClick={() => void checkIn()}
+                >
+                  ↻ Check in · {formatUSD(p.checkIn.cost)} · no time
+                </button>
+              )}
             </div>
           )}
           <div className="relative mt-3 h-2 rounded-full bg-white/[0.06]">

@@ -132,7 +132,20 @@ export function freshness(state: GameState, p: Player): Freshness | undefined {
 /** When you last looked at him yourself (undefined: only public information). */
 export function seenOn(state: GameState, p: Player): GameDate | undefined {
   const k = state.knowledge[p.id];
-  return k && k.level > publicLevel(state, p) ? k.lastUpdated : undefined;
+  return k && k.level > publicLevel(state, p) ? Math.max(k.lastUpdated, k.checkedOn ?? 0) as GameDate : undefined;
+}
+
+/** Days between check-ins on the same player. */
+export const CHECK_IN_DAYS = 30;
+
+/** A check-in: your read catches up with how he is now, at the knowledge you already have. */
+export function refreshRead(state: GameState, p: Player, date: GameDate) {
+  const k = state.knowledge[p.id];
+  if (!k) return;
+  k.seenAttrs = { ...p.attributes };
+  k.seenContext = contextOf(p, date);
+  k.stale = undefined;
+  k.checkedOn = date;
 }
 
 export function attributeRanges(state: GameState, player: Player): Record<AttributeKey, Range> {

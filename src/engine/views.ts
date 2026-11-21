@@ -171,6 +171,8 @@ export interface PlayerView {
   knowledge: number;
   /** How current your own read is (absent: public information only). */
   seen?: { on: GameDate; monthsAgo: number; freshness: 'fresh' | 'ageing' | 'stale'; reason?: string };
+  /** A quick check-in (no time, a small fee) brings your read up to date. */
+  checkIn?: { ok: boolean; reason?: string; cost: USD };
   potential?: Range;
   prodigy: boolean;
   traits?: { consistency: string; injuryRisk: string; ambition?: string };

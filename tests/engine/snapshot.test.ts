@@ -152,3 +152,34 @@ describe('events that make your read stale', () => {
     expect(outside.w.knowledge[outside.p.id]!.stale).toBeUndefined();
   });
 });
+
+describe('a check-in', () => {
+  it('brings an old read up to date for a small fee, without new knowledge or time, once a month', async () => {
+    const { checkIn, checkInCheck } = await import('../../src/engine/systems/scouting');
+    const { w, p } = setup();
+    w.scout!.money = usd(10_000);
+    expect(checkInCheck(w, p).ok).toBe(false); // nothing of your own on him yet
+    learn(w, p, 60, 80, w.date);
+    w.date = (w.date + STALE_DAYS) as typeof w.date;
+    w.knowledge[p.id]!.stale = 'he moved club';
+    grow(p, 4);
+    const now = ovrAt(p, p.naturalPosition);
+    expect(fog(w, p).ovr[1]).toBeLessThan(now);
+
+    const level = w.knowledge[p.id]!.level;
+    const money = w.scout!.money;
+    const day = w.date;
+    const r = checkIn(w, p.id);
+    expect(w.scout!.money).toBe(money - r.cost);
+    expect(w.date).toBe(day);
+    expect(w.knowledge[p.id]!.level).toBe(level);
+    expect(freshness(w, p)).toBe('fresh');
+    const fresh = fog(w, p).ovr;
+    expect(fresh[0]).toBeLessThanOrEqual(now);
+    expect(fresh[1]).toBeGreaterThanOrEqual(now);
+
+    expect(() => checkIn(w, p.id)).toThrow(/once a month/);
+    w.date = (w.date + 30) as typeof w.date;
+    expect(checkInCheck(w, p).ok).toBe(true);
+  });
+});
