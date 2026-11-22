@@ -7,6 +7,7 @@ import type { AssistantBrief } from '../../engine/model/assistant';
 import { POSITIONS, type Position } from '../../engine/model/player';
 import type { AssistantCandidateView, AssistantView, TaskEstimateView } from '../../engine/views';
 import { Loading, Panel, PosBadge, useCultureLookup } from '../components/ui';
+import { Crest } from '../visuals/crest';
 import { Portrait } from '../visuals/portrait';
 import { engine } from '../store/engine-client';
 import { useEngineQuery, useGame } from '../store/game-store';
@@ -158,9 +159,9 @@ function AssistantCard({ a, i, maxWeeks }: { a: AssistantView; i: number; maxWee
           </div>
         </div>
         <span
-          className={`rounded-md px-2 py-0.5 text-[11px] font-bold uppercase ${a.office ? 'bg-violet-500/15 text-violet-300' : t ? 'bg-grass-500/15 text-grass-300' : 'bg-flood-500/15 text-flood-300'}`}
+          className={`rounded-md px-2 py-0.5 text-[11px] font-bold uppercase ${a.office || a.job ? 'bg-violet-500/15 text-violet-300' : t ? 'bg-grass-500/15 text-grass-300' : 'bg-flood-500/15 text-flood-300'}`}
         >
-          {a.office ? `Office · ${a.office.label}` : t ? 'On task' : 'Idle'}
+          {a.office ? `Office · ${a.office.label}` : a.job ? 'On a brief' : t ? 'On task' : 'Idle'}
         </span>
       </div>
 
@@ -189,6 +190,23 @@ function AssistantCard({ a, i, maxWeeks }: { a: AssistantView; i: number; maxWee
         </div>
       )}
 
+      {a.job && (
+        <div className="mt-3 rounded-lg bg-black/20 p-3 text-sm">
+          <div className="flex items-center gap-2">
+            <Crest club={a.job.club} size={20} />
+            <span className="font-semibold">{a.job.club.name}</span>
+            <PosBadge pos={a.job.position} />
+            <span className="text-[12px] text-mist-400">brief</span>
+          </div>
+          <div className="mt-1.5 text-[12px] text-mist-300">
+            {a.job.current
+              ? `His pick ${a.job.current.player} is ${a.job.current.stage === 'agreed' ? 'agreed, waiting for the window' : 'in negotiations'}.`
+              : `${a.job.pitched} of ${a.job.maxPitches} names put forward so far.`}{' '}
+            <span className="text-mist-400">{formatUSD(a.job.weeklyExpenses)}/wk expenses</span>
+          </div>
+        </div>
+      )}
+
       <AnimatePresence>{assigning && <TaskForm a={a} maxWeeks={maxWeeks} onDone={() => setAssigning(false)} />}</AnimatePresence>
 
       {!assigning && (
@@ -196,6 +214,10 @@ function AssistantCard({ a, i, maxWeeks }: { a: AssistantView; i: number; maxWee
           {a.office ? (
             <button className="btn-ghost flex-1 text-xs" onClick={() => void act(() => engine.placeAssistant(a.id, null))}>
               Back to field work
+            </button>
+          ) : a.job ? (
+            <button className="btn-ghost flex-1 text-xs" onClick={() => void act(() => engine.recallJob(a.id))}>
+              Take the brief back
             </button>
           ) : (
             <button className="btn-primary flex-1 text-xs" onClick={() => setAssigning(true)}>

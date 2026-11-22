@@ -11,6 +11,7 @@ import type { GameState } from '../model/world-state';
 import { clubPositionalAverage } from './deals';
 import { clubRecord, clubTrust } from './employment';
 import { presidentOf } from './board';
+import { chargeStaffCut } from './delegation';
 import { positionGroup, specialties } from './goals';
 import { POSITION_WEIGHTS, ovrAt } from './ratings';
 import { brokeredWage, hasWageRoomForSigning } from './transfers';
@@ -366,6 +367,7 @@ export function onDealSecured(state: GameState, deal: Deal) {
   m.dealId = deal.id;
   m.resolvedOn = state.date;
   addLedger(state, { amount: m.reward, kind: 'mission-reward', label: `Mission reward: ${club.name} (${m.position})` });
+  chargeStaffCut(state, deal, m.reward, 'mission reward');
   const r = clubRecord(scout, club.id);
   scout.clubRecord[club.id] = { ...r, missionsDone: (r.missionsDone ?? 0) + 1 };
   adjustRelationships(state, club, 5);

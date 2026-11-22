@@ -942,6 +942,12 @@ export interface MissionView {
   /** Terms you can ask the club to loosen (after discussing), with your odds and any reward cut. */
   negotiation: { key: NegotiationKey; label: string; rewardCut?: number; chance: number; outcome?: 'agreed' | 'refused' }[];
   preferences?: { maxWage: USD; keyAttributes: { attribute: AttributeKey; label: string; min: number }[]; idealAge: [number, number]; discussedOn: GameDate };
+  /** The assistant handling it for you. */
+  delegatedTo?: { id: number; name: string };
+  /** Assistants you could hand it to, or why not. */
+  delegates: { id: number; name: string; skill: number; ok: boolean; reason?: string }[];
+  /** The assistant's share, in percent. */
+  delegateCutPct: number;
 }
 
 export interface MissionRecommendationView {
@@ -1086,6 +1092,8 @@ export interface AssistantView {
   /** Placed at an agency base instead of field tasks. */
   office?: { id: number; label: string };
   task?: AssistantTaskView;
+  /** A brief he is handling for you. */
+  job?: { missionId: number; club: ClubBadge; position: Position; pitched: number; maxPitches: number; current?: { player: string; stage: DealStage }; weeklyExpenses: USD };
 }
 
 export interface AssistantCandidateView {

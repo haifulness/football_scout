@@ -13,6 +13,7 @@ import { ScoutingError, addLedger, inLocation } from './scouting';
 import { UNLOCKS, isUnlocked } from './unlocks';
 import { addNews } from './season';
 import { staffCapacity } from './agency';
+import { jobWeek } from './delegation';
 
 /**
  * Assistant scouts (PLAN §3.13): staff who scan an area for you and feed
@@ -114,6 +115,7 @@ export function assignTask(state: GameState, id: number, brief: AssistantBrief, 
   const a = state.assistants.find((x) => x.id === id);
   if (!a) throw new ScoutingError('No such assistant.');
   if (a.officeId !== undefined) throw new ScoutingError(`${name(a)} works at your agency's office. Take him off office duty first.`);
+  if (a.job) throw new ScoutingError(`${name(a)} is handling one of your briefs. Take it back first.`);
   validateBrief(brief, weeks);
   a.task = {
     ...brief,
@@ -195,6 +197,11 @@ export function assistantTick(state: GameState, date: GameDate) {
   const rng = Rng.derive(state.seed, `assistants:${date}`);
   for (const a of state.assistants) {
     addLedger(state, { amount: usd(-a.wage), kind: 'assistant', label: `Wage: ${name(a)}` });
+    if (a.job) {
+      jobWeek(state, a, rng);
+      if (a.xp >= XP_PER_LEVEL) levelUp(state, a, date);
+      continue;
+    }
     if (!a.task) {
       // Office work builds an eye too, more slowly than the field.
       if (a.officeId !== undefined && rng.chance(0.5)) a.xp++;
@@ -202,18 +209,21 @@ export function assistantTick(state: GameState, date: GameDate) {
     }
     addLedger(state, { amount: usd(-a.task.weeklyExpenses), kind: 'assistant-task', label: `Task expenses: ${name(a)} in ${describeArea(state, a.task)}` });
     scanWeek(state, a, rng);
-    if (++a.xp >= XP_PER_LEVEL && a.skill < 20) {
-      a.xp = 0;
-      a.skill++;
-      a.wage = usd(Math.round((a.wage * 1.08) / 10) * 10);
-      addNews(state, {
-        date,
-        kind: 'career',
-        link: 'staff',
-        title: `${name(a)} is improving`,
-        body: `Weeks in the field have sharpened his eye (skill ${a.skill}). He asks for a raise: now ${formatUSD(a.wage)} a week.`,
-      });
-    }
+    if (++a.xp >= XP_PER_LEVEL) levelUp(state, a, date);
     if (date >= a.task.endsOn) finishTask(state, a, false);
   }
+}
+
+function levelUp(state: GameState, a: Assistant, date: GameDate) {
+  if (a.skill >= 20) return;
+  a.xp = 0;
+  a.skill++;
+  a.wage = usd(Math.round((a.wage * 1.08) / 10) * 10);
+  addNews(state, {
+    date,
+    kind: 'career',
+    link: 'staff',
+    title: `${name(a)} is improving`,
+    body: `Weeks in the field have sharpened his eye (skill ${a.skill}). He asks for a raise: now ${formatUSD(a.wage)} a week.`,
+  });
 }

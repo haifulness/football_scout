@@ -42,6 +42,8 @@ export interface Deal {
   signOff?: { by: Official; date: GameDate };
   /** A club-level "no" (not good enough, can't afford it): asking the other official won't help. */
   clubLevelRejection?: boolean;
+  /** Pitched by one of your assistants on a brief you handed him (he takes a cut). */
+  delegatedTo?: number;
   /** The board had its say on a big signing (after the coach's yes). */
   boardChecked?: boolean;
   /** The board blocked the money. */

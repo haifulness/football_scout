@@ -105,6 +105,7 @@ import { huntAction, huntOptions, huntPlace, type HuntMethod } from './systems/h
 import { dilemmaText, resolveDilemma } from './systems/dilemmas';
 import { isUnlocked, nextUnlock } from './systems/unlocks';
 import { buildTouchline, ensurePredictions } from './systems/newspaper';
+import { MAX_DELEGATE_PITCHES, STAFF_CUT, delegateCheck, delegateMission, recallJob } from './systems/delegation';
 import { answerBoardAsk, boardOdds, ensurePresidents, needsBoard, presidentOf, presidentView } from './systems/board';
 import { attendCheck, attendEvent, ensureSeasonEvents, eventEnd, eventLabel, eventStatus } from './systems/events';
 import { closeDeadline, DEADLINE_ACTION_HOURS, DEADLINE_FEE_PREMIUM, passDeadlineHours } from './systems/deadline';
@@ -1210,6 +1211,18 @@ export class Engine {
         resolvedOn: m.resolvedOn,
         completedBy: p ? `${p.firstName} ${p.lastName}` : undefined,
         recommendations: this.missionRecommendations(m),
+        delegatedTo: (() => {
+          const a = s.assistants.find((x) => x.job?.missionId === m.id);
+          return a && { id: a.id, name: `${a.firstName} ${a.lastName}` };
+        })(),
+        delegates:
+          m.status === 'active' && isUnlocked(s, 'assistants')
+            ? s.assistants.map((a) => {
+                const c = delegateCheck(s, a, m);
+                return { id: a.id, name: `${a.firstName} ${a.lastName}`, skill: a.skill, ok: c.ok, reason: c.reason };
+              })
+            : [],
+        delegateCutPct: Math.round(STAFF_CUT * 100),
         negotiation: negotiationOptions(s, m),
         preferences: m.preferences && {
           maxWage: m.preferences.maxWage,
@@ -1513,6 +1526,22 @@ export class Engine {
             weeklyExpenses: t.weeklyExpenses,
             local: taskCountry === a.speciality,
           },
+          job: (() => {
+            const j = a.job;
+            const m = j && s.missions.find((x) => x.id === j.missionId);
+            if (!j || !m) return undefined;
+            const d = j.dealId !== undefined ? s.deals.find((x) => x.id === j.dealId) : undefined;
+            const dp = d && s.players[d.playerId];
+            return {
+              missionId: m.id,
+              club: badge(s.clubs[m.clubId]!),
+              position: m.position,
+              pitched: j.tried.length,
+              maxPitches: MAX_DELEGATE_PITCHES,
+              current: d && dp ? { player: `${dp.firstName} ${dp.lastName}`, stage: d.stage } : undefined,
+              weeklyExpenses: j.weeklyExpenses,
+            };
+          })(),
         };
       }),
       market: s.assistantMarket.map((c) => ({
@@ -1786,6 +1815,22 @@ export class Engine {
       });
     }
     for (const a of s.assistants) {
+      if (a.job) {
+        const m = s.missions.find((x) => x.id === a.job!.missionId);
+        const club = m && s.clubs[m.clubId];
+        if (m && club)
+          inProgress.push({
+            key: `j${a.id}`,
+            kind: 'assistant',
+            tone: 'info',
+            title: `${a.firstName} ${a.lastName} on the ${club.shortName} ${m.position} brief`,
+            detail: a.job.dealId !== undefined ? 'His pick is in negotiations' : `${a.job.tried.length} of ${MAX_DELEGATE_PITCHES} names put forward`,
+            daysLeft: m.deadline !== undefined ? Math.max(0, m.deadline - s.date) : undefined,
+            club: badge(club),
+            link: { screen: 'missions' },
+          });
+        continue;
+      }
       if (!a.task) continue;
       const left = Math.max(0, a.task.endsOn - s.date);
       inProgress.push({
@@ -2358,6 +2403,15 @@ export class Engine {
     });
   }
 
+  /** Hand an active brief to a senior assistant: he shortlists and pitches under your name, for a cut. */
+  delegateMission(assistantId: number, missionId: number) {
+    delegateMission(this.s, assistantId, missionId);
+  }
+
+  recallJob(assistantId: number) {
+    recallJob(this.s, assistantId);
+  }
+
   answerBoardAsk(id: number, coachId: StaffId | null): { message: string } {
     return { message: answerBoardAsk(this.s, id, coachId) };
   }
@@ -2487,7 +2541,7 @@ export class Engine {
       pendingOffers: s.offers.length,
       pendingMissions: s.missions.filter((m) => m.status === 'offered').length,
       pendingMandates: s.mandates.filter((m) => m.status === 'offered').length,
-      idleAssistants: s.assistants.filter((a) => !a.task && a.officeId === undefined).length,
+      idleAssistants: s.assistants.filter((a) => !a.task && !a.job && a.officeId === undefined).length,
       activeHunts: s.hunts.filter((h) => h.status === 'active').length,
       scenario: (() => {
         const sc = s.scenario;

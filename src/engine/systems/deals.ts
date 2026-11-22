@@ -168,6 +168,8 @@ export interface PitchArgs {
   wage?: USD;
   /** By phone instead of in person: no trip and no meeting fee, once the club trusts you (see remotePitchCheck). */
   remote?: boolean;
+  /** One of your assistants pitches on a brief you handed him: he goes himself (his expenses cover it). */
+  delegate?: number;
 }
 
 const officialOf = (club: Club, _who: Official) => club.headCoachId;
@@ -278,9 +280,14 @@ export function pitch(state: GameState, args: PitchArgs): Deal {
   const officialId = officialOf(club, args.to);
   const o = state.officials[officialId]!;
   const info = meetingInfo(state, { kind: 'official', id: officialId });
-  if (!info.allowed) throw new ScoutingError(`The ${roleName(args.to)} won't see a scout of your standing yet (needs reputation ${info.requiredReputation}).`);
+  const delegate = args.delegate !== undefined ? state.assistants.find((a) => a.id === args.delegate) : undefined;
+  if (delegate) {
+    // He travels and takes the meeting himself.
+  } else if (!info.allowed) throw new ScoutingError(`The ${roleName(args.to)} won't see a scout of your standing yet (needs reputation ${info.requiredReputation}).`);
   const remote = !!args.remote;
-  if (remote) {
+  if (delegate) {
+    // No trip or meeting fee for you.
+  } else if (remote) {
     const check = remotePitchCheck(state, club.id);
     if (!check.ok) throw new ScoutingError(check.reason!);
   } else {
@@ -291,7 +298,7 @@ export function pitch(state: GameState, args: PitchArgs): Deal {
       addLedger(state, { amount: usd(-info.cost), kind: 'meeting', label: `Pitch: ${p.firstName} ${p.lastName} to ${club.name} (${roleName(args.to)})` });
     }
   }
-  scout.lastMet[officialId] = state.date;
+  if (!delegate) scout.lastMet[officialId] = state.date;
 
   const deal: Deal = {
     id: state.counters.deal++,
@@ -307,6 +314,7 @@ export function pitch(state: GameState, args: PitchArgs): Deal {
     mandateId: rights.mandate?.id,
     represented: rights.represented,
     open: rights.open || undefined,
+    delegatedTo: delegate?.id,
     wage: brokeredWage(state, p, club),
     estimateThen: estimate(fog(state, p).positions[args.position]),
     log: [],
@@ -314,7 +322,7 @@ export function pitch(state: GameState, args: PitchArgs): Deal {
   state.deals.unshift(deal);
   deal.pitchedTo.push(args.to);
   if (again) log(deal, state.date, `Trying again: ${again.because}.`);
-  log(deal, state.date, `Pitched ${p.firstName} ${p.lastName} as a ${args.position} to the ${roleName(args.to)}, ${o.firstName} ${o.lastName}${remote ? ', by phone' : ''}.`);
+  log(deal, state.date, `${delegate ? `Your assistant ${delegate.firstName} ${delegate.lastName} pitched` : 'Pitched'} ${p.firstName} ${p.lastName} as a ${args.position} to the ${roleName(args.to)}, ${o.firstName} ${o.lastName}${remote ? ', by phone' : ''}.`);
 
   // Club-level checks: ability (or potential) and money.
   const gate = gateCheck(state, p, club, args.position);

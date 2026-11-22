@@ -1,3 +1,4 @@
+import { chargeStaffCut } from './delegation';
 import { addDays, formatDate, toParts, type GameDate } from '../core/calendar';
 import { formatUSD, usd, type USD } from '../core/money';
 import { clamp } from '../core/rng';
@@ -142,6 +143,7 @@ export function settleSigningBonuses(state: GameState) {
         kind: 'signing-bonus',
         label: `Signing bonus: ${p ? `${p.firstName} ${p.lastName}` : 'player'} to ${club?.name ?? 'club'}`,
       });
+    chargeStaffCut(state, state.deals.find((d) => d.id === pl.dealId), pl.bonus, 'signing bonus');
   }
 }
 

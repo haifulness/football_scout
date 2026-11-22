@@ -1,5 +1,5 @@
 import type { GameDate } from '../core/calendar';
-import type { CountryId } from '../core/ids';
+import type { CountryId, PlayerId } from '../core/ids';
 import type { USD } from '../core/money';
 import type { Position } from './player';
 import type { LocationScope } from './scout';
@@ -24,6 +24,17 @@ export interface AssistantTask extends AssistantBrief {
   found: number;
 }
 
+/** A brief handed to an assistant. */
+export interface AssistantJob {
+  missionId: number;
+  startedOn: GameDate;
+  /** Players he has already put forward. */
+  tried: PlayerId[];
+  /** His deal in progress. */
+  dealId?: number;
+  weeklyExpenses: USD;
+}
+
 /** A scout you employ (PLAN §3.13). */
 export interface Assistant {
   id: number;
@@ -42,6 +53,8 @@ export interface Assistant {
   /** Weeks worked toward his next level. */
   xp: number;
   task?: AssistantTask;
+  /** Handling one of your briefs himself: he shortlists and pitches under your name, for a cut. */
+  job?: AssistantJob;
   /** Working at one of your agency's bases (0 = headquarters) instead of field tasks. */
   officeId?: number;
   /** Players reported over his time with you. */
@@ -49,4 +62,4 @@ export interface Assistant {
 }
 
 /** Someone on the job market. */
-export type AssistantCandidate = Omit<Assistant, 'hiredOn' | 'xp' | 'task' | 'reports'>;
+export type AssistantCandidate = Omit<Assistant, 'hiredOn' | 'xp' | 'task' | 'job' | 'reports'>;
