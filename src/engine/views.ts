@@ -1127,6 +1127,81 @@ export interface GazettePoolFit {
   margin: number;
 }
 
+export type TouchlineSection = 'front' | 'results' | 'transfers' | 'rumours' | 'interview' | 'pressure' | 'pundit' | 'corner' | 'wanted';
+
+/** The Touchline's front page: the week's biggest story. */
+export interface FrontPage {
+  kind: 'yours' | 'sacking' | 'transfer' | 'top' | 'need';
+  kicker: string;
+  headline: string;
+  standfirst: string;
+  club?: ClubBadge;
+  player?: { id: PlayerId; name: string };
+  /** For a needs story: the need itself, with search actions. */
+  need?: GazetteNeed;
+}
+
+export interface TouchlineResult {
+  home: ClubBadge;
+  away: ClubBadge;
+  score: [number, number];
+  note?: 'upset' | 'thrashing' | 'goal-fest';
+}
+
+export interface TouchlineTableRow {
+  pos: number;
+  club: ClubBadge;
+  played: number;
+  points: number;
+  form: ('W' | 'D' | 'L')[];
+  yours: boolean;
+}
+
+export interface TouchlineRumour {
+  club: ClubBadge;
+  player: { id: PlayerId; name: string; position: Position; clubName?: string };
+  text: string;
+}
+
+export interface TouchlineInterview {
+  coach: string;
+  club: ClubBadge;
+  quote: string;
+  position: Position;
+  /** The club has since posted a brief at this position. */
+  briefPosted: boolean;
+}
+
+export interface TouchlinePressure {
+  club: ClubBadge;
+  coach: string;
+  daysInJob?: number;
+  recentPoints: number;
+  tablePos: number;
+  heat: 'warm' | 'hot' | 'boiling';
+}
+
+export interface TouchlinePundit {
+  title: { club: ClubBadge; pos: number };
+  relegated: { club: ClubBadge; pos: number }[];
+  breakout?: { id: PlayerId; name: string; club?: ClubBadge; apps: number; goals: number; rating?: number };
+  /** The season is over: the picks are graded. */
+  final: boolean;
+  /** How many relegation spots the league has. */
+  drop: number;
+}
+
+export interface TouchlineSigning {
+  player: { id: PlayerId; name: string; position: Position };
+  club: ClubBadge;
+  apps: number;
+  goals: number;
+  assists: number;
+  rating?: number;
+  /** Starred in the past week (goal or man of the match). */
+  starred: boolean;
+}
+
 export interface GazetteView {
   issue: number;
   date: GameDate;
@@ -1145,6 +1220,18 @@ export interface GazetteView {
   poolFits: GazettePoolFit[];
   /** Rival chases the rumour mill has revealed. */
   rumours: { rival: string; player: { id: PlayerId; name: string }; club: ClubBadge; advanced: boolean; yours: boolean }[];
+  /** The paper's own pages. */
+  leagueName?: string;
+  front: FrontPage;
+  results: TouchlineResult[];
+  table: TouchlineTableRow[];
+  transfers: { id: number; title: string; body: string; date: GameDate }[];
+  links: TouchlineRumour[];
+  interview?: TouchlineInterview;
+  pressure: TouchlinePressure[];
+  pundit?: TouchlinePundit;
+  corner: TouchlineSigning[];
+  bylines: Record<TouchlineSection, string>;
 }
 
 /** Where a Home item leads: a UI route by screen name (and id for club/player pages). */

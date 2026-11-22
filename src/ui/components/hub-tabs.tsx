@@ -24,10 +24,10 @@ const count = (n: number, tone: 'gold' | 'red' | 'violet', title?: string) => (n
 /** Menu hubs: several related screens behind one menu item, switched with tabs. Each screen keeps its own route. */
 export const HUBS: Record<'weekly' | 'work' | 'agency' | 'career', Hub> = {
   weekly: {
-    label: 'Weekly',
+    label: 'Touchline',
     icon: '¶',
     tabs: [
-      { screen: 'gazette', label: 'This week' },
+      { screen: 'gazette', label: 'This issue' },
       { screen: 'news', label: 'All news' },
     ],
   },

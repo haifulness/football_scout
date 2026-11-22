@@ -1,4 +1,5 @@
 import type { ScoutingEvent } from './event';
+import type { Prediction } from './prediction';
 import type { Dilemma } from './dilemma';
 import type { Assistant, AssistantCandidate } from './assistant';
 import type { DeadlineDay, ReviewBaseline, SeasonReview } from './review';
@@ -79,6 +80,8 @@ export interface GameState {
   hunts: Hunt[];
   /** This season's scouting events (absent in older saves until the next one is drawn). */
   events?: ScoutingEvent[];
+  /** The Touchline pundit's pre-season picks for your home top flight, one set per season. */
+  predictions?: Prediction[];
   /** Choices put to you (recent ones kept for the record). */
   dilemmas?: Dilemma[];
   /** Your season reviews, newest last (kept for the last 20 seasons). */

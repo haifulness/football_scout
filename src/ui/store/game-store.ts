@@ -107,7 +107,7 @@ export type Route =
   | { screen: 'club'; id: ClubId }
   | { screen: 'player'; id: PlayerId };
 
-interface GameStore {
+export interface GameStore {
   status: 'menu' | 'generating' | 'loading' | 'ready';
   progress: { fraction: number; label: string };
   world?: WorldSummary;

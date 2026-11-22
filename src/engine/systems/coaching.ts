@@ -110,7 +110,7 @@ export function announceChange(state: GameState, ch: CoachChange, date: GameDate
 }
 
 /** How far below expectations a club is: 0 (fine) to 1 (bottom when it should be top). */
-function pressure(state: GameState, clubId: ClubId, rows: ReturnType<typeof leagueTable>): { pressure: number; recentPoints: number; played: number } {
+export function pressure(state: GameState, clubId: ClubId, rows: ReturnType<typeof leagueTable>): { pressure: number; recentPoints: number; played: number } {
   const n = rows.length;
   const byRep = [...rows].sort((a, b) => state.clubs[b.clubId]!.reputation - state.clubs[a.clubId]!.reputation);
   const expected = byRep.findIndex((r) => r.clubId === clubId);

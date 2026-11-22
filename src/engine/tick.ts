@@ -24,6 +24,7 @@ import { agencyTick } from './systems/agency';
 import { scenarioTick } from './systems/scenarios';
 import { coachTick } from './systems/coaching';
 import { eventsTick } from './systems/events';
+import { ensurePredictions } from './systems/newspaper';
 import { dilemmaTick } from './systems/dilemmas';
 import { unlockTick } from './systems/unlocks';
 import { isInboxItem } from './model/season';
@@ -126,6 +127,7 @@ function playDay(state: GameState, date: GameDate, onMatch?: MatchListener): { m
     assistantTick(state, date);
     huntTick(state, date);
     eventsTick(state, date);
+    ensurePredictions(state);
     dilemmaTick(state, date);
     unlockTick(state, date);
     staleTick(state, date);

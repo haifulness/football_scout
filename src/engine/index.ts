@@ -104,6 +104,7 @@ import { VERDICT_LABEL, type ScoutReport, type Verdict } from './model/report';
 import { huntAction, huntOptions, huntPlace, type HuntMethod } from './systems/hunts';
 import { dilemmaText, resolveDilemma } from './systems/dilemmas';
 import { isUnlocked, nextUnlock } from './systems/unlocks';
+import { buildTouchline, ensurePredictions } from './systems/newspaper';
 import { attendCheck, attendEvent, ensureSeasonEvents, eventEnd, eventLabel, eventStatus } from './systems/events';
 import { closeDeadline, DEADLINE_ACTION_HOURS, DEADLINE_FEE_PREMIUM, passDeadlineHours } from './systems/deadline';
 import type {
@@ -800,6 +801,7 @@ export class Engine {
   createCareer(setup: CareerSetup): ScoutView {
     createCareer(this.s, setup);
     ensureSeasonEvents(this.s);
+    ensurePredictions(this.s);
     return this.getScout()!;
   }
 
@@ -1725,7 +1727,7 @@ export class Engine {
           kind: 'clients',
           tone: e.clients.length === 0 ? 'action' : 'info',
           title: e.clients.length === 0 ? 'No clients yet' : `Room for ${plural(slots - e.clients.length, 'more client')}`,
-          detail: 'The Weekly lists clubs short of players with money to spend.',
+          detail: 'The Touchline lists clubs short of players with money to spend.',
           link: { screen: 'gazette' },
         });
     }
@@ -1955,8 +1957,10 @@ export class Engine {
     });
 
     const start = sc.startedOn ?? CAREER_START;
+    const issue = Math.floor((s.date - start) / 7) + 1;
     return {
-      issue: Math.floor((s.date - start) / 7) + 1,
+      ...buildTouchline(s, { issue, mine: mineSet, yourClubs, needsOf }),
+      issue,
       date: s.date,
       seasonLabel: seasonLabel(s.season.year),
       countryName: s.countries[sc.homeCountry]!.name,
