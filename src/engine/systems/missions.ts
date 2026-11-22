@@ -340,6 +340,8 @@ export function acceptMission(state: GameState, id: number): Mission {
   if (state.missions.filter((x) => x.status === 'active').length >= MAX_ACTIVE) throw new ScoutingError(`You can run at most ${MAX_ACTIVE} missions at once.`);
   m.status = 'active';
   m.deadline = addDays(state.date, m.weeks * 7);
+  // A player you had already put to the club, whose terms are agreed, completes it at once if he fits.
+  for (const d of state.deals) if (d.stage === 'agreed' && d.clubId === m.clubId && d.position === m.position && m.status === 'active') onDealSecured(state, d);
   return m;
 }
 
@@ -353,6 +355,27 @@ function adjustRelationships(state: GameState, club: Club, delta: number) {
   scout.relationships[club.headCoachId] = clamp((scout.relationships[club.headCoachId] ?? 0) + delta, 0, 100);
 }
 
+/**
+ * Your recommendations for a brief: players you put to the club at that position while it ran, plus any you
+ * had already put forward whose talks are still going (or that came off) once you took it on.
+ */
+export function missionDeals(state: GameState, m: Mission): Deal[] {
+  if (m.deadline === undefined) return [];
+  const accepted = m.deadline - m.weeks * 7;
+  return state.deals.filter(
+    (d) =>
+      d.clubId === m.clubId &&
+      d.position === m.position &&
+      d.openedOn <= m.deadline! &&
+      (d.openedOn >= accepted || d.stage === 'negotiating' || d.stage === 'agreed' || m.dealId === d.id),
+  );
+}
+
+/** A brief stays open past its deadline while one of your candidates is still in talks. */
+export function inOvertime(state: GameState, m: Mission): boolean {
+  return m.status === 'active' && m.deadline !== undefined && state.date > m.deadline && missionDeals(state, m).some((d) => d.stage === 'negotiating');
+}
+
 /** Call when one of your deals is agreed or completed: does it complete an active mission? */
 export function onDealSecured(state: GameState, deal: Deal) {
   if (state.missions.some((m) => m.dealId === deal.id)) return;
@@ -364,7 +387,8 @@ export function onDealSecured(state: GameState, deal: Deal) {
       x.clubId === deal.clubId &&
       x.position === deal.position &&
       x.deadline !== undefined &&
-      state.date <= x.deadline &&
+      // Talks that began before the deadline still count when they finish after it.
+      (state.date <= x.deadline || deal.openedOn <= x.deadline) &&
       missionFit(state, x, p, deal.fee).ok,
   );
   if (!m) return;
@@ -423,7 +447,7 @@ export function missionTick(state: GameState, date: GameDate) {
         clubIds: [club.id],
         countryId: club.countryId,
       });
-    } else if (m.status === 'active' && m.deadline !== undefined && date > m.deadline) {
+    } else if (m.status === 'active' && m.deadline !== undefined && date > m.deadline && !inOvertime(state, m)) {
       m.status = 'failed';
       m.resolvedOn = date;
       const club = state.clubs[m.clubId]!;

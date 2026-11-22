@@ -138,6 +138,13 @@ export function acceptMandate(state: GameState, id: number): Mandate {
     const entry = (state.pool[p.id] ??= { addedOn: state.date, source: 'manual', starred: false });
     if (m.report) entry.report = { by: `${club.shortName} (selling)`, rating: m.report.rating, date: state.date };
   }
+  // You had already put him to a club and the talks are still going: that deal is part of the sale now.
+  for (const d of state.deals)
+    if (d.playerId === m.playerId && d.clubId !== m.clubId && d.mandateId === undefined && (d.stage === 'negotiating' || d.stage === 'agreed')) {
+      d.mandateId = m.id;
+      d.log.push({ date: state.date, text: `${club.name} asked you to sell him: this deal now counts for the sale.`, tone: 'good' });
+      if (d.stage === 'agreed') onMandateSecured(state, d);
+    }
   return m;
 }
 
@@ -267,7 +274,13 @@ export function marketTick(state: GameState, date: GameDate) {
         clubIds: [club.id],
         countryId: club.countryId,
       });
-    } else if (m.status === 'active' && m.deadline !== undefined && date > m.deadline) {
+    } else if (
+      m.status === 'active' &&
+      m.deadline !== undefined &&
+      date > m.deadline &&
+      // Still in talks with a buyer: the club waits for the outcome.
+      !state.deals.some((d) => d.mandateId === m.id && d.stage === 'negotiating')
+    ) {
       m.status = 'failed';
       m.resolvedOn = date;
       const r = clubRecord(scout, m.clubId);

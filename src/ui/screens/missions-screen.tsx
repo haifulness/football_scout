@@ -48,7 +48,8 @@ export function MissionsScreen() {
             ? 'Your clients post briefs. Declining costs nothing; failing an accepted mission costs standing.'
             : 'Your employer posts briefs. Declining costs nothing; failing an accepted mission costs standing.'}{' '}
           A mission is accomplished when a player who fits the brief signs (or agrees terms) for the club before the deadline. You can recommend as many players
-          as you like for one brief: the first who fits and agrees terms completes it.
+          as you like for one brief: the first who fits and agrees terms completes it. If talks with one of them are still going at the deadline, the club waits
+          for the outcome.
         </p>
       </header>
 
@@ -189,7 +190,11 @@ function MissionCard({ m, i }: { m: MissionView; i: number }) {
         <div className="mt-3">
           <div className="flex justify-between text-[11px] text-mist-400">
             <span>Deadline {formatDate(m.deadline)}</span>
-            <span className={m.daysLeft! <= 7 ? 'font-bold text-alert-400' : ''}>{m.daysLeft} days left</span>
+            {m.overtime ? (
+              <span className="font-bold text-flood-300">Overtime: waiting on talks</span>
+            ) : (
+              <span className={m.daysLeft! <= 7 ? 'font-bold text-alert-400' : ''}>{m.daysLeft} days left</span>
+            )}
           </div>
           <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
             <div className="h-full rounded-full" style={{ width: `${elapsed * 100}%`, background: m.daysLeft! <= 7 ? '#ef4444' : '#38bdf8' }} />

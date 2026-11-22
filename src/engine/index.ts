@@ -38,7 +38,16 @@ import {
   type MeetingResult,
 } from './systems/fieldwork';
 import { nightlyCost, quoteTravel, startTravel } from './systems/travel';
-import { acceptMission, declineMission, describeRequirements, discussMission, negotiateMission, negotiationOptions } from './systems/missions';
+import {
+  acceptMission,
+  declineMission,
+  describeRequirements,
+  inOvertime,
+  missionDeals,
+  discussMission,
+  negotiateMission,
+  negotiationOptions,
+} from './systems/missions';
 import type { NegotiationKey } from './model/mission';
 import { knownInterest, rivalName } from './systems/rivals';
 import {
@@ -1277,6 +1286,7 @@ export class Engine {
         weeks: m.weeks,
         deadline: m.deadline,
         daysLeft: m.deadline !== undefined && m.status === 'active' ? Math.max(0, m.deadline - s.date) : undefined,
+        overtime: inOvertime(s, m) || undefined,
         reward: m.reward,
         resolvedOn: m.resolvedOn,
         completedBy: p ? `${p.firstName} ${p.lastName}` : undefined,
@@ -1340,6 +1350,12 @@ export class Engine {
         weeks: m.weeks,
         deadline: m.deadline,
         daysLeft: m.deadline !== undefined && m.status === 'active' ? Math.max(0, m.deadline - s.date) : undefined,
+        overtime:
+          (m.status === 'active' &&
+            m.deadline !== undefined &&
+            s.date > m.deadline &&
+            s.deals.some((d) => d.mandateId === m.id && d.stage === 'negotiating')) ||
+          undefined,
         resolvedOn: m.resolvedOn,
         note: m.note,
         soldTo: deal ? s.clubs[deal.clubId]?.name : undefined,
@@ -2171,30 +2187,26 @@ export class Engine {
   /** Deals for this brief: same club and position, opened since you accepted it. */
   private missionRecommendations(m: Mission): MissionRecommendationView[] {
     const s = this.s;
-    if (m.deadline === undefined) return [];
-    const accepted = m.deadline - m.weeks * 7;
-    return s.deals
-      .filter((d) => d.clubId === m.clubId && d.position === m.position && d.openedOn >= accepted && d.openedOn <= m.deadline!)
-      .flatMap((d) => {
-        const p = s.players[d.playerId];
-        if (!p) return [];
-        const checks = this.briefChecks(m, p, d.fee);
-        return [
-          {
-            dealId: d.id,
-            player: {
-              id: p.id,
-              name: `${p.firstName} ${p.lastName}`,
-              portraitSeed: p.portraitSeed,
-              nationalityId: p.nationality,
-              age: ageOn(p.birthDate, s.date),
-            },
-            stage: d.stage,
-            fit: checks.some((c) => c.status === 'no') ? 'no' : checks.every((c) => c.status === 'yes') ? 'yes' : 'maybe',
-            completed: m.dealId === d.id,
+    return missionDeals(s, m).flatMap((d) => {
+      const p = s.players[d.playerId];
+      if (!p) return [];
+      const checks = this.briefChecks(m, p, d.fee);
+      return [
+        {
+          dealId: d.id,
+          player: {
+            id: p.id,
+            name: `${p.firstName} ${p.lastName}`,
+            portraitSeed: p.portraitSeed,
+            nationalityId: p.nationality,
+            age: ageOn(p.birthDate, s.date),
           },
-        ];
-      });
+          stage: d.stage,
+          fit: checks.some((c) => c.status === 'no') ? 'no' : checks.every((c) => c.status === 'yes') ? 'yes' : 'maybe',
+          completed: m.dealId === d.id,
+        },
+      ];
+    });
   }
 
   private missionFits(p: Player, club: Club, pos: Position, fee: USD): MissionFitView[] {

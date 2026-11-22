@@ -986,6 +986,8 @@ export interface MissionView {
   weeks: number;
   deadline?: GameDate;
   daysLeft?: number;
+  /** Past the deadline, kept open while one of your candidates is still in talks. */
+  overtime?: boolean;
   reward: USD;
   resolvedOn?: GameDate;
   /** Player whose signing completed it. */
@@ -1041,6 +1043,8 @@ export interface MandateView {
   weeks: number;
   deadline?: GameDate;
   daysLeft?: number;
+  /** Past the deadline, kept open while a buyer is still in talks. */
+  overtime?: boolean;
   resolvedOn?: GameDate;
   note?: string;
   soldTo?: string;
