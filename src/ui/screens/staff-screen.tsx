@@ -196,12 +196,16 @@ function AssistantCard({ a, i, maxWeeks }: { a: AssistantView; i: number; maxWee
             <Crest club={a.job.club} size={20} />
             <span className="font-semibold">{a.job.club.name}</span>
             <PosBadge pos={a.job.position} />
-            <span className="text-[12px] text-mist-400">brief</span>
+            <span className="text-[12px] text-mist-400">{a.job.kind === 'sale' ? `selling ${a.job.player}` : 'brief'}</span>
           </div>
           <div className="mt-1.5 text-[12px] text-mist-300">
-            {a.job.current
-              ? `His pick ${a.job.current.player} is ${a.job.current.stage === 'agreed' ? 'agreed, waiting for the window' : 'in negotiations'}.`
-              : `${a.job.pitched} of ${a.job.maxPitches} names put forward so far.`}{' '}
+            {a.job.kind === 'sale'
+              ? a.job.current
+                ? `${a.job.current.club} are ${a.job.current.stage === 'agreed' ? 'agreed, waiting for the window' : 'in negotiations'}.`
+                : `Offered to ${a.job.pitched} of ${a.job.maxPitches} clubs so far.`
+              : a.job.current
+                ? `His pick ${a.job.current.player} is ${a.job.current.stage === 'agreed' ? 'agreed, waiting for the window' : 'in negotiations'}.`
+                : `${a.job.pitched} of ${a.job.maxPitches} names put forward so far.`}{' '}
             <span className="text-mist-400">{formatUSD(a.job.weeklyExpenses)}/wk expenses</span>
           </div>
         </div>
@@ -217,7 +221,7 @@ function AssistantCard({ a, i, maxWeeks }: { a: AssistantView; i: number; maxWee
             </button>
           ) : a.job ? (
             <button className="btn-ghost flex-1 text-xs" onClick={() => void act(() => engine.recallJob(a.id))}>
-              Take the brief back
+              {a.job.kind === 'sale' ? 'Take the sale back' : 'Take the brief back'}
             </button>
           ) : (
             <button className="btn-primary flex-1 text-xs" onClick={() => setAssigning(true)}>

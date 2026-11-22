@@ -1076,6 +1076,12 @@ export interface MandateView {
   soldTo?: string;
   /** Clubs you have pitched him to under this mandate, newest first. */
   deals: { dealId: number; club: ClubBadge; stage: DealStage; fee: USD }[];
+  /** The assistant handling the sale for you. */
+  delegatedTo?: { id: number; name: string };
+  /** Assistants you could hand it to, or why not. */
+  delegates: { id: number; name: string; skill: number; ok: boolean; reason?: string }[];
+  /** The assistant's share of the commission, in percent. */
+  delegateCutPct: number;
   /** The selling club's own report, and how far to trust it. */
   report?: { rating: number; potential: 'A' | 'B' | 'C' | 'D'; strengths: string[]; precision: 'tight' | 'fair' | 'rough'; standing: number };
 }
@@ -1177,7 +1183,20 @@ export interface AssistantView {
   office?: { id: number; label: string };
   task?: AssistantTaskView;
   /** A brief he is handling for you. */
-  job?: { missionId: number; club: ClubBadge; position: Position; pitched: number; maxPitches: number; current?: { player: string; stage: DealStage }; weeklyExpenses: USD };
+  job?: {
+    kind: 'brief' | 'sale';
+    missionId?: number;
+    mandateId?: number;
+    /** The buying club (brief) or the selling club (sale). */
+    club: ClubBadge;
+    position: Position;
+    /** On a sale: the player he's selling. */
+    player?: string;
+    pitched: number;
+    maxPitches: number;
+    current?: { player: string; club: string; stage: DealStage };
+    weeklyExpenses: USD;
+  };
 }
 
 export interface AssistantCandidateView {

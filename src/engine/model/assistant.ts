@@ -1,5 +1,5 @@
 import type { GameDate } from '../core/calendar';
-import type { CountryId, PlayerId } from '../core/ids';
+import type { ClubId, CountryId, PlayerId } from '../core/ids';
 import type { USD } from '../core/money';
 import type { Position } from './player';
 import type { LocationScope } from './scout';
@@ -26,10 +26,15 @@ export interface AssistantTask extends AssistantBrief {
 
 /** A brief handed to an assistant. */
 export interface AssistantJob {
-  missionId: number;
+  /** The buying brief he's on (absent when he's selling). */
+  missionId?: number;
+  /** The selling request he's on. */
+  mandateId?: number;
   startedOn: GameDate;
-  /** Players he has already put forward. */
+  /** Players he has already put forward (on a brief). */
   tried: PlayerId[];
+  /** Clubs he has already offered the player to (on a sale). */
+  triedClubs?: ClubId[];
   /** His deal in progress. */
   dealId?: number;
   weeklyExpenses: USD;

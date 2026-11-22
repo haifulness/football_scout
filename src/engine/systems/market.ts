@@ -1,4 +1,5 @@
 import { addDays, ageOn, formatDate, toParts, type GameDate } from '../core/calendar';
+import { chargeStaffCut } from './delegation';
 import { SPOTLIGHT, inSpotlight } from './campaigns';
 import type { ClubId, PlayerId } from '../core/ids';
 import { formatUSD, roundPrice, usd } from '../core/money';
@@ -183,6 +184,7 @@ export function payCommission(state: GameState, deal: Deal) {
     kind: 'sale-commission',
     label: `Sale commission: ${p.firstName} ${p.lastName} (${seller.name}, ${m.commissionPct}%)`,
   });
+  chargeStaffCut(state, deal, commission, 'sale commission');
   state.scout!.reputation = clamp(state.scout!.reputation + 1, 0, 100);
   deal.log.push({ date: state.date, text: `Commission for ${seller.name}: ${formatUSD(commission)}.`, tone: 'good' });
 }

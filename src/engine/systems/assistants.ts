@@ -115,7 +115,7 @@ export function assignTask(state: GameState, id: number, brief: AssistantBrief, 
   const a = state.assistants.find((x) => x.id === id);
   if (!a) throw new ScoutingError('No such assistant.');
   if (a.officeId !== undefined) throw new ScoutingError(`${name(a)} works at your agency's office. Take him off office duty first.`);
-  if (a.job) throw new ScoutingError(`${name(a)} is handling one of your briefs. Take it back first.`);
+  if (a.job) throw new ScoutingError(`${name(a)} is handling one of your briefs or sales. Take it back first.`);
   validateBrief(brief, weeks);
   a.task = {
     ...brief,

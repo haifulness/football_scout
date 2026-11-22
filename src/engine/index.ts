@@ -128,7 +128,7 @@ import { huntAction, huntOptions, huntPlace, type HuntMethod } from './systems/h
 import { dilemmaText, resolveDilemma } from './systems/dilemmas';
 import { isUnlocked, nextUnlock } from './systems/unlocks';
 import { buildTouchline, ensurePredictions } from './systems/newspaper';
-import { MAX_DELEGATE_PITCHES, STAFF_CUT, delegateCheck, delegateMission, recallJob } from './systems/delegation';
+import { MAX_DELEGATE_PITCHES, STAFF_CUT, delegateCheck, delegateMandate, delegateMission, delegateSaleCheck, recallJob } from './systems/delegation';
 import { answerBoardAsk, boardOdds, ensurePresidents, needsBoard, presidentOf, presidentView } from './systems/board';
 import { attendCheck, attendEvent, ensureSeasonEvents, eventEnd, eventLabel, eventStatus } from './systems/events';
 import { closeDeadline, DEADLINE_ACTION_HOURS, DEADLINE_FEE_PREMIUM, passDeadlineHours } from './systems/deadline';
@@ -1366,6 +1366,18 @@ export class Engine {
         deals: s.deals
           .filter((d) => d.mandateId === m.id && s.clubs[d.clubId])
           .map((d) => ({ dealId: d.id, club: badge(s.clubs[d.clubId]!), stage: d.stage, fee: d.fee })),
+        delegatedTo: (() => {
+          const a = s.assistants.find((x) => x.job?.mandateId === m.id);
+          return a && { id: a.id, name: `${a.firstName} ${a.lastName}` };
+        })(),
+        delegates:
+          m.status === 'active' && isUnlocked(s, 'assistants')
+            ? s.assistants.map((a) => {
+                const c = delegateSaleCheck(s, a, m);
+                return { id: a.id, name: `${a.firstName} ${a.lastName}`, skill: a.skill, ok: c.ok, reason: c.reason };
+              })
+            : [],
+        delegateCutPct: Math.round(STAFF_CUT * 100),
         report: m.report && {
           ...m.report,
           precision: club.tier <= 2 ? 'tight' : club.tier === 3 ? 'fair' : 'rough',
@@ -1618,17 +1630,36 @@ export class Engine {
           },
           job: (() => {
             const j = a.job;
-            const m = j && s.missions.find((x) => x.id === j.missionId);
-            if (!j || !m) return undefined;
+            if (!j) return undefined;
             const d = j.dealId !== undefined ? s.deals.find((x) => x.id === j.dealId) : undefined;
             const dp = d && s.players[d.playerId];
+            const current = d && dp ? { player: `${dp.firstName} ${dp.lastName}`, club: s.clubs[d.clubId]?.name ?? '', stage: d.stage } : undefined;
+            if (j.mandateId !== undefined) {
+              const md = s.mandates.find((x) => x.id === j.mandateId);
+              const p = md && s.players[md.playerId];
+              if (!md || !p) return undefined;
+              return {
+                kind: 'sale' as const,
+                mandateId: md.id,
+                club: badge(s.clubs[md.clubId]!),
+                position: p.naturalPosition,
+                player: `${p.firstName} ${p.lastName}`,
+                pitched: (j.triedClubs ?? []).length,
+                maxPitches: MAX_DELEGATE_PITCHES,
+                current,
+                weeklyExpenses: j.weeklyExpenses,
+              };
+            }
+            const m = s.missions.find((x) => x.id === j.missionId);
+            if (!m) return undefined;
             return {
+              kind: 'brief' as const,
               missionId: m.id,
               club: badge(s.clubs[m.clubId]!),
               position: m.position,
               pitched: j.tried.length,
               maxPitches: MAX_DELEGATE_PITCHES,
-              current: d && dp ? { player: `${dp.firstName} ${dp.lastName}`, stage: d.stage } : undefined,
+              current,
               weeklyExpenses: j.weeklyExpenses,
             };
           })(),
@@ -1915,6 +1946,24 @@ export class Engine {
       });
     }
     for (const a of s.assistants) {
+      if (a.job?.mandateId !== undefined) {
+        const md = s.mandates.find((x) => x.id === a.job!.mandateId);
+        const club = md && s.clubs[md.clubId];
+        const p = md && s.players[md.playerId];
+        if (md && club && p)
+          inProgress.push({
+            key: `j${a.id}`,
+            kind: 'assistant',
+            tone: 'info',
+            title: `${a.firstName} ${a.lastName} selling ${p.firstName} ${p.lastName}`,
+            detail:
+              a.job.dealId !== undefined ? 'A buyer is in negotiations' : `Offered to ${(a.job.triedClubs ?? []).length} of ${MAX_DELEGATE_PITCHES} clubs`,
+            daysLeft: md.deadline !== undefined ? Math.max(0, md.deadline - s.date) : undefined,
+            club: badge(club),
+            link: { screen: 'missions' },
+          });
+        continue;
+      }
       if (a.job) {
         const m = s.missions.find((x) => x.id === a.job!.missionId);
         const club = m && s.clubs[m.clubId];
@@ -2502,6 +2551,11 @@ export class Engine {
   /** Hand an active brief to a senior assistant: he shortlists and pitches under your name, for a cut. */
   delegateMission(assistantId: number, missionId: number) {
     delegateMission(this.s, assistantId, missionId);
+  }
+
+  /** Hand an active selling request to a senior assistant: he finds buyers and pitches under your name, for a cut. */
+  delegateMandate(assistantId: number, mandateId: number) {
+    delegateMandate(this.s, assistantId, mandateId);
   }
 
   recallJob(assistantId: number) {

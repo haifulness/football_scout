@@ -11,6 +11,7 @@ import { Portrait } from '../visuals/portrait';
 import { engine } from '../store/engine-client';
 import { useGame } from '../store/game-store';
 import { DealStageBadge } from './deal-stage';
+import { DelegateRow } from './delegate-row';
 
 const STATUS: Record<MandateView['status'], { label: string; color: string }> = {
   offered: { label: 'Offered', color: 'var(--color-flood-400)' },
@@ -158,6 +159,16 @@ function MandateCard({ m, i }: { m: MandateView; i: number }) {
         </div>
       )}
       {m.status === 'active' && <BuyerTalks m={m} />}
+      {m.status === 'active' && (
+        <DelegateRow
+          kind="sale"
+          delegatedTo={m.delegatedTo}
+          delegates={m.delegates}
+          cutPct={m.delegateCutPct}
+          onDelegate={(id) => void act(() => engine.delegateMandate(id, m.id))}
+          onRecall={(id) => void act(() => engine.recallJob(id))}
+        />
+      )}
       {m.status === 'offered' ? (
         <div className="mt-3 flex items-center gap-2">
           <span className="flex-1 text-[11px] text-mist-400">

@@ -144,7 +144,7 @@ export function placeAssistant(state: GameState, assistantId: number, officeId: 
   if (!a) throw new ScoutingError('No such assistant.');
   if (officeId !== null && officeId !== HQ && !agency.offices.some((o) => o.id === officeId)) throw new ScoutingError('No such office.');
   if (officeId !== null && a.task) throw new ScoutingError(`${name(a)} is out on a task. Recall him first.`);
-  if (officeId !== null && a.job) throw new ScoutingError(`${name(a)} is handling one of your briefs. Take it back first.`);
+  if (officeId !== null && a.job) throw new ScoutingError(`${name(a)} is handling one of your briefs or sales. Take it back first.`);
   a.officeId = officeId ?? undefined;
 }
 

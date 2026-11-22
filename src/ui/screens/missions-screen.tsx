@@ -1,4 +1,5 @@
 import { motion } from 'motion/react';
+import { DelegateRow } from '../components/delegate-row';
 import { alpha } from '../theme/color';
 import { useState } from 'react';
 import { formatDate } from '../../engine/core/calendar';
@@ -204,7 +205,14 @@ function MissionCard({ m, i }: { m: MissionView; i: number }) {
       )}
       {m.status === 'active' && <Recommendations m={m} />}
       {m.status === 'active' && (m.delegatedTo || m.delegates.length > 0) && (
-        <Delegate m={m} onDelegate={(id) => void act(() => engine.delegateMission(id, m.id))} onRecall={(id) => void act(() => engine.recallJob(id))} />
+        <DelegateRow
+          kind="brief"
+          delegatedTo={m.delegatedTo}
+          delegates={m.delegates}
+          cutPct={m.delegateCutPct}
+          onDelegate={(id) => void act(() => engine.delegateMission(id, m.id))}
+          onRecall={(id) => void act(() => engine.recallJob(id))}
+        />
       )}
       {m.status === 'offered' ? (
         <div className="mt-3 flex items-center gap-2">
@@ -403,38 +411,3 @@ function Preferences({
 }
 
 /** Hand the brief to a senior assistant, or take it back. */
-function Delegate({ m, onDelegate, onRecall }: { m: MissionView; onDelegate: (assistantId: number) => void; onRecall: (assistantId: number) => void }) {
-  if (m.delegatedTo)
-    return (
-      <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-violet-400/25 bg-violet-500/[0.06] px-3 py-2 text-[12px]">
-        <span className="text-mist-200">
-          <b>{m.delegatedTo.name}</b> is handling this brief: he shortlists and pitches under your name, and keeps {m.delegateCutPct}% of what it earns.
-        </span>
-        <button className="btn-ghost shrink-0 px-2 py-1 text-[11px]" onClick={() => onRecall(m.delegatedTo!.id)}>
-          Take it back
-        </button>
-      </div>
-    );
-  const ready = m.delegates.filter((d) => d.ok);
-  return (
-    <div className="mt-3 rounded-lg border border-white/[0.06] px-3 py-2 text-[12px]">
-      <div className="mb-1.5 text-mist-400">
-        Hand it to an assistant: he finds and pitches players himself, for {m.delegateCutPct}% of the reward and signing bonus. A weak pick costs <i>your</i> standing.
-      </div>
-      <div className="flex flex-wrap gap-1.5">
-        {m.delegates.map((d) => (
-          <button
-            key={d.id}
-            disabled={!d.ok}
-            title={d.reason}
-            onClick={() => onDelegate(d.id)}
-            className="rounded-md border border-white/10 px-2 py-1 text-left hover:border-violet-300/50 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {d.name} <span className="num text-mist-400">· skill {d.skill}</span>
-          </button>
-        ))}
-      </div>
-      {!ready.length && <div className="mt-1 text-[11px] text-mist-500">{m.delegates[0]?.reason}</div>}
-    </div>
-  );
-}
