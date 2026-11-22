@@ -1,3 +1,4 @@
+import { aftercare } from './settling';
 import type { CityId, PlayerId, StaffId } from '../core/ids';
 import { formatUSD, usd, type USD } from '../core/money';
 import { Rng, clamp } from '../core/rng';
@@ -205,6 +206,8 @@ export interface MeetingResult {
   cost: USD;
   /** Meeting a player: something about his character you now know. */
   trait?: TraitId;
+  /** A player you placed who is still settling in: days your visit took off it. */
+  settled?: number;
   /** Meeting a coach: he lets slip something about one of his players you're tracking. */
   heard?: { playerId: PlayerId; trait: TraitId };
 }
@@ -250,11 +253,13 @@ export function meet(state: GameState, target: MeetTarget): MeetingResult {
   addLedger(state, { amount: usd(-info.cost), kind: 'meeting', label });
   let trait: TraitId | undefined;
   let heard: MeetingResult['heard'];
+  let settled: number | undefined;
   if (target.kind === 'player') {
     scout.rapport[target.id] = after;
     // Talking to him tells you about his character and ambitions.
     learn(state, state.players[target.id]!, 8, 85, state.date);
     trait = revealTrait(state, state.players[target.id]!, 0.5 + after / 200, 'meet');
+    settled = aftercare(state, state.players[target.id]!) || undefined;
   } else {
     scout.relationships[target.id] = after;
     // Coaches talk about their players: your network decides how often something useful slips out.
@@ -277,7 +282,7 @@ export function meet(state: GameState, target: MeetTarget): MeetingResult {
     }
   }
   scout.lastMet[target.id] = state.date;
-  return { before: info.level, after, cost: info.cost, trait, heard };
+  return { before: info.level, after, cost: info.cost, trait, heard, settled };
 }
 
 export function relationshipLabel(level: number): string {

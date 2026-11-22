@@ -25,7 +25,8 @@ import type { CareerSetup, SearchFilters, SearchRecord } from './model/scout';
 import type { GameState } from './model/world-state';
 import { seasonWindow } from './systems/fixtures';
 import { TRAITS_REVEAL_LEVEL, VIDEO_KNOWLEDGE_CAP, attributeRanges, estimate, fog, freshness, knowledgeLevel, seenOn } from './systems/knowledge';
-import { TRAIT_INFO, characterView } from './systems/character';
+import { TRAIT_INFO, characterOf, characterView, knownTraits } from './systems/character';
+import { aftercareCheck, isSettling, settleForecast, settlePenalty } from './systems/settling';
 import type { TraitId } from './model/player';
 import { MAX_FOCUS, validateFocus, writeAttendedMatch } from './systems/matchday';
 import {
@@ -175,6 +176,8 @@ import type {
   GazetteView,
   HomeItem,
   HomeView,
+  CalendarEntry,
+  CalendarView,
   ScoutingEventView,
   DilemmaView,
   MarketView,
@@ -1776,6 +1779,81 @@ export class Engine {
   }
 
   /** Home: what needs you, what is running, what is coming up, and how the season is going. */
+  /**
+   * Everything with a date on it, from a month back to a year ahead: transfer windows, the league season,
+   * scouting events, and your own deadlines (briefs, selling requests, offers, deals, hunts, staff, campaigns).
+   */
+  getCalendar(): CalendarView {
+    const s = this.s;
+    const entries: CalendarEntry[] = [];
+    const add = (e: CalendarEntry) => entries.push(e);
+    const { year } = toParts(s.date);
+    const club = (id: ClubId) => s.clubs[id]!.shortName;
+    const who = (id: PlayerId) => {
+      const p = s.players[id];
+      return p ? `${p.firstName} ${p.lastName}` : 'a player';
+    };
+    for (const y of [year - 1, year, year + 1]) {
+      add({ key: `win-sum-${y}`, kind: 'window', start: makeDate(y, 7, 1), end: makeDate(y, 8, 31), label: 'Summer window', detail: 'Clubs can buy and sell.' });
+      add({ key: `dd-sum-${y}`, kind: 'deadline-day', start: makeDate(y, 8, 31), label: 'Summer deadline day', detail: 'The window shuts at midnight.' });
+      add({ key: `win-jan-${y}`, kind: 'window', start: makeDate(y, 1, 1), end: makeDate(y, 1, 31), label: 'January window', detail: 'Clubs can buy and sell.' });
+      add({ key: `dd-jan-${y}`, kind: 'deadline-day', start: makeDate(y, 1, 31), label: 'January deadline day', detail: 'The window shuts at midnight.' });
+      const w = seasonWindow(y);
+      add({ key: `season-${y}`, kind: 'season', start: w.start, label: `League kick-off (${seasonLabel(y)})` });
+      add({ key: `season-end-${y}`, kind: 'season', start: w.end, label: `Last day of the ${seasonLabel(y)} league season` });
+      add({ key: `rollover-${y}`, kind: 'season', start: makeDate(y, 7, 1), label: 'New season: awards, goals and youth intakes' });
+    }
+    for (const e of s.events ?? []) {
+      const city = s.cities[e.cityId]!;
+      add({
+        key: `ev${e.id}`,
+        kind: 'event',
+        start: e.start,
+        end: eventEnd(e),
+        label: `${e.name}, ${city.name}`,
+        detail: `${eventLabel(e.kind)} · about ${e.size} players · ticket ${formatUSD(e.ticket)}`,
+        link: { screen: 'events' },
+      });
+    }
+    for (const m of s.missions) {
+      const c = club(m.clubId);
+      if (m.status === 'offered') add({ key: `mo${m.id}`, kind: 'answer', start: m.acceptBy, label: `Answer ${c}'s ${m.position} brief`, detail: `Reward ${formatUSD(m.reward)}`, link: { screen: 'missions' } });
+      if (m.status === 'active' && m.deadline !== undefined)
+        add({ key: `md${m.id}`, kind: 'brief', start: m.deadline, label: `${c} ${m.position} brief due`, detail: `Reward ${formatUSD(m.reward)}`, link: { screen: 'missions' } });
+    }
+    for (const m of s.mandates) {
+      const c = club(m.clubId);
+      if (m.status === 'offered') add({ key: `so${m.id}`, kind: 'answer', start: m.acceptBy, label: `Answer ${c}: sell ${who(m.playerId)}`, link: { screen: 'missions' } });
+      if (m.status === 'active' && m.deadline !== undefined)
+        add({ key: `sd${m.id}`, kind: 'brief', start: m.deadline, label: `Sell ${who(m.playerId)} for ${c}`, detail: `Asking ${formatUSD(m.askingFee)}`, link: { screen: 'missions' } });
+    }
+    for (const o of s.offers)
+      add({ key: `of${o.id}`, kind: 'answer', start: o.expiresOn, label: `Job offer from ${club(o.clubId)} expires`, link: { screen: 'career' } });
+    if (s.scout?.mentorOffer) add({ key: 'mentor-offer', kind: 'answer', start: s.scout.mentorOffer.expiresOn, label: 'Mentor offer expires', link: { screen: 'career' } });
+    for (const c of s.consultations ?? []) {
+      if (!c.answer && !c.lapsed) add({ key: `co${c.id}`, kind: 'answer', start: c.answerBy, label: `${who(c.playerId)} wants your advice`, link: { screen: 'inbox' } });
+      else if (c.answer && c.checkOn !== undefined && !c.resolvedOn)
+        add({ key: `cc${c.id}`, kind: 'work', start: c.checkOn, label: `Verdict on your advice to ${who(c.playerId)}`, link: { screen: 'inbox' } });
+    }
+    for (const a of s.boardAsks ?? []) add({ key: `ba${a.id}`, kind: 'answer', start: a.answerBy, label: `${club(a.clubId)}'s president wants a coach`, link: { screen: 'inbox' } });
+    for (const d of s.deals.filter((x) => x.stage === 'negotiating' && x.resolvesOn !== undefined))
+      add({ key: `dl${d.id}`, kind: 'work', start: d.resolvesOn!, label: `${who(d.playerId)} → ${club(d.clubId)}: talks end`, link: { screen: 'deals' } });
+    for (const h of s.hunts.filter((x) => x.status === 'active'))
+      add({ key: `hu${h.id}`, kind: 'work', start: h.expiresOn, label: `Hunt goes cold: ${h.position}, ${h.age}`, link: { screen: 'hunts' } });
+    for (const a of s.assistants)
+      if (a.task) add({ key: `as${a.id}`, kind: 'work', start: a.task.endsOn, label: `${a.firstName} ${a.lastName} reports back`, link: { screen: 'staff' } });
+    if (s.campaign && !s.campaign.endedOn) add({ key: 'campaign', kind: 'work', start: s.campaign.startedOn, end: s.campaign.endsOn, label: 'Profile campaign', link: { screen: 'career' } });
+    const job = s.scout?.employment;
+    if (job?.mode === 'fulltime') add({ key: 'contract', kind: 'work', start: job.leavingOn ?? job.until, label: job.leavingOn ? `You leave ${club(job.clubId)}` : `Your contract at ${club(job.clubId)} ends`, link: { screen: 'career' } });
+
+    const from = addDays(s.date, -45);
+    const to = addDays(s.date, 400);
+    return {
+      today: s.date,
+      entries: entries.filter((e) => (e.end ?? e.start) >= from && e.start <= to).sort((a, b) => a.start - b.start),
+    };
+  }
+
   getHome(): HomeView {
     const s = this.s;
     const sc = s.scout!;
@@ -1935,6 +2013,23 @@ export class Engine {
         daysLeft: left,
         club: d.club,
         link: { screen: 'deals' },
+      });
+    }
+    // Players you placed who are still finding their feet abroad: a visit helps.
+    for (const pl of s.placements.filter((x) => !x.endedOn)) {
+      const p = s.players[pl.playerId];
+      if (!p || p.clubId !== pl.clubId || !isSettling(p, s.date)) continue;
+      const club = s.clubs[pl.clubId]!;
+      const care = aftercareCheck(s, p);
+      inProgress.push({
+        key: `settle${p.id}`,
+        kind: 'settling',
+        tone: care.ok ? 'action' : 'info',
+        title: `${p.firstName} ${p.lastName} is settling in at ${club.shortName}`,
+        detail: `Playing about ${Math.round(settlePenalty(p, s.date) * 100)}% below himself${care.ok ? ' · a visit from you would help' : ''}`,
+        daysLeft: p.settling!.until - s.date,
+        club: badge(club),
+        link: { screen: 'player', id: p.id },
       });
     }
     for (const h of this.getHunts().filter((x) => x.status === 'active')) {
@@ -2481,6 +2576,13 @@ export class Engine {
         return r ? { role: r.role, rating: r.rating, sameRole: r.role === pos } : undefined;
       })(),
       specialties: matchingSpecialties(s, p, pos).map((sp) => sp.label),
+      settling: (() => {
+        const f = settleForecast(s, p, club, s.date, true);
+        if (!f.days) return undefined;
+        const months = Math.max(1, Math.round(f.days / 30));
+        const label = f.days <= 40 ? 'quick' : f.days <= 100 ? 'a few months' : f.days <= 170 ? 'slow' : 'very slow';
+        return { months, label, reasons: f.reasons, unknownCharacter: knownTraits(s, p).length < characterOf(p).length } as const;
+      })(),
       affordable: afford.ok,
       affordReason: afford.reason,
       inCity: s.scout?.location === club.cityId,
@@ -3260,6 +3362,13 @@ export class Engine {
       potential: f.potential,
       prodigy: f.prodigy,
       traits: f.traits,
+      settling: isSettling(p, s.date)
+        ? {
+            daysLeft: p.settling!.until - s.date,
+            penaltyPct: Math.round(settlePenalty(p, s.date) * 100),
+            aftercare: aftercareCheck(s, p),
+          }
+        : undefined,
       character: (() => {
         const c = characterView(s, p);
         return { known: c.known.map(traitView), total: c.met || f.level >= TRAITS_REVEAL_LEVEL ? c.total : undefined };

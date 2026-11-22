@@ -48,7 +48,7 @@ export function ScoutingPanel({ player: p }: { player: PlayerView }) {
   const meetHim = () =>
     act(async () => {
       const r = await meet({ kind: 'player', id: p.id });
-      return `Rapport ${r.before} → ${r.after}${r.trait ? `. You learn he's ${TRAIT_INFO[r.trait].label.toLowerCase()}` : ''}`;
+      return `Rapport ${r.before} → ${r.after}${r.trait ? `. You learn he's ${TRAIT_INFO[r.trait].label.toLowerCase()}` : ''}${r.settled ? `. He'll settle ${r.settled} days sooner` : ''}`;
     });
   const checkIn = () =>
     act(async () => {
@@ -140,6 +140,12 @@ export function ScoutingPanel({ player: p }: { player: PlayerView }) {
           )}
 
           <CharacterRow character={p.character} />
+          {p.settling && (
+            <div className="mt-2 rounded-lg border border-flood-400/25 bg-flood-400/[0.05] px-3 py-2 text-[12px] text-mist-300">
+              <b className="text-flood-300">Settling in</b> at his new club: playing about {p.settling.penaltyPct}% below himself, {p.settling.daysLeft} days to go.{' '}
+              {p.settling.aftercare.ok ? 'You brought him here: meet him and it will pass sooner.' : <span className="text-mist-400">{p.settling.aftercare.reason}</span>}
+            </div>
+          )}
 
           <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
             <Block title="Watch him live" hint="The only way past what footage shows">

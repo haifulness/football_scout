@@ -100,6 +100,7 @@ export type Route =
   | { screen: 'deadline' }
   | { screen: 'hunts' }
   | { screen: 'events' }
+  | { screen: 'calendar' }
   | { screen: 'goals' }
   | { screen: 'agency' }
   | { screen: 'matchday'; id: PlayerId }

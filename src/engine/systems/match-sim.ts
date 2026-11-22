@@ -1,3 +1,4 @@
+import { settlePenalty } from './settling';
 import { hasTrait } from './character';
 import { addDays, type GameDate } from '../core/calendar';
 import type { PlayerId } from '../core/ids';
@@ -122,6 +123,22 @@ export function pickTeam(club: Club, squad: Player[], date: GameDate, rng: Rng):
         ovr = alt.o;
       }
     }
+    // A new arrival still settling in plays below himself, and a close alternative often starts instead.
+    const settling = player ? settlePenalty(player, date) : 0;
+    if (player && settling > 0 && player.id !== club.captainId && rng.chance(settling * 3)) {
+      const alt = available
+        .filter((p) => !used.has(p.id))
+        .map((p) => ({ p, o: ovrAt(p, slot.position) }))
+        .filter((x) => x.o >= ovr * (1 - settling) - 2 && settlePenalty(x.p, date) === 0)
+        .sort((a, b) => b.o - a.o)[0];
+      if (alt) {
+        used.delete(player.id);
+        used.add(alt.p.id);
+        player = alt.p;
+        ovr = alt.o;
+      }
+    }
+    if (player) ovr = Math.round(ovr * (1 - settlePenalty(player, date)));
     if (player) xi.push({ player, position: slot.position, ovr, started: true, on: 0, off: 90 });
   }
   const bench = available

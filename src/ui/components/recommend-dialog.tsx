@@ -616,6 +616,15 @@ function PitchView({
               Right in your niche ({preview.specialties.join(', ')}): the coach trusts your eye here.
             </div>
           )}
+          {preview.settling && (
+            <div
+              className={`rounded-lg border px-3 py-2 text-[12px] ${preview.settling.label === 'slow' || preview.settling.label === 'very slow' ? 'border-flood-400/30 text-flood-300' : 'border-white/[0.06] text-mist-300'}`}
+            >
+              Settling in: {preview.settling.label}, about {preview.settling.months} month{preview.settling.months > 1 ? 's' : ''} ({preview.settling.reasons.join(', ')}). He plays below himself
+              until he settles.
+              {preview.settling.unknownCharacter && <span className="text-mist-400"> You don't know all of his character yet, so it could go either way.</span>}
+            </div>
+          )}
         </>
       )}
 
@@ -770,6 +779,8 @@ function Verdict({ preview, wageOffer, deal }: { preview: Preview; wageOffer: nu
   if (preview.rivalInterest.length)
     chips.push({ text: `${preview.rivalInterest.length} rival${preview.rivalInterest.length > 1 ? 's' : ''} after him`, tone: 'warn' });
   if (preview.rights === 'open') chips.push({ text: 'Open pitch: half bonus', tone: 'warn' });
+  if (preview.settling && (preview.settling.label === 'slow' || preview.settling.label === 'very slow'))
+    chips.push({ text: `Settling: ${preview.settling.label} (~${preview.settling.months} mo)`, tone: 'warn' });
   const chipColor = { good: 'border-good-400/25 text-good-200', bad: 'border-alert-500/40 text-alert-400', warn: 'border-flood-400/30 text-flood-300' };
   return (
     <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4">

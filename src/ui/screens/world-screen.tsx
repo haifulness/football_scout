@@ -211,14 +211,18 @@ const ICON: Record<HomeItem['kind'], string> = {
   coach: '☺',
   event: '⚑',
   dilemma: '⚖',
+  settling: '⌂',
 };
 
 function Upcoming({ home, onOpen }: { home: HomeView; onOpen: (l: HomeLink) => void }) {
   if (!home.upcoming.length) return null;
   return (
     <section className="panel overflow-hidden">
-      <header className="border-b border-white/[0.05] px-4 py-2.5">
+      <header className="flex items-center justify-between border-b border-white/[0.05] px-4 py-2.5">
         <h3 className="panel-title">Coming up</h3>
+        <button className="text-[11px] font-semibold text-mist-300 hover:text-grass-300" onClick={() => onOpen({ screen: 'calendar' })}>
+          Full calendar ›
+        </button>
       </header>
       <ul className="divide-y divide-white/[0.04]">
         {home.upcoming.map((u) => (

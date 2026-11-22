@@ -37,6 +37,7 @@ import { StartScreen } from './screens/start-screen';
 import { WorldScreen } from './screens/world-screen';
 import { GazetteScreen } from './screens/gazette-screen';
 import { EventsScreen } from './screens/events-screen';
+import { CalendarScreen } from './screens/calendar-screen';
 import { SaveIndicator } from './components/save-indicator';
 import { Badge, HUBS, HubTabs, hubBadge, hubOf, openTabs, type Hub } from './components/hub-tabs';
 import { useGame, type Route } from './store/game-store';
@@ -44,6 +45,7 @@ import { useGame, type Route } from './store/game-store';
 const NAV: { label: string; icon: string; screen: Route['screen']; hub?: Hub }[] = [
   { label: 'Home', icon: '⌂', screen: 'world' },
   { label: 'Inbox', icon: '✉', screen: 'inbox' },
+  { label: 'Calendar', icon: '▦', screen: 'calendar' },
   { label: HUBS.weekly.label, icon: HUBS.weekly.icon, screen: 'gazette', hub: HUBS.weekly },
   { label: 'Search', icon: '⌕', screen: 'search' },
   { label: 'Player Pool', icon: '☰', screen: 'pool' },
@@ -190,6 +192,8 @@ function ScreenBody({ route }: { route: Route }): ReactNode {
       return <HuntsScreen />;
     case 'events':
       return <EventsScreen />;
+    case 'calendar':
+      return <CalendarScreen />;
     case 'goals':
       return <GoalsScreen />;
     case 'agency':

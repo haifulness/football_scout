@@ -1,3 +1,4 @@
+import { startSettling } from './settling';
 import { hasTrait } from './character';
 import { ageOn, makeDate, toParts, type GameDate } from '../core/calendar';
 import type { ClubId, PlayerId } from '../core/ids';
@@ -108,6 +109,7 @@ export function executeTransfer(state: GameState, p: Player, buyer: Club, fee: U
     state.freeAgents = state.freeAgents.filter((id) => id !== p.id);
   }
   buyer.transferBudget = usd(Math.max(0, buyer.transferBudget - fee));
+  startSettling(state, p, buyer, date);
   buyer.squad.push(p.id);
   p.clubId = buyer.id;
   p.wage = wage;

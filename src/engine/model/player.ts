@@ -103,4 +103,6 @@ export interface Player {
   injury?: Injury;
   /** When he joined his current club via a transfer (absent = long-standing). */
   joinedOn?: GameDate;
+  /** Settling in after a move from abroad: plays below his level, fading to nothing by `until`. */
+  settling?: { since: GameDate; until: GameDate; start: number; visited?: GameDate };
 }

@@ -252,6 +252,8 @@ export interface PlayerView {
   potential?: Range;
   prodigy: boolean;
   traits?: { consistency: string; injuryRisk: string; ambition?: string };
+  /** Settling in after a move: how long is left, how much it costs him, and whether a visit from you would help. */
+  settling?: { daysLeft: number; penaltyPct: number; aftercare: { ok: boolean; reason?: string } };
   /** His character as far as you know it. `total` shows once you've met him or know him well. */
   character: { known: TraitView[]; total?: number };
   inPool: boolean;
@@ -830,6 +832,8 @@ export interface PitchPreview {
   report?: { role: Position; rating: number; sameRole: boolean };
   /** Your specialties this pitch falls in (they help the sign-off). */
   specialties: string[];
+  /** How he'd settle at this club, judged on what you know of him (absent: a move at home, nothing to settle). */
+  settling?: { months: number; label: 'quick' | 'a few months' | 'slow' | 'very slow'; reasons: string[]; unknownCharacter: boolean };
   affordable: boolean;
   affordReason?: string;
   inCity: boolean;
@@ -1387,13 +1391,13 @@ export interface GazetteView {
 
 /** Where a Home item leads: a UI route by screen name (and id for club/player pages). */
 export interface HomeLink {
-  screen: 'deals' | 'missions' | 'hunts' | 'events' | 'staff' | 'career' | 'rivals' | 'inbox' | 'finances' | 'gazette' | 'goals' | 'club' | 'player' | 'deadline';
+  screen: 'calendar' | 'deals' | 'missions' | 'hunts' | 'events' | 'staff' | 'career' | 'rivals' | 'inbox' | 'finances' | 'gazette' | 'goals' | 'club' | 'player' | 'deadline';
   id?: string;
 }
 
 export interface HomeItem {
   key: string;
-  kind: 'deal' | 'mission' | 'hunt' | 'assistant' | 'offer' | 'mandate' | 'inbox' | 'rival' | 'debt' | 'clients' | 'report' | 'coach' | 'event' | 'dilemma';
+  kind: 'deal' | 'mission' | 'hunt' | 'assistant' | 'offer' | 'mandate' | 'inbox' | 'rival' | 'debt' | 'clients' | 'report' | 'coach' | 'event' | 'dilemma' | 'settling';
   /** urgent: act now or lose something; action: waiting on you; info: worth knowing. */
   tone: 'urgent' | 'action' | 'info';
   title: string;
@@ -1468,4 +1472,23 @@ export interface TraitView {
   label: string;
   tone: 'good' | 'bad' | 'mixed';
   effect: string;
+}
+
+/** What a calendar entry is about: the world's dates, or your own. */
+export type CalendarKind = 'window' | 'deadline-day' | 'season' | 'event' | 'brief' | 'answer' | 'work';
+
+export interface CalendarEntry {
+  key: string;
+  kind: CalendarKind;
+  start: GameDate;
+  /** Last day, for things that run over several days. */
+  end?: GameDate;
+  label: string;
+  detail?: string;
+  link?: HomeLink;
+}
+
+export interface CalendarView {
+  today: GameDate;
+  entries: CalendarEntry[];
 }
