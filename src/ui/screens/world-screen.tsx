@@ -212,6 +212,7 @@ const ICON: Record<HomeItem['kind'], string> = {
   event: '⚑',
   dilemma: '⚖',
   settling: '⌂',
+  placed: '☹',
 };
 
 function Upcoming({ home, onOpen }: { home: HomeView; onOpen: (l: HomeLink) => void }) {

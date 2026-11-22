@@ -107,6 +107,14 @@ export interface Placement {
   /** Set when bonuses stop: contract ended or he left the club. */
   endedOn?: GameDate;
   endReason?: string;
+  /** His club's matches since he signed, his minutes and ratings in them (for his verdict). */
+  track?: { games: number; minutes: number; apps: number; ratingSum: number };
+  /** 0–100: below 50 he's restless, below 25 he wants out. Absent: content (70). */
+  morale?: number;
+  /** Your last visit (it lifts his morale, once a month). */
+  visitedOn?: GameDate;
+  /** Six months in, then after his first season. */
+  verdicts?: { date: GameDate; verdict: 'hit' | 'solid' | 'flop' }[];
 }
 
 export interface PlacementEarnings {

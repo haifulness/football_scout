@@ -27,6 +27,7 @@ import { seasonWindow } from './systems/fixtures';
 import { TRAITS_REVEAL_LEVEL, VIDEO_KNOWLEDGE_CAP, attributeRanges, estimate, fog, freshness, knowledgeLevel, seenOn } from './systems/knowledge';
 import { TRAIT_INFO, characterOf, characterView, knownTraits } from './systems/character';
 import { aftercareCheck, isSettling, settleForecast, settlePenalty } from './systems/settling';
+import { START_MORALE, latestVerdict, moodOf, placementForm, visitCheck } from './systems/placement-stories';
 import type { TraitId } from './model/player';
 import { MAX_FOCUS, validateFocus, writeAttendedMatch } from './systems/matchday';
 import {
@@ -834,6 +835,19 @@ export class Engine {
       active: !pl.endedOn,
       endReason: pl.endReason,
       stats: p && !pl.endedOn ? statLine(p.stats) : undefined,
+      story: (() => {
+        const f = placementForm(pl);
+        const here = !pl.endedOn && p?.clubId === pl.clubId;
+        return {
+          share: f.share,
+          rating: f.rating,
+          games: f.games,
+          mood: here ? moodOf(pl.morale ?? START_MORALE) : undefined,
+          verdict: latestVerdict(pl),
+          settlingDays: here && p && isSettling(p, s.date) ? p.settling!.until - s.date : undefined,
+          canVisit: here && !!p && visitCheck(s, p).ok && ((pl.morale ?? START_MORALE) < 90 || isSettling(p, s.date)),
+        };
+      })(),
     };
   }
 
@@ -1127,7 +1141,10 @@ export class Engine {
     const mentor = mentorOf(s);
     const offerBy = sc.mentorOffer && s.rivals.find((r) => r.id === sc.mentorOffer!.rivalId);
     const earned = (s.placements ?? []).reduce((n, p) => n + p.bonus + Object.values(p.earnings ?? {}).reduce((a, b) => a + b, 0), 0);
+    const verdicts = s.placements.map(latestVerdict);
     return {
+      players: [...s.placements].reverse().map((pl) => this.placementView(pl)),
+      record: { hits: verdicts.filter((v) => v === 'hit').length, solid: verdicts.filter((v) => v === 'solid').length, flops: verdicts.filter((v) => v === 'flop').length },
       name: sc.name,
       backgroundLabel: BACKGROUNDS[sc.background].label,
       difficulty: sc.difficulty,
@@ -2013,6 +2030,24 @@ export class Engine {
         daysLeft: left,
         club: d.club,
         link: { screen: 'deals' },
+      });
+    }
+    // Players you placed who are unhappy: a visit can talk them round before they ask to leave.
+    for (const pl of s.placements.filter((x) => !x.endedOn)) {
+      const p = s.players[pl.playerId];
+      if (!p || p.clubId !== pl.clubId) continue;
+      const mood = moodOf(pl.morale ?? START_MORALE);
+      if (mood === 'happy') continue;
+      const club = s.clubs[pl.clubId]!;
+      const f = placementForm(pl);
+      needsYou.push({
+        key: `mood${p.id}`,
+        kind: 'placed',
+        tone: mood === 'wants-out' ? 'urgent' : 'action',
+        title: mood === 'wants-out' ? `${p.firstName} ${p.lastName} wants out of ${club.shortName}` : `${p.firstName} ${p.lastName} is restless at ${club.shortName}`,
+        detail: `${Math.round(f.share * 100)}% of the minutes since he joined${visitCheck(s, p).ok ? ' · visit him to steady him' : ' · you saw him recently'}`,
+        club: badge(club),
+        link: { screen: 'player', id: p.id },
       });
     }
     // Players you placed who are still finding their feet abroad: a visit helps.

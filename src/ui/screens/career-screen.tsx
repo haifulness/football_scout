@@ -12,6 +12,7 @@ import { SeasonReviewsPanel } from '../components/season-review';
 import { TrackRecordPanel } from '../components/report-panel';
 import { RetirePanel } from '../components/career-end';
 import { CampaignPanel } from '../components/campaign-panel';
+import { YourPlayersPanel } from '../components/your-players';
 import { engine } from '../store/engine-client';
 import { useEngineQuery, useGame } from '../store/game-store';
 
@@ -52,6 +53,7 @@ export function CareerScreen() {
       {c.offers.length > 0 && <OffersPanel offers={c.offers} career={c} />}
       {c.mentor && <MentorPanel m={c.mentor} />}
       <CampaignPanel />
+      <YourPlayersPanel c={c} />
 
       <SeasonReviewsPanel />
       <TrackRecordPanel />

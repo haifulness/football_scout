@@ -1,3 +1,4 @@
+import { placementTick, trackPlacements } from './systems/placement-stories';
 import { addDays, isTransferWindow, makeDate, toParts, type GameDate } from './core/calendar';
 import { Rng } from './core/rng';
 import type { NewsItem, PlayerMatchLine } from './model/season';
@@ -112,6 +113,7 @@ function playDay(state: GameState, date: GameDate, onMatch?: MatchListener): { m
       }
       for (const { playerId, injury } of sim.injuries) state.players[playerId]!.injury = injury;
       payMatchBonuses(state, sim.lines, f, date);
+      trackPlacements(state, sim.lines, f);
       onMatch?.(sim.lines, date);
       matches++;
     }
@@ -137,6 +139,7 @@ function playDay(state: GameState, date: GameDate, onMatch?: MatchListener): { m
     boardTick(state, date);
     dilemmaTick(state, date);
     consultationTick(state, date);
+    if (toParts(date).day === 1) placementTick(state, date);
     unlockTick(state, date);
     staleTick(state, date);
     reportTick(state, date);

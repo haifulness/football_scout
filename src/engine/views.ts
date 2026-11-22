@@ -894,6 +894,16 @@ export interface PlacementView {
   active: boolean;
   endReason?: string;
   stats?: StatLine;
+  /** How he's doing since he signed, how he feels about it, and what the club thinks of him so far. */
+  story: {
+    share: number;
+    rating?: number;
+    games: number;
+    mood?: 'happy' | 'restless' | 'wants-out';
+    verdict?: 'hit' | 'solid' | 'flop';
+    settlingDays?: number;
+    canVisit: boolean;
+  };
 }
 
 export interface FinancesView {
@@ -932,6 +942,9 @@ export interface OfferView {
 }
 
 export interface CareerView {
+  /** Every player you placed, newest first, with how it's going. */
+  players: PlacementView[];
+  record: { hits: number; solid: number; flops: number };
   name: string;
   backgroundLabel: string;
   difficulty: string;
@@ -1397,7 +1410,7 @@ export interface HomeLink {
 
 export interface HomeItem {
   key: string;
-  kind: 'deal' | 'mission' | 'hunt' | 'assistant' | 'offer' | 'mandate' | 'inbox' | 'rival' | 'debt' | 'clients' | 'report' | 'coach' | 'event' | 'dilemma' | 'settling';
+  kind: 'deal' | 'mission' | 'hunt' | 'assistant' | 'offer' | 'mandate' | 'inbox' | 'rival' | 'debt' | 'clients' | 'report' | 'coach' | 'event' | 'dilemma' | 'settling' | 'placed';
   /** urgent: act now or lose something; action: waiting on you; info: worth knowing. */
   tone: 'urgent' | 'action' | 'info';
   title: string;

@@ -212,6 +212,9 @@ export interface ClubRecord {
   weakPitches: number;
   missionsDone?: number;
   missionsFailed?: number;
+  /** Players you brought who turned out hits / flops (a big fee counts twice). */
+  hits?: number;
+  flops?: number;
 }
 
 export interface JobOffer {

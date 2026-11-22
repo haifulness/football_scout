@@ -48,7 +48,7 @@ export function ScoutingPanel({ player: p }: { player: PlayerView }) {
   const meetHim = () =>
     act(async () => {
       const r = await meet({ kind: 'player', id: p.id });
-      return `Rapport ${r.before} → ${r.after}${r.trait ? `. You learn he's ${TRAIT_INFO[r.trait].label.toLowerCase()}` : ''}${r.settled ? `. He'll settle ${r.settled} days sooner` : ''}`;
+      return `Rapport ${r.before} → ${r.after}${r.trait ? `. You learn he's ${TRAIT_INFO[r.trait].label.toLowerCase()}` : ''}${r.settled ? `. He'll settle ${r.settled} days sooner` : ''}${r.cheered ? `. Your visit lifts him (${r.cheered === 'happy' ? 'happy again' : r.cheered === 'restless' ? 'still restless' : 'still wants out'})` : ''}`;
     });
   const checkIn = () =>
     act(async () => {
