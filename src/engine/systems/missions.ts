@@ -1,4 +1,6 @@
 import { addDays, ageOn, formatDate, toParts, type GameDate } from '../core/calendar';
+import { mentorClients, mentorOf } from './mentor';
+import { rivalName } from './rivals';
 import type { ClubId } from '../core/ids';
 import { formatUSD, roundPrice, usd, type USD } from '../core/money';
 import { Rng, clamp } from '../core/rng';
@@ -43,10 +45,15 @@ const RIGHT = new Set<Position>(['RB', 'RWB', 'RM', 'RW']);
 const OPEN = (m: Mission) => m.status === 'offered' || m.status === 'active';
 
 /** Clubs that can give you missions: your employer, or your freelance clients. */
+const mentorName = (state: GameState) => {
+  const r = mentorOf(state);
+  return r ? rivalName(r) : 'Your mentor';
+};
+
 function workClubs(state: GameState): ClubId[] {
   const e = state.scout?.employment;
   if (!e) return [];
-  return e.mode === 'fulltime' ? [e.clubId] : e.clients;
+  return e.mode === 'fulltime' ? [e.clubId] : [...new Set([...e.clients, ...mentorClients(state)])];
 }
 
 function topPriorities(p: OfficialPriorities, n = 2): (keyof OfficialPriorities)[] {
@@ -449,7 +456,9 @@ export function missionTick(state: GameState, date: GameDate) {
     // The longer a club goes without asking, the likelier it asks: steady pacing, no long droughts.
     const last = Math.max(-Infinity, ...state.missions.filter((m) => m.clubId === clubId).map((m) => m.postedOn));
     const quietDays = Number.isFinite(last) ? date - last : 90;
-    if (!rng.chance(clamp((fulltime ? 0.5 : 0.3) + quietDays / 150, 0, 1))) continue;
+    // Briefs from your mentor's clubs come through him, and only the ones he can't take.
+    const passed = scout.employment.mode === 'freelance' && !scout.employment.clients.includes(clubId);
+    if (!rng.chance(clamp((fulltime ? 0.5 : 0.3) + quietDays / 150, 0, 1) * (passed ? 0.5 : 1))) continue;
     // A club at its wage limit can't take on a new player, so it doesn't ask for one.
     if (!hasWageRoomForSigning(state, club)) continue;
     const m = makeMission(state, club, rng);
@@ -459,8 +468,8 @@ export function missionTick(state: GameState, date: GameDate) {
       date,
       kind: 'career',
       link: 'missions',
-      title: `Mission offer: ${club.name} want a ${m.position}`,
-      body: `"${m.brief}" Brief: ${describeRequirements(m.requirements, m.position, state).join(', ')}, within ${m.weeks} weeks. Reward ${formatUSD(m.reward)}. Accept by ${formatDate(m.acceptBy)} in Missions.`,
+      title: passed ? `${mentorName(state)} passes you a brief: ${club.name} want a ${m.position}` : `Mission offer: ${club.name} want a ${m.position}`,
+      body: `${passed ? `${mentorName(state)} can't take this one. ` : ''}"${m.brief}" Brief: ${describeRequirements(m.requirements, m.position, state).join(', ')}, within ${m.weeks} weeks. Reward ${formatUSD(m.reward)}. Accept by ${formatDate(m.acceptBy)} in Missions.`,
       clubIds: [club.id],
       countryId: club.countryId,
     });

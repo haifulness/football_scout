@@ -133,7 +133,9 @@ function fitsClub(state: GameState, r: RivalScout, p: Player, club: Club, pos: P
 
 /** Sharp rivals hear about the players you are working on: deals first, then your pool. */
 function chaseYours(state: GameState, r: RivalScout, clubs: Club[], rng: Rng, chased: Set<PlayerId>, protectedIds: Set<PlayerId>, date: GameDate): boolean {
-  if (!rng.chance(0.1 + r.skill * 0.015)) return false;
+  if (r.id === state.scout?.mentor?.rivalId) return false; // your mentor works with you, not against you
+  // One you walked out on goes looking for your players.
+  if (!rng.chance(0.1 + r.skill * 0.015 + (r.grudge ? 0.35 : 0))) return false;
   const deals = state.deals.filter((d) => OPEN_USER.has(d.stage)).map((d) => d.playerId);
   const pool = (Object.keys(state.pool) as PlayerId[]).filter((id) => !deals.includes(id));
   for (const id of [...rng.shuffle(deals), ...rng.shuffle(pool).slice(0, 12)]) {

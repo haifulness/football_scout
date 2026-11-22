@@ -30,4 +30,6 @@ export interface RivalScout {
   /** Between chases. */
   restUntil?: GameDate;
   record: { signings: number; steals: number; failed: number };
+  /** You left him early: he goes after your players. */
+  grudge?: boolean;
 }

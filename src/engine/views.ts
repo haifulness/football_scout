@@ -907,16 +907,54 @@ export interface CareerView {
         trust: number;
       };
   offers: OfferView[];
+  /** The scout you work under. */
+  mentor?: MentorView;
+  /** An established scout offering to take you on. */
+  mentorOffer?: MentorOfferView;
   clubs: {
     club: ClubBadge & { cityName: string };
     trust: number;
     signings: number;
     weakPitches: number;
-    status: 'employer' | 'client' | 'none';
+    status: 'employer' | 'client' | 'mentor' | 'none';
   }[];
   /** What each reputation level opens up. */
   milestones: { reputation: number; label: string; reached: boolean }[];
   stats: { signings: number; placementsActive: number; earned: number };
+}
+
+export interface MentorView {
+  id: number;
+  name: string;
+  portraitSeed: number;
+  nationalityId: CountryId;
+  reputation: number;
+  signings: number;
+  /** His clubs, which take your calls. */
+  clients: (ClubBadge & { trust: number })[];
+  since: GameDate;
+  /** Stay until this date and you part on good terms. */
+  termEndsOn: GameDate;
+  /** Leaving now makes him a rival. */
+  earlyLeave: boolean;
+  cutPct: number;
+  /** What he has taken so far. */
+  taken: USD;
+  /** Standing at which clubs take a pitch by phone, while he vouches for you (normally higher). */
+  phoneTrust: number;
+  normalPhoneTrust: number;
+  standingFloor: number;
+}
+
+export interface MentorOfferView {
+  name: string;
+  portraitSeed: number;
+  nationalityId: CountryId;
+  reputation: number;
+  clients: ClubBadge[];
+  cutPct: number;
+  expiresOn: GameDate;
+  daysLeft: number;
 }
 
 export interface MissionView {

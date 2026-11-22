@@ -15,6 +15,7 @@ import { endFreelanceWork } from './market';
 import { rivalAtClub, rivalName } from './rivals';
 import { specialties, specialtyAppeal } from './goals';
 import { clientCapacity, hasBase } from './agency';
+import { MENTOR_STANDING, isMentorClient, leaveMentor } from './mentor';
 
 /**
  * Careers (PLAN §3.10, §3.12). Freelancers pitch only to their client clubs and
@@ -51,7 +52,9 @@ export function clubTrust(state: GameState, clubId: ClubId): number {
   const missions = Math.min(20, (r.missionsDone ?? 0) * 6) - Math.min(20, (r.missionsFailed ?? 0) * 8);
   // A reputation for straight dealing (integrity) moves trust up to ±8.
   const integrity = ((scout.integrity ?? 50) - 50) / 6.25;
-  return Math.round(clamp(rel * 0.7 + Math.min(40, r.signings * 8) - Math.min(15, r.weakPitches * 3) + missions + employer + accuracyTrust(state) + integrity, 0, 100));
+  const trust = Math.round(clamp(rel * 0.7 + Math.min(40, r.signings * 8) - Math.min(15, r.weakPitches * 3) + missions + employer + accuracyTrust(state) + integrity, 0, 100));
+  // Your mentor's clubs know you through him.
+  return isMentorClient(state, clubId) ? Math.max(trust, MENTOR_STANDING) : trust;
 }
 
 export function recordSigning(state: GameState, clubId: ClubId) {
@@ -86,7 +89,7 @@ export function canWorkWith(state: GameState, clubId: ClubId): { ok: boolean; re
   if (e.mode === 'fulltime') {
     return e.clubId === clubId ? { ok: true } : { ok: false, reason: `You work full-time for ${state.clubs[e.clubId]!.name}: you can only recommend to them.` };
   }
-  return e.clients.includes(clubId)
+  return e.clients.includes(clubId) || isMentorClient(state, clubId)
     ? { ok: true }
     : { ok: false, reason: `${state.clubs[clubId]!.name} isn't one of your clients. Propose a scouting agreement first.` };
 }
@@ -204,6 +207,7 @@ export function acceptOffer(state: GameState, offerId: number): Employment {
         d.reason = `You took a job at ${club.name}.`;
         d.log.push({ date: state.date, text: `Deal off: you joined ${club.name}.`, tone: 'bad' });
       }
+    leaveMentor(state, 'job');
     endFreelanceWork(state, `You joined ${club.name} full-time.`);
     // New colleagues: a working relationship from day one (more is up to you).
     scout.relationships[club.headCoachId] = Math.max(scout.relationships[club.headCoachId] ?? 0, COLLEAGUE_START);

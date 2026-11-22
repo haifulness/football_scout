@@ -14,6 +14,7 @@ import type { GameState } from '../model/world-state';
 import { CHECK_IN_DAYS, VIDEO_KNOWLEDGE_CAP, estimate, knowledgeLevel, learn, marketOf, refreshRead, searchLearning, searchRange, seenOn } from './knowledge';
 import { searchWage } from './transfers';
 import { seedRivals } from './rivals';
+import { joinMentor, mentorCut, pickMentor } from './mentor';
 import { refreshMarket } from './assistants';
 import { OFFICE_REACH, OFFICE_SEARCH_DISCOUNT, hasBase } from './agency';
 
@@ -90,6 +91,8 @@ export function addLedger(state: GameState, entryIn: Omit<LedgerEntry, 'date'>, 
   state.scout!.money = usd(state.scout!.money + entry.amount);
   const season = (state.ledgerTotals[state.season.year] ??= {});
   season[entry.kind] = (season[entry.kind] ?? 0) + entry.amount;
+  const cut = mentorCut(state, entry);
+  if (cut) addLedger(state, cut, { date, merge: true });
 }
 
 export function createCareer(state: GameState, rawSetup: CareerSetup): Scout {
@@ -126,6 +129,10 @@ export function createCareer(state: GameState, rawSetup: CareerSetup): Scout {
   state.inboxSeenId = state.counters.news;
   refreshMarket(state, state.date);
   if (setup.scenario) startScenario(state, setup.scenario);
+  else if (setup.mentor) {
+    const m = pickMentor(state);
+    if (m) joinMentor(state, m.id);
+  }
   snapshotReviewBaseline(state);
   setSeasonObjectives(state);
   return state.scout;

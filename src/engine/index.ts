@@ -1,5 +1,6 @@
 import { ATTRIBUTE_LABEL } from './model/player';
-import { CAREER_START, ageOn, formatDate, isTransferWindow, makeDate, toParts, type GameDate } from './core/calendar';
+import { MENTOR_CUT, MENTOR_PHONE_TRUST, MENTOR_STANDING, MENTOR_TERM_DAYS, acceptMentorOffer, declineMentorOffer, leaveMentor, mentorClients, mentorOf } from './systems/mentor';
+import { CAREER_START, addDays, ageOn, formatDate, isTransferWindow, makeDate, toParts, type GameDate } from './core/calendar';
 import type { CityId, ClubId, CountryId, LeagueId, PlayerId, StaffId } from './core/ids';
 import { formatUSD, usd, type USD } from './core/money';
 import { generateWorld, type ProgressFn } from './generation/world-generator';
@@ -27,7 +28,7 @@ import {
 import { nightlyCost, quoteTravel, startTravel } from './systems/travel';
 import { acceptMission, declineMission, describeRequirements, discussMission, negotiateMission, negotiationOptions } from './systems/missions';
 import type { NegotiationKey } from './model/mission';
-import { knownInterest } from './systems/rivals';
+import { knownInterest, rivalName } from './systems/rivals';
 import {
   MAX_TASK_WEEKS,
   refreshMarket,
@@ -212,6 +213,7 @@ const LEDGER_LABELS: Record<string, string> = {
   agency: 'Agency upkeep & rent',
   'agency-setup': 'Agency setup',
   'agency-cut': 'Agency deals',
+  'mentor-cut': 'Mentor’s share',
 };
 
 const isInbox = isInboxItem;
@@ -1083,8 +1085,16 @@ export class Engine {
     const badgeCity = (id: ClubId) => ({ ...badge(s.clubs[id]!), cityName: s.cities[s.clubs[id]!.cityId]!.name });
     const known = new Set<ClubId>([...(Object.keys(sc.clubRecord) as ClubId[]), ...(e.mode === 'freelance' ? e.clients : [e.clubId])]);
     for (const c of Object.values(s.clubs)) if ((sc.relationships[c.headCoachId] ?? 0) > 0) known.add(c.id);
+    const mClients = mentorClients(s);
+    for (const id of mClients) known.add(id);
     const statusOf = (id: ClubId) =>
-      (e.mode === 'fulltime' ? (e.clubId === id ? 'employer' : 'none') : e.clients.includes(id) ? 'client' : 'none') as 'employer' | 'client' | 'none';
+      (e.mode === 'fulltime' ? (e.clubId === id ? 'employer' : 'none') : e.clients.includes(id) ? 'client' : mClients.includes(id) ? 'mentor' : 'none') as
+        | 'employer'
+        | 'client'
+        | 'mentor'
+        | 'none';
+    const mentor = mentorOf(s);
+    const offerBy = sc.mentorOffer && s.rivals.find((r) => r.id === sc.mentorOffer!.rivalId);
     const earned = (s.placements ?? []).reduce((n, p) => n + p.bonus + Object.values(p.earnings ?? {}).reduce((a, b) => a + b, 0), 0);
     return {
       name: sc.name,
@@ -1128,6 +1138,39 @@ export class Engine {
           trust: clubTrust(s, c.id),
         };
       }),
+      mentor:
+        mentor && sc.mentor
+          ? {
+              id: mentor.id,
+              name: rivalName(mentor),
+              portraitSeed: mentor.portraitSeed,
+              nationalityId: mentor.nationality,
+              reputation: Math.round(mentor.reputation),
+              signings: mentor.record.signings,
+              clients: mClients.map((id) => ({ ...badge(s.clubs[id]!), trust: clubTrust(s, id) })),
+              since: sc.mentor.since,
+              termEndsOn: addDays(sc.mentor.since, MENTOR_TERM_DAYS),
+              earlyLeave: s.date - sc.mentor.since < MENTOR_TERM_DAYS,
+              cutPct: Math.round(MENTOR_CUT * 100),
+              taken: sc.mentor.taken,
+              phoneTrust: MENTOR_PHONE_TRUST,
+              normalPhoneTrust: REMOTE_PITCH_TRUST,
+              standingFloor: MENTOR_STANDING,
+            }
+          : undefined,
+      mentorOffer:
+        offerBy && sc.mentorOffer
+          ? {
+              name: rivalName(offerBy),
+              portraitSeed: offerBy.portraitSeed,
+              nationalityId: offerBy.nationality,
+              reputation: Math.round(offerBy.reputation),
+              clients: (offerBy.employment.mode === 'freelance' ? offerBy.employment.clients : []).map((id) => badge(s.clubs[id]!)),
+              cutPct: Math.round(MENTOR_CUT * 100),
+              expiresOn: sc.mentorOffer.expiresOn,
+              daysLeft: Math.max(0, sc.mentorOffer.expiresOn - s.date),
+            }
+          : undefined,
       clubs: [...known]
         .map((id) => {
           const r = clubRecord(sc, id);
@@ -1162,6 +1205,22 @@ export class Engine {
 
   declineOffer(offerId: number): void {
     declineOffer(this.s, offerId);
+  }
+
+  acceptMentorOffer(): CareerView {
+    this.assertActive();
+    acceptMentorOffer(this.s);
+    return this.getCareer();
+  }
+
+  declineMentorOffer(): void {
+    declineMentorOffer(this.s);
+  }
+
+  /** Go it alone. Inside a year he takes it badly. */
+  leaveMentor(): { message: string } {
+    this.assertActive();
+    return { message: leaveMentor(this.s) };
   }
 
   resign(): CareerView {
@@ -1716,6 +1775,16 @@ export class Engine {
         tone: 'action',
         title: `${plural(scout.pendingOffers, 'job offer')} on the table`,
         detail: 'Clubs want to hire you full-time.',
+        link: { screen: 'career' },
+      });
+    const mo = sc.mentorOffer && s.rivals.find((r) => r.id === sc.mentorOffer!.rivalId);
+    if (mo)
+      needsYou.push({
+        key: 'mentor-offer',
+        kind: 'offer',
+        tone: 'action',
+        title: `${rivalName(mo)} offers to take you on`,
+        detail: `His clubs would take your calls; he'd keep ${Math.round(MENTOR_CUT * 100)}% of what you earn.`,
         link: { screen: 'career' },
       });
     if (scout.rivalThreats)
@@ -2276,7 +2345,7 @@ export class Engine {
           .slice(0, 3)
           .map(([k]) => PRIORITY_LABELS[k] ?? k),
         read: readOf(prob),
-        remote: { ...remote, required: REMOTE_PITCH_TRUST, read: readOf(remoteProb) },
+        remote: { ...remote, required: this.s.scout?.mentor ? MENTOR_PHONE_TRUST : REMOTE_PITCH_TRUST, read: readOf(remoteProb) },
       };
     };
     const latest = s.deals.find(

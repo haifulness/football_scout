@@ -1,4 +1,5 @@
 import { addDays, ageOn, formatDate, isTransferWindow, type GameDate } from '../core/calendar';
+import { MENTOR_PHONE_TRUST } from './mentor';
 import { DEADLINE_FEE_PREMIUM, DEADLINE_SIGNOFF_BONUS } from './deadline';
 import { specialtyBonus } from './goals';
 import { reportBonus } from './reports';
@@ -105,7 +106,8 @@ const REMOTE_PITCH_PENALTY = 0.25;
 export function remotePitchCheck(state: GameState, clubId: ClubId): { ok: boolean; trust: number; reason?: string } {
   const trust = clubTrust(state, clubId);
   if (!canWorkWith(state, clubId).ok) return { ok: false, trust, reason: 'Only clubs you work for take pitches by phone.' };
-  if (trust < REMOTE_PITCH_TRUST) return { ok: false, trust, reason: `Pitching by phone opens at standing ${REMOTE_PITCH_TRUST} (now ${trust}).` };
+  const need = state.scout?.mentor ? MENTOR_PHONE_TRUST : REMOTE_PITCH_TRUST;
+  if (trust < need) return { ok: false, trust, reason: `Pitching by phone opens at standing ${need} (now ${trust}).` };
   return { ok: true, trust };
 }
 

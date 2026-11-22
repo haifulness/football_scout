@@ -58,6 +58,20 @@ export interface Scout {
   integrity?: number;
   /** Systems you have unlocked (announced once; never closed again). */
   unlocks?: ('assistants' | 'mandates' | 'representation' | 'agency')[];
+  /** You work under an established scout (freelance only). */
+  mentor?: Mentorship;
+  /** An established scout offers to take you on. */
+  mentorOffer?: { rivalId: number; expiresOn: GameDate };
+  /** You have had (or turned down) a mentor: no more offers. */
+  mentorDone?: boolean;
+}
+
+/** Working under a big-name scout: his clients take your calls, he takes a share of what you earn. */
+export interface Mentorship {
+  rivalId: number;
+  since: GameDate;
+  /** What he has taken so far. */
+  taken: USD;
 }
 
 export interface CareerSetup {
@@ -68,6 +82,8 @@ export interface CareerSetup {
   homeCountry: CountryId;
   background: Background;
   difficulty: Difficulty;
+  /** Start as a junior under an established scout. */
+  mentor?: boolean;
 }
 
 /** What you know about one player. Absent = only public information. */
@@ -167,7 +183,8 @@ export type LedgerKind =
   | 'award'
   | 'agency'
   | 'agency-setup'
-  | 'agency-cut';
+  | 'agency-cut'
+  | 'mentor-cut';
 
 export type Employment =
   | { mode: 'freelance'; clients: ClubId[] }

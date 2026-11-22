@@ -38,6 +38,7 @@ export function CareerSetup({ onSubmit, submitLabel, busy }: { onSubmit: (setup:
   const [background, setBackground] = useState<Background>('analyst');
   const [difficulty, setDifficulty] = useState<Difficulty>('normal');
   const [scenario, setScenario] = useState<ScenarioId>();
+  const [mentor, setMentor] = useState(false);
   const def = scenario ? SCENARIOS[scenario] : undefined;
 
   return (
@@ -52,6 +53,7 @@ export function CareerSetup({ onSubmit, submitLabel, busy }: { onSubmit: (setup:
           background,
           difficulty: def?.difficulty ?? difficulty,
           scenario,
+          mentor: !def && mentor,
         });
       }}
     >
@@ -188,6 +190,32 @@ export function CareerSetup({ onSubmit, submitLabel, busy }: { onSubmit: (setup:
           })}
         </div>
       </div>
+
+      {!def && (
+        <div>
+          <div className="panel-title mb-2 text-[11px]">How you start</div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {[
+              { on: false, label: 'On your own', text: 'No clients yet. Every club you work for, you win yourself, and every dollar you earn is yours.' },
+              {
+                on: true,
+                label: 'Under a big name',
+                text: 'Join an established scout. His clubs take your calls and he passes you briefs, but he keeps 30% of what you earn. Leave inside a year and he becomes a rival.',
+              },
+            ].map((o) => (
+              <button
+                type="button"
+                key={o.label}
+                onClick={() => setMentor(o.on)}
+                className={`rounded-xl border p-3 text-left transition-colors ${o.on === mentor ? 'border-flood-400/60 bg-flood-500/10' : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.05]'}`}
+              >
+                <div className="font-semibold">{o.label}</div>
+                <div className="mt-1 text-[11px] text-mist-400">{o.text}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {def ? (
         <div className="text-[12px] text-mist-400">
