@@ -1,5 +1,17 @@
 import { ATTRIBUTE_LABEL } from './model/player';
-import { MENTOR_CUT, MENTOR_PHONE_TRUST, MENTOR_STANDING, MENTOR_TERM_DAYS, acceptMentorOffer, declineMentorOffer, leaveMentor, mentorClients, mentorOf } from './systems/mentor';
+import { answerConsultation, finderFee } from './systems/consultations';
+import type { ConsultationAnswer } from './model/consultation';
+import {
+  MENTOR_CUT,
+  MENTOR_PHONE_TRUST,
+  MENTOR_STANDING,
+  MENTOR_TERM_DAYS,
+  acceptMentorOffer,
+  declineMentorOffer,
+  leaveMentor,
+  mentorClients,
+  mentorOf,
+} from './systems/mentor';
 import { CAREER_START, addDays, ageOn, formatDate, isTransferWindow, makeDate, toParts, type GameDate } from './core/calendar';
 import type { CityId, ClubId, CountryId, LeagueId, PlayerId, StaffId } from './core/ids';
 import { formatUSD, usd, type USD } from './core/money';
@@ -113,6 +125,7 @@ import { closeDeadline, DEADLINE_ACTION_HOURS, DEADLINE_FEE_PREMIUM, passDeadlin
 import type {
   AdvanceSummary,
   BoardAskView,
+  ConsultationView,
   BoardPreview,
   ClubBadge,
   ClubRow,
@@ -214,6 +227,7 @@ const LEDGER_LABELS: Record<string, string> = {
   'agency-setup': 'Agency setup',
   'agency-cut': 'Agency deals',
   'mentor-cut': 'Mentor’s share',
+  consultation: 'Player consultations',
 };
 
 const isInbox = isInboxItem;
@@ -1089,10 +1103,7 @@ export class Engine {
     for (const id of mClients) known.add(id);
     const statusOf = (id: ClubId) =>
       (e.mode === 'fulltime' ? (e.clubId === id ? 'employer' : 'none') : e.clients.includes(id) ? 'client' : mClients.includes(id) ? 'mentor' : 'none') as
-        | 'employer'
-        | 'client'
-        | 'mentor'
-        | 'none';
+        'employer' | 'client' | 'mentor' | 'none';
     const mentor = mentorOf(s);
     const offerBy = sc.mentorOffer && s.rivals.find((r) => r.id === sc.mentorOffer!.rivalId);
     const earned = (s.placements ?? []).reduce((n, p) => n + p.bonus + Object.values(p.earnings ?? {}).reduce((a, b) => a + b, 0), 0);
@@ -2479,6 +2490,45 @@ export class Engine {
 
   recallJob(assistantId: number) {
     recallJob(this.s, assistantId);
+  }
+
+  /** Players waiting on your advice about a club. */
+  getConsultations(): ConsultationView[] {
+    const s = this.s;
+    return (s.consultations ?? [])
+      .filter((c) => !c.answer && !c.lapsed)
+      .flatMap((c) => {
+        const p = s.players[c.playerId];
+        const to = s.clubs[c.clubId];
+        const from = s.clubs[c.fromClubId];
+        if (!p || !to || !from) return [];
+        return [
+          {
+            id: c.id,
+            player: {
+              id: p.id,
+              name: `${p.firstName} ${p.lastName}`,
+              portraitSeed: p.portraitSeed,
+              nationalityId: p.nationality,
+              age: ageOn(p.birthDate, s.date),
+              position: c.position,
+              rapport: Math.round(s.scout?.rapport[p.id] ?? 0),
+            },
+            from: badge(from),
+            to: { ...badge(to), leagueName: s.leagues[to.leagueId]!.name, formation: to.formation },
+            fee: c.fee,
+            read: c.read,
+            marketKnowledge: Math.round(s.scout?.regionKnowledge[to.countryId] ?? 0),
+            daysLeft: Math.max(0, c.answerBy - s.date),
+            finderFee: c.finder ? finderFee(transferFee(s, p)) : undefined,
+          },
+        ];
+      });
+  }
+
+  answerConsultation(id: number, answer: ConsultationAnswer): { message: string } {
+    this.assertActive();
+    return answerConsultation(this.s, id, answer);
   }
 
   answerBoardAsk(id: number, coachId: StaffId | null): { message: string } {

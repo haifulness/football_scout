@@ -7,6 +7,7 @@ import type { CountrySummary, HomeItem, HomeLink, HomeView } from '../../engine/
 import { GettingStarted } from '../components/getting-started';
 import { DilemmaCards } from '../components/dilemma-cards';
 import { BoardAskCards } from '../components/board-ask-cards';
+import { ConsultationCards } from '../components/consultation-cards';
 import { Money, StatTile, StrengthPips } from '../components/ui';
 import { useSize } from '../components/use-size';
 import { Crest } from '../visuals/crest';
@@ -33,6 +34,7 @@ export function WorldScreen() {
     <div className="flex flex-col gap-4">
       <GettingStarted />
       <BoardAskCards />
+      <ConsultationCards />
       <DilemmaCards />
       {home && scout && <SeasonStrip home={home} money={scout.money} />}
 

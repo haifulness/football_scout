@@ -161,6 +161,22 @@ export interface BoardAskView {
   candidates: { id: StaffId; name: string; age: number; relationship: number; lastClub?: string; formation?: string }[];
 }
 
+/** A player asking whether to join a club. */
+export interface ConsultationView {
+  id: number;
+  player: { id: PlayerId; name: string; portraitSeed: number; nationalityId: CountryId; age: number; position: Position; rapport: number };
+  from: ClubBadge;
+  to: ClubBadge & { leagueName: string; formation: string };
+  fee: USD;
+  /** Your read: whether he'd start there (less reliable in markets you don't know). */
+  read: 'starter' | 'squad';
+  /** How well you know the club's market, 0–100. */
+  marketKnowledge: number;
+  daysLeft: number;
+  /** The club is one of yours: a move pays you a finder's fee. */
+  finderFee?: USD;
+}
+
 export interface ClubView extends ClubBadge {
   city: { id: CityId; name: string; lat: number; lon: number };
   country: { id: CountryId; name: string; wealthIndex: number };

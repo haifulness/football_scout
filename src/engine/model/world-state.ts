@@ -87,6 +87,8 @@ export interface GameState {
   presidents?: Record<StaffId, President>;
   /** Presidents asking you who should coach their club next. */
   boardAsks?: BoardAsk[];
+  /** Players asking your advice about a club (recent ones kept for the record). */
+  consultations?: import('./consultation').Consultation[];
   /** Choices put to you (recent ones kept for the record). */
   dilemmas?: Dilemma[];
   /** Your season reviews, newest last (kept for the last 20 seasons). */

@@ -1,5 +1,6 @@
 import { DilemmaCards } from '../components/dilemma-cards';
 import { BoardAskCards } from '../components/board-ask-cards';
+import { ConsultationCards } from '../components/consultation-cards';
 import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { formatDate } from '../../engine/core/calendar';
@@ -52,6 +53,7 @@ export function InboxScreen() {
         </p>
       </header>
       <BoardAskCards />
+      <ConsultationCards />
       <DilemmaCards />
       <NewsFeed news={news} kinds={INBOX_KINDS} newFrom={newFrom} empty="No messages yet. Deals, offers and missions will land here." />
     </div>

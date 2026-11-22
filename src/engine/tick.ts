@@ -27,6 +27,7 @@ import { eventsTick } from './systems/events';
 import { ensurePredictions } from './systems/newspaper';
 import { boardTick } from './systems/board';
 import { mentorTick } from './systems/mentor';
+import { consultationTick } from './systems/consultations';
 import { dilemmaTick } from './systems/dilemmas';
 import { unlockTick } from './systems/unlocks';
 import { isInboxItem } from './model/season';
@@ -133,6 +134,7 @@ function playDay(state: GameState, date: GameDate, onMatch?: MatchListener): { m
     ensurePredictions(state);
     boardTick(state, date);
     dilemmaTick(state, date);
+    consultationTick(state, date);
     unlockTick(state, date);
     staleTick(state, date);
     reportTick(state, date);
