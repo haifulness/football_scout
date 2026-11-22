@@ -28,6 +28,7 @@ import { ensurePredictions } from './systems/newspaper';
 import { boardTick } from './systems/board';
 import { mentorTick } from './systems/mentor';
 import { consultationTick } from './systems/consultations';
+import { campaignTick } from './systems/campaigns';
 import { dilemmaTick } from './systems/dilemmas';
 import { unlockTick } from './systems/unlocks';
 import { isInboxItem } from './model/season';
@@ -126,6 +127,7 @@ function playDay(state: GameState, date: GameDate, onMatch?: MatchListener): { m
     settleSigningBonuses(state);
     employmentTick(state, date);
     if (toParts(date).weekday === 1) mentorTick(state, date);
+    campaignTick(state, date);
     missionTick(state, date);
     marketTick(state, date);
     assistantTick(state, date);

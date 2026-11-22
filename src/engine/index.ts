@@ -1,4 +1,5 @@
 import { ATTRIBUTE_LABEL } from './model/player';
+import { CAMPAIGN_BOOST, CAMPAIGN_WEEKS, SPOTLIGHT, activeCampaign, campaignCost, startCampaign, stopCampaign } from './systems/campaigns';
 import { answerConsultation, finderFee } from './systems/consultations';
 import type { ConsultationAnswer } from './model/consultation';
 import {
@@ -135,6 +136,8 @@ import type {
   AdvanceSummary,
   BoardAskView,
   ConsultationView,
+  CampaignRunView,
+  CampaignView,
   BoardPreview,
   ClubBadge,
   ClubRow,
@@ -237,6 +240,7 @@ const LEDGER_LABELS: Record<string, string> = {
   'agency-cut': 'Agency deals',
   'mentor-cut': 'Mentor’s share',
   consultation: 'Player consultations',
+  campaign: 'Profile campaigns',
 };
 
 const isInbox = isInboxItem;
@@ -2502,6 +2506,46 @@ export class Engine {
 
   recallJob(assistantId: number) {
     recallJob(this.s, assistantId);
+  }
+
+  getCampaign(): CampaignView {
+    const s = this.s;
+    const sc = s.scout!;
+    const run = (c: NonNullable<typeof s.campaign>): CampaignRunView => ({
+      country: { id: c.countryId, name: s.countries[c.countryId]!.name },
+      startedOn: c.startedOn,
+      endsOn: c.endsOn,
+      weeklyCost: c.weeklyCost,
+      spent: c.spent,
+      invites: c.invites,
+      endedOn: c.endedOn,
+      weeksLeft: Math.max(0, Math.ceil((c.endsOn - s.date) / 7)),
+    });
+    const withClubs = new Set(Object.values(s.clubs).map((c) => c.countryId));
+    const active = activeCampaign(s);
+    return {
+      active: active && run(active),
+      last: !active && s.campaign ? run(s.campaign) : undefined,
+      markets: Object.values(s.countries)
+        .filter((c) => withClubs.has(c.id))
+        .map((c) => ({ id: c.id, name: c.name, weeklyCost: campaignCost(s, c.id), home: c.id === sc.homeCountry }))
+        .sort((a, b) => Number(b.home) - Number(a.home) || a.name.localeCompare(b.name)),
+      weeks: CAMPAIGN_WEEKS,
+      spotlight: SPOTLIGHT,
+      boostPct: Math.round((CAMPAIGN_BOOST - 1) * 100),
+      blocked: sc.employment.mode !== 'freelance' ? 'Your club does your publicity: campaigns are for freelancers.' : undefined,
+    };
+  }
+
+  startCampaign(countryId: CountryId, weeks: number): CampaignView {
+    this.assertActive();
+    startCampaign(this.s, countryId, weeks);
+    return this.getCampaign();
+  }
+
+  stopCampaign(): CampaignView {
+    stopCampaign(this.s);
+    return this.getCampaign();
   }
 
   /** Players waiting on your advice about a club. */

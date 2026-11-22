@@ -87,6 +87,8 @@ export interface GameState {
   presidents?: Record<StaffId, President>;
   /** Presidents asking you who should coach their club next. */
   boardAsks?: BoardAsk[];
+  /** Your profile campaign: the running one, or the last one. */
+  campaign?: import('./campaign').Campaign;
   /** Players asking your advice about a club (recent ones kept for the record). */
   consultations?: import('./consultation').Consultation[];
   /** Choices put to you (recent ones kept for the record). */

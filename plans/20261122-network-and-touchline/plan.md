@@ -1,6 +1,6 @@
 # The Touchline, presidents, and working through other people
 
-Status: in progress (phases 1–5 done)
+Status: done (phases 1–6)
 
 Six features from the 2026-11-22 brainstorm. The newspaper becomes a real paper with articles; presidents
 come back as the people who hold the money (not a second coach); and four new ways to earn through other
@@ -13,7 +13,7 @@ people: staff taking jobs, working under a mentor, player consultations, and pro
 | 3 | ✅ Staff take a job for you | Medium (new pitch path) | [phase-03-staff-jobs.md](phase-03-staff-jobs.md) |
 | 4 | ✅ Work under a big-name scout | Medium (new start mode) | [phase-04-mentor.md](phase-04-mentor.md) |
 | 5 | ✅ Players ask you about a club | Low–medium | [phase-05-consultations.md](phase-05-consultations.md) |
-| 6 | Profile campaigns | Low | [phase-06-campaigns.md](phase-06-campaigns.md) |
+| 6 | ✅ Profile campaigns | Low | [phase-06-campaigns.md](phase-06-campaigns.md) |
 
 Order: 1 → 2 (the paper reports boardroom news), then 3–6 in any order.
 

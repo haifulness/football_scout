@@ -1,4 +1,5 @@
 import { addDays, isTransferWindow, toParts, type GameDate } from '../core/calendar';
+import { CAMPAIGN_BOOST, inSpotlight } from './campaigns';
 import type { PlayerId } from '../core/ids';
 import { formatUSD, usd, type USD } from '../core/money';
 import { Rng, clamp } from '../core/rng';
@@ -205,7 +206,7 @@ export function consultationTick(state: GameState, date: GameDate) {
   const last = Math.max(-Infinity, ...all.map((c) => c.postedOn));
   if (date - last < MIN_GAP_DAYS) return;
   const rng = Rng.derive(state.seed, `consult:${date}`);
-  if (!rng.chance(0.4)) return;
+  if (!rng.chance(0.4 * (inSpotlight(state) ? CAMPAIGN_BOOST : 1))) return;
   const c = makeConsultation(state, rng, date);
   if (!c) return;
   state.consultations!.push(c);

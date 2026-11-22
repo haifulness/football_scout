@@ -185,7 +185,8 @@ export type LedgerKind =
   | 'agency-setup'
   | 'agency-cut'
   | 'mentor-cut'
-  | 'consultation';
+  | 'consultation'
+  | 'campaign';
 
 export type Employment =
   | { mode: 'freelance'; clients: ClubId[] }

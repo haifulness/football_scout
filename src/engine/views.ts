@@ -161,6 +161,32 @@ export interface BoardAskView {
   candidates: { id: StaffId; name: string; age: number; relationship: number; lastClub?: string; formation?: string }[];
 }
 
+export interface CampaignRunView {
+  country: { id: CountryId; name: string };
+  startedOn: GameDate;
+  endsOn: GameDate;
+  weeklyCost: USD;
+  spent: USD;
+  invites: number;
+  endedOn?: GameDate;
+  weeksLeft: number;
+}
+
+/** Profile campaigns: what's running, what it costs where. */
+export interface CampaignView {
+  active?: CampaignRunView;
+  last?: CampaignRunView;
+  /** Markets you could target, cheapest first, with your home market first. */
+  markets: { id: CountryId; name: string; weeklyCost: USD; home: boolean }[];
+  weeks: [number, number];
+  /** Flops cost this many times as much while one runs. */
+  spotlight: number;
+  /** Briefs and player questions come this much more often, in percent. */
+  boostPct: number;
+  /** Why you can't run one, if you can't. */
+  blocked?: string;
+}
+
 /** A player asking whether to join a club. */
 export interface ConsultationView {
   id: number;

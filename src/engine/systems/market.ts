@@ -1,4 +1,5 @@
 import { addDays, ageOn, formatDate, toParts, type GameDate } from '../core/calendar';
+import { SPOTLIGHT, inSpotlight } from './campaigns';
 import type { ClubId, PlayerId } from '../core/ids';
 import { formatUSD, roundPrice, usd } from '../core/money';
 import { Rng, clamp } from '../core/rng';
@@ -253,6 +254,7 @@ export function marketTick(state: GameState, date: GameDate) {
       m.resolvedOn = date;
       if (clients.includes(m.clubId)) {
         const club = state.clubs[m.clubId]!;
+        if (inSpotlight(state)) sellerRelations(state, m.clubId, -2);
         addNews(state, {
           date,
           kind: 'career',
@@ -285,7 +287,7 @@ export function marketTick(state: GameState, date: GameDate) {
       m.resolvedOn = date;
       const r = clubRecord(scout, m.clubId);
       scout.clubRecord[m.clubId] = { ...r, missionsFailed: (r.missionsFailed ?? 0) + 1 };
-      sellerRelations(state, m.clubId, -5);
+      sellerRelations(state, m.clubId, inSpotlight(state) ? -Math.round(5 * SPOTLIGHT) : -5);
       const club = state.clubs[m.clubId]!;
       addNews(state, {
         date,

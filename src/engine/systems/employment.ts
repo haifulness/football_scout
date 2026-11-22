@@ -270,7 +270,7 @@ function happyWithTheirScout(state: GameState, clubId: ClubId): boolean {
   return state.rivals.some((r) => r.employment.mode === 'fulltime' && r.employment.clubId === clubId && r.reputation > rep + 10);
 }
 
-function makeOffer(state: GameState, o: Omit<JobOffer, 'id' | 'createdOn' | 'expiresOn'>) {
+export function makeOffer(state: GameState, o: Omit<JobOffer, 'id' | 'createdOn' | 'expiresOn'>) {
   const offer: JobOffer = { ...o, id: state.counters.offer++, createdOn: state.date, expiresOn: addDays(state.date, OFFER_DAYS) };
   state.offers.push(offer);
   const club = state.clubs[o.clubId]!;
