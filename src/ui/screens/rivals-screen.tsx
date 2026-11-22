@@ -151,7 +151,7 @@ function YouRow({ name, reputation, rank }: { name: string; reputation: number; 
       <td className="py-2 font-semibold text-flood-200">{name} (you)</td>
       <td className="py-2 text-mist-400">–</td>
       <td className="py-2">
-        <RepBar value={reputation} color="#ffc933" />
+        <RepBar value={reputation} color="var(--color-flood-400)" />
       </td>
       <td className="py-2 text-right text-mist-400">–</td>
       <td className="px-4 py-2 text-right text-mist-400">–</td>

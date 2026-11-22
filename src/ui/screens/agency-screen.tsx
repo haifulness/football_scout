@@ -153,7 +153,7 @@ function Founding({ v }: { v: AgencyView }) {
 function Req({ ok, text, detail }: { ok: boolean; text: string; detail: string }) {
   return (
     <li className="flex items-center gap-2">
-      <span className={ok ? 'text-grass-300' : 'text-mist-400'}>{ok ? '✓' : '○'}</span>
+      <span className={ok ? 'text-good-300' : 'text-mist-400'}>{ok ? '✓' : '○'}</span>
       <span className={ok ? '' : 'text-mist-300'}>{text}</span>
       <span className="ml-auto text-[12px] text-mist-400">{detail}</span>
     </li>
@@ -180,7 +180,7 @@ function Running({ v }: { v: AgencyView }) {
         <StatTile label="Running costs" sub={`${formatUSD(ag.weeklyUpkeep)}/wk HQ · ${formatUSD(ag.monthlyRent)}/mo rent`}>
           {formatUSD(ag.season.costs)}
         </StatTile>
-        <StatTile label="Agency net" accent={net >= 0 ? 'text-grass-300' : 'text-alert-400'} sub="this season, before staff wages">
+        <StatTile label="Agency net" accent={net >= 0 ? 'text-good-300' : 'text-alert-400'} sub="this season, before staff wages">
           {formatUSD(net)}
         </StatTile>
         <StatTile label="Capacity" sub={`${v.staff.used}/${v.staff.capacity} staff`}>

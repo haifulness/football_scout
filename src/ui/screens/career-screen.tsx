@@ -29,19 +29,19 @@ export function CareerScreen() {
       </header>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile label="Reputation" accent="#ffc933" sub="Opens doors at bigger clubs">
+        <StatTile label="Reputation" accent="var(--color-flood-400)" sub="Opens doors at bigger clubs">
           {c.reputation}
           <span className="text-sm text-mist-400">/100</span>
         </StatTile>
-        <StatTile label="Signings" accent="#2fcf73" sub={`${c.stats.placementsActive} still paying`}>
+        <StatTile label="Signings" accent="var(--color-good-400)" sub={`${c.stats.placementsActive} still paying`}>
           {c.stats.signings}
         </StatTile>
-        <StatTile label="Earned from scouting" accent="#38bdf8" sub="Signing + match bonuses">
+        <StatTile label="Earned from scouting" accent="var(--color-sky-400)" sub="Signing + match bonuses">
           <Money value={c.stats.earned} animated />
         </StatTile>
         <StatTile
           label="Status"
-          accent="#a9bec7"
+          accent="var(--color-mist-300)"
           sub={c.employment.mode === 'fulltime' ? c.employment.club.name : `${c.employment.clients.length}/${c.employment.slots} clients`}
         >
           <span className="text-xl">{c.employment.mode === 'fulltime' ? c.employment.title : 'Freelance'}</span>
@@ -278,7 +278,7 @@ const Mini = ({ label, value }: { label: string; value: string }) => (
 );
 
 function TrustBar({ value }: { value: number }) {
-  const c = value >= 60 ? '#2fcf73' : value >= 30 ? '#a3e635' : value >= 12 ? '#facc15' : '#ef4444';
+  const c = value >= 60 ? 'var(--color-good-400)' : value >= 30 ? '#a3e635' : value >= 12 ? '#facc15' : 'var(--color-alert-500)';
   return (
     <span className="inline-flex items-center gap-1.5">
       <span className="h-1.5 w-20 overflow-hidden rounded-full bg-white/[0.06]">
@@ -396,7 +396,7 @@ function ReputationPanel({ c }: { c: CareerView }) {
             <span
               key={m.reputation}
               className="absolute top-1/2 h-3 w-0.5 -translate-y-1/2"
-              style={{ left: `${m.reputation}%`, background: m.reached ? '#ffc933' : '#34505c' }}
+              style={{ left: `${m.reputation}%`, background: m.reached ? 'var(--color-flood-400)' : 'var(--color-night-500)' }}
             />
           ))}
         </div>

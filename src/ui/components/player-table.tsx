@@ -169,7 +169,7 @@ export function PlayerTable<T extends Row>({
               </td>
               {askFor && (
                 <td
-                  className={`num text-right font-semibold ${p.ask === undefined ? 'text-mist-400/60' : p.wageFits ? 'text-grass-300' : 'text-alert-400'}`}
+                  className={`num text-right font-semibold ${p.ask === undefined ? 'text-mist-400/60' : p.wageFits ? 'text-good-300' : 'text-alert-400'}`}
                   title={
                     p.ask === undefined
                       ? `Already at ${askFor}`

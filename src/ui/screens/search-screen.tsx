@@ -724,7 +724,7 @@ function Radar({ active }: { active: boolean }) {
       {active && (
         <motion.div
           className="absolute inset-0 rounded-full"
-          style={{ background: 'conic-gradient(from 0deg, rgba(47,207,115,0.45), transparent 25%)' }}
+          style={{ background: 'conic-gradient(from 0deg, color-mix(in srgb, var(--color-grass-400) 45%, transparent), transparent 25%)' }}
           animate={{ rotate: 360 }}
           transition={{ duration: 1.6, repeat: Infinity, ease: 'linear' }}
         />

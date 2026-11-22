@@ -240,7 +240,7 @@ function Watch({ match }: { match: AttendedMatchView }) {
                   <span className="num w-8 shrink-0 text-[12px] text-mist-400">{e.minute ? `${e.minute}'` : ''}</span>
                   <span className="flex-1">{e.text}</span>
                   {e.attributeLabel && (
-                    <span className={`chip shrink-0 ${e.kind === 'good' ? 'border-grass-400/40 text-grass-300' : 'border-alert-400/40 text-alert-400'}`}>
+                    <span className={`chip shrink-0 ${e.kind === 'good' ? 'border-good-400/40 text-good-300' : 'border-alert-400/40 text-alert-400'}`}>
                       {e.attributeLabel} {e.kind === 'good' ? '▲' : '▼'}
                     </span>
                   )}

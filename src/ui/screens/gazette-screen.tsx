@@ -26,8 +26,8 @@ const POSITION_NAME: Record<string, string> = {
 const posName = (p: string) => POSITION_NAME[p] ?? p;
 
 const urgency = (sev: number) => (sev >= 0.7 ? 'desperate for' : sev >= 0.45 ? 'short of' : 'could use');
-const severityColor = (sev: number) => (sev >= 0.45 ? '#ef4444' : sev >= 0.2 ? '#f5b301' : '#2fcf73');
-const formColor = { W: '#2fcf73', D: '#9aa4b2', L: '#ef4444' } as const;
+const severityColor = (sev: number) => (sev >= 0.45 ? 'var(--color-alert-500)' : sev >= 0.2 ? 'var(--color-flood-500)' : 'var(--color-good-400)');
+const formColor = { W: 'var(--color-good-400)', D: '#9aa4b2', L: 'var(--color-alert-500)' } as const;
 
 function needHeadline(n: GazetteNeed): string {
   const name = posName(n.position);
@@ -184,7 +184,7 @@ export function GazetteScreen() {
                     <span
                       className="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide"
                       style={{
-                        color: p.heat === 'boiling' ? '#ef4444' : p.heat === 'hot' ? '#f5b301' : '#9aa4b2',
+                        color: p.heat === 'boiling' ? 'var(--color-alert-500)' : p.heat === 'hot' ? 'var(--color-flood-500)' : '#9aa4b2',
                         background: p.heat === 'boiling' ? 'rgba(239,68,68,.12)' : p.heat === 'hot' ? 'rgba(245,179,1,.12)' : 'rgba(255,255,255,.05)',
                       }}
                     >
@@ -335,7 +335,7 @@ function FrontStory({
   onPlayer: (id: string) => void;
   onSearch: (n: GazetteNeed) => void;
 }) {
-  const accent = f.kind === 'yours' ? '#f5b301' : f.kind === 'sacking' ? '#ef4444' : f.kind === 'board' ? '#f59e0b' : f.need ? severityColor(f.need.severity) : '#2fcf73';
+  const accent = f.kind === 'yours' ? 'var(--color-flood-500)' : f.kind === 'sacking' ? 'var(--color-alert-500)' : f.kind === 'board' ? '#f59e0b' : f.need ? severityColor(f.need.severity) : 'var(--color-good-400)';
   return (
     <article className="grid grid-cols-1 content-start gap-4 sm:grid-cols-[auto_1fr]">
       {f.club && (
@@ -570,7 +570,7 @@ function ClubPick({ club, onClub }: { club: NonNullable<FrontPage['club']>; onCl
 function Verdict({ pos, good, final }: { pos: number; good: boolean; final: boolean }) {
   if (!pos) return null;
   return (
-    <span className={`text-[11px] ${good ? 'text-grass-300' : final ? 'text-alert-400' : 'text-mist-400'}`}>
+    <span className={`text-[11px] ${good ? 'text-good-300' : final ? 'text-alert-400' : 'text-mist-400'}`}>
       {final ? (good ? '✓ ' : '✗ ') : ''}
       {final ? 'finished' : 'now'} {ordinal(pos)}
     </span>

@@ -12,7 +12,7 @@ import { Cup } from '../components/trophy-reveal';
 import { Legacy } from '../components/legacy';
 
 const STATUS = {
-  done: { label: 'Done', className: 'border-grass-400/50 text-grass-300' },
+  done: { label: 'Done', className: 'border-good-400/50 text-good-300' },
   missed: { label: 'Missed', className: 'border-white/10 text-mist-400' },
   active: { label: 'In progress', className: 'border-flood-400/40 text-flood-300' },
 } as const;
@@ -98,7 +98,7 @@ function ObjectiveCard({ o }: { o: ObjectiveView }) {
   const shown = o.status === 'done' ? 1 : frac;
   return (
     <div
-      className={`flex flex-col gap-2 rounded-xl border p-3 ${o.status === 'done' ? 'border-grass-400/40 bg-grass-500/[0.06]' : 'border-white/[0.07] bg-white/[0.02]'}`}
+      className={`flex flex-col gap-2 rounded-xl border p-3 ${o.status === 'done' ? 'border-good-400/40 bg-good-500/[0.06]' : 'border-white/[0.07] bg-white/[0.02]'}`}
     >
       <div className="flex items-start gap-2">
         <div className="font-semibold leading-snug">{o.title}</div>
@@ -106,7 +106,7 @@ function ObjectiveCard({ o }: { o: ObjectiveView }) {
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
         <motion.div
-          className={`h-full rounded-full ${o.status === 'done' ? 'bg-grass-400' : 'bg-flood-400'}`}
+          className={`h-full rounded-full ${o.status === 'done' ? 'bg-good-400' : 'bg-flood-400'}`}
           initial={{ width: 0 }}
           animate={{ width: `${shown * 100}%` }}
           transition={{ duration: 0.6 }}

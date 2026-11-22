@@ -16,7 +16,7 @@ const hourLabel = (h: number) => (h >= SHUTS ? '00:00' : `${String(h).padStart(2
 const TONE: Record<DeadlineFeedItem['tone'], string> = {
   info: 'border-flood-400/40 text-flood-300',
   world: 'border-white/10 text-mist-300',
-  good: 'border-grass-400/50 text-grass-300',
+  good: 'border-good-400/50 text-good-300',
   bad: 'border-alert-400/50 text-alert-400',
 };
 

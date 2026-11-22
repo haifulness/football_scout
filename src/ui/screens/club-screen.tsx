@@ -44,20 +44,20 @@ export function ClubScreen({ id }: { id: ClubId }) {
       <ClubHero club={club} />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <StatTile label="Transfer budget" accent="#2fcf73">
+        <StatTile label="Transfer budget" accent="var(--color-good-400)">
           <Money value={club.transferBudget} animated />
         </StatTile>
-        <StatTile label="Wage budget" sub={`Bill ${formatUSD(club.wageBill)}/wk`} accent="#38bdf8">
+        <StatTile label="Wage budget" sub={`Bill ${formatUSD(club.wageBill)}/wk`} accent="var(--color-sky-400)">
           <Money value={club.wageBudget} animated />
           <span className="text-sm text-mist-400">/wk</span>
         </StatTile>
-        <StatTile label="Squad value" accent="#ffc933">
+        <StatTile label="Squad value" accent="var(--color-flood-400)">
           <Money value={club.squadValue} animated />
         </StatTile>
-        <StatTile label="Average age" accent="#a9bec7">
+        <StatTile label="Average age" accent="var(--color-mist-300)">
           {club.averageAge}
         </StatTile>
-        <StatTile label="Prospects" sub="Below-average youngsters" accent="#f87171">
+        <StatTile label="Prospects" sub="Below-average youngsters" accent="var(--color-alert-400)">
           <span className="text-xl">
             {club.acceptsProspects === 'yes' ? 'Welcome' : club.acceptsProspects === 'prodigies' ? 'Prodigies only' : 'Not wanted'}
           </span>
@@ -119,7 +119,7 @@ export function ClubScreen({ id }: { id: ClubId }) {
                     <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
                       <motion.div
                         className="h-full rounded-full"
-                        style={{ background: n.severity >= 0.45 ? '#ef4444' : n.severity >= 0.2 ? '#f5b301' : '#2fcf73' }}
+                        style={{ background: n.severity >= 0.45 ? 'var(--color-alert-500)' : n.severity >= 0.2 ? 'var(--color-flood-500)' : 'var(--color-good-400)' }}
                         initial={{ width: 0 }}
                         animate={{ width: `${Math.max(6, n.severity * 100)}%` }}
                         transition={{ duration: 0.8, delay: 0.2 + i * 0.04 }}
@@ -172,7 +172,7 @@ export function ClubScreen({ id }: { id: ClubId }) {
                   <tr key={h.season} className="border-b border-white/[0.04]">
                     <td className="num py-2 pl-4 text-mist-300">{h.season}</td>
                     <td className="text-mist-300">{h.leagueName}</td>
-                    <td className="num text-right font-bold" style={{ color: h.position === 1 ? '#ffc933' : undefined }}>
+                    <td className="num text-right font-bold" style={{ color: h.position === 1 ? 'var(--color-flood-400)' : undefined }}>
                       {ordinal(h.position)}
                     </td>
                     <td className="num pr-4 text-right text-mist-400">{h.points} pts</td>
@@ -196,7 +196,7 @@ function ClubHero({ club }: { club: ClubView }) {
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       className="relative overflow-hidden rounded-2xl border border-white/[0.06]"
-      style={{ background: `linear-gradient(115deg, ${darken(primary, 0.35)} 0%, ${darken(primary, 0.7)} 45%, #05080a 100%)` }}
+      style={{ background: `linear-gradient(115deg, ${darken(primary, 0.35)} 0%, ${darken(primary, 0.7)} 45%, var(--color-night-950) 100%)` }}
     >
       {/* stadium floodlights + stands */}
       <div className="absolute inset-0 bg-[radial-gradient(600px_220px_at_80%_-20%,rgba(255,236,170,0.28),transparent_70%)]" />
@@ -264,7 +264,7 @@ function OfficialCard({ official, club }: { official: OfficialView; club: ClubVi
           culture={culture}
           size={72}
           age={official.age}
-          shirt={official.role === 'coach' ? club.colors.primary : '#1a2830'}
+          shirt={official.role === 'coach' ? club.colors.primary : 'var(--color-night-700)'}
           trim={official.role === 'coach' ? club.colors.secondary : '#d4af37'}
           className="shrink-0 rounded-lg"
         />
@@ -482,7 +482,7 @@ function FixturesPanel({ club }: { club: ClubView }) {
       right={
         <span className="flex items-center gap-3">
           <span className="num text-xs text-mist-400">
-            <b className="text-grass-300">{record.w}W</b> · {record.d}D · <b className="text-alert-400">{record.l}L</b>
+            <b className="text-good-300">{record.w}W</b> · {record.d}D · <b className="text-alert-400">{record.l}L</b>
           </span>
           <span className="flex gap-0.5 rounded-md bg-white/[0.04] p-0.5">
             {(['results', 'upcoming'] as const).map((t) => (
@@ -635,7 +635,7 @@ function PresidentCard({ club }: { club: ClubView }) {
   return (
     <Panel title="President" right={<span className="chip">Signs off big money</span>}>
       <div className="flex gap-4 p-4">
-        <Portrait seed={p.portraitSeed} culture={culture} size={60} age={p.age} shirt="#1a2830" trim="#d4af37" className="shrink-0 rounded-lg" />
+        <Portrait seed={p.portraitSeed} culture={culture} size={60} age={p.age} shirt="var(--color-night-700)" trim="#d4af37" className="shrink-0 rounded-lg" />
         <div className="min-w-0 flex-1">
           <div className="truncate font-semibold">{p.name}</div>
           <div className="text-[11px] text-mist-400">

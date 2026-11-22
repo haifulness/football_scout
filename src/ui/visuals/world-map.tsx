@@ -1,4 +1,5 @@
 import { geoNaturalEarth1, geoPath, type GeoPermissibleObjects } from 'd3-geo';
+import { STRENGTH_FILL, alpha, ramp } from '../theme/color';
 import { motion, useReducedMotion } from 'motion/react';
 import { useMemo, useState } from 'react';
 import { feature } from 'topojson-client';
@@ -12,7 +13,7 @@ const LAND = feature(topo, topo.objects.countries) as FeatureCollection<Geometry
 // Antarctica only eats vertical space.
 LAND.features = LAND.features.filter((f) => f.properties.name !== 'Antarctica');
 
-const STRENGTH_FILL = ['#1a2830', '#1d4d3a', '#1f6a45', '#21874f', '#27a75c', '#2fcf73'];
+
 
 interface Props {
   world: WorldSummary;
@@ -76,7 +77,7 @@ export function WorldMap({ world, width, height, focus, highlight, onSelect, onH
       <defs>
         <radialGradient id="map-glow" cx="50%" cy="40%" r="70%">
           <stop offset="0" stopColor="#0f2a22" stopOpacity="0.55" />
-          <stop offset="1" stopColor="#05080a" stopOpacity="0" />
+          <stop offset="1" stopColor="var(--color-night-950)" stopOpacity="0" />
         </radialGradient>
         <filter id="dot-glow" x="-200%" y="-200%" width="500%" height="500%">
           <feGaussianBlur stdDeviation="2.2" result="b" />
@@ -97,11 +98,11 @@ export function WorldMap({ world, width, height, focus, highlight, onSelect, onH
             <path
               key={id + i}
               d={path(f) ?? undefined}
-              fill={playable ? STRENGTH_FILL[strength] : '#10191e'}
-              stroke={isHover ? '#ffc933' : playable ? '#2fcf7333' : '#ffffff0d'}
+              fill={playable ? STRENGTH_FILL[strength] : 'var(--color-night-850)'}
+              stroke={isHover ? 'var(--color-flood-400)' : playable ? alpha('var(--color-grass-400)', '33') : '#ffffff0d'}
               strokeWidth={isHover ? 1.4 : 0.5}
               className={playable && onSelect ? 'cursor-pointer transition-[fill] duration-200' : undefined}
-              style={isHover && playable ? { fill: focus ? '#1f6a45' : '#3fe08a', filter: 'drop-shadow(0 0 10px rgba(63,224,138,0.45))' } : undefined}
+              style={isHover && playable ? { fill: focus ? ramp(0.38) : 'var(--color-grass-300)', filter: `drop-shadow(0 0 10px ${alpha('var(--color-grass-400)', '73')})` } : undefined}
               onMouseEnter={() => {
                 if (!playable) return;
                 setHover(id);
@@ -130,7 +131,7 @@ export function WorldMap({ world, width, height, focus, highlight, onSelect, onH
                   cy={p[1]}
                   r={r}
                   fill="none"
-                  stroke="#ffc933"
+                  stroke="var(--color-flood-400)"
                   strokeWidth={1}
                   initial={{ r, opacity: 0.8 }}
                   animate={{ r: r * 4.5, opacity: 0 }}
@@ -141,7 +142,7 @@ export function WorldMap({ world, width, height, focus, highlight, onSelect, onH
                 cx={p[0]}
                 cy={p[1]}
                 r={r}
-                fill={c.clubs ? (elite ? '#ffc933' : '#e4eef2') : '#8aa2ad'}
+                fill={c.clubs ? (elite ? 'var(--color-flood-400)' : 'var(--color-mist-100)') : 'var(--color-mist-400)'}
                 opacity={c.clubs ? 0.9 : 0.4}
                 filter="url(#dot-glow)"
               />
@@ -150,10 +151,10 @@ export function WorldMap({ world, width, height, focus, highlight, onSelect, onH
                   x={p[0] + r + 3}
                   y={p[1] + 3}
                   fontSize={10}
-                  fill="#a9bec7"
+                  fill="var(--color-mist-300)"
                   fontFamily="Inter Variable"
                   style={{ paintOrder: 'stroke' }}
-                  stroke="#05080a"
+                  stroke="var(--color-night-950)"
                   strokeWidth={3}
                 >
                   {c.name}
@@ -184,7 +185,7 @@ export function WorldMap({ world, width, height, focus, highlight, onSelect, onH
                   r={r}
                   fill={pin.color}
                   fillOpacity={pin.faded ? 0.25 : 0.9}
-                  stroke="#05080a"
+                  stroke="var(--color-night-950)"
                   strokeWidth={1.5}
                   filter={pin.faded ? undefined : 'url(#dot-glow)'}
                   initial={reduce ? false : { scale: 0 }}
@@ -192,7 +193,7 @@ export function WorldMap({ world, width, height, focus, highlight, onSelect, onH
                   transition={{ delay: Math.min(i, 40) * 0.05, type: 'spring', stiffness: 260, damping: 14 }}
                 />
                 {pin.count > 1 && (
-                  <text textAnchor="middle" y={3.5} fontSize={9} fontWeight={700} fill="#05080a" pointerEvents="none">
+                  <text textAnchor="middle" y={3.5} fontSize={9} fontWeight={700} fill="var(--color-night-950)" pointerEvents="none">
                     {pin.count}
                   </text>
                 )}
@@ -220,29 +221,29 @@ function FlightArc({ projection, from, to }: { projection: Projection; from: { l
   const d = `M${a[0]},${a[1]} Q${c[0]},${c[1]} ${b[0]},${b[1]}`;
   return (
     <g pointerEvents="none">
-      <path d={d} fill="none" stroke="#ffc933" strokeOpacity={0.18} strokeWidth={6} />
+      <path d={d} fill="none" stroke="var(--color-flood-400)" strokeOpacity={0.18} strokeWidth={6} />
       <motion.path
         d={d}
         fill="none"
-        stroke="#ffc933"
+        stroke="var(--color-flood-400)"
         strokeWidth={2}
         initial={{ pathLength: 0 }}
         animate={{ pathLength: 1 }}
         transition={{ duration: 1.4, ease: [0.45, 0, 0.2, 1] }}
-        style={{ filter: 'drop-shadow(0 0 6px rgba(255,201,51,0.8))' }}
+        style={{ filter: `drop-shadow(0 0 6px ${alpha('var(--color-flood-400)', 'cc')})` }}
       />
-      <circle cx={a[0]} cy={a[1]} r={4} fill="#e4eef2" />
+      <circle cx={a[0]} cy={a[1]} r={4} fill="var(--color-mist-100)" />
       <motion.circle
         cx={b[0]}
         cy={b[1]}
         fill="none"
-        stroke="#2fcf73"
+        stroke="var(--color-grass-400)"
         strokeWidth={2}
         initial={{ r: 2, opacity: 0 }}
         animate={{ r: [2, 18], opacity: [0, 1, 0] }}
         transition={{ delay: 1.2, duration: 1.2, repeat: reduce ? 0 : Infinity }}
       />
-      <motion.circle cx={b[0]} cy={b[1]} r={5} fill="#2fcf73" initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 1.3, type: 'spring' }} />
+      <motion.circle cx={b[0]} cy={b[1]} r={5} fill="var(--color-grass-400)" initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 1.3, type: 'spring' }} />
     </g>
   );
 }
@@ -256,13 +257,13 @@ function YouMarker({ projection, at }: { projection: Projection; at: { lat: numb
       <motion.circle
         r={6}
         fill="none"
-        stroke="#2fcf73"
+        stroke="var(--color-grass-400)"
         strokeWidth={1.5}
         animate={reduce ? { r: 6, opacity: 0.9 } : { r: [6, 16], opacity: [0.9, 0] }}
         transition={{ duration: 1.8, repeat: reduce ? 0 : Infinity }}
       />
-      <path d="M0,-14 C5,-14 8,-10 8,-6 C8,-1 0,6 0,6 C0,6 -8,-1 -8,-6 C-8,-10 -5,-14 0,-14 Z" fill="#2fcf73" stroke="#05080a" strokeWidth={1.5} />
-      <circle cy={-6} r={2.5} fill="#05080a" />
+      <path d="M0,-14 C5,-14 8,-10 8,-6 C8,-1 0,6 0,6 C0,6 -8,-1 -8,-6 C-8,-10 -5,-14 0,-14 Z" fill="var(--color-grass-400)" stroke="var(--color-night-950)" strokeWidth={1.5} />
+      <circle cy={-6} r={2.5} fill="var(--color-night-950)" />
     </g>
   );
 }

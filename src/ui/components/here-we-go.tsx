@@ -33,7 +33,7 @@ export function HereWeGo() {
               <motion.span
                 key={i}
                 className="pointer-events-none absolute top-0 h-3 w-1.5 rounded-sm"
-                style={{ left: `${c.x}%`, background: [e.club.colors.primary, e.club.colors.secondary, '#ffc933'][c.c] }}
+                style={{ left: `${c.x}%`, background: [e.club.colors.primary, e.club.colors.secondary, 'var(--color-flood-400)'][c.c] }}
                 initial={{ y: -40, rotate: c.r, opacity: 1 }}
                 animate={{ y: '105vh', rotate: c.r + 540, opacity: [1, 1, 0] }}
                 transition={{ duration: 2.6 + c.d, delay: c.d * 0.4, ease: 'easeIn' }}
@@ -42,7 +42,7 @@ export function HereWeGo() {
           <motion.div
             className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-white/10 shadow-2xl"
             style={{
-              background: `linear-gradient(135deg, ${darken(e.club.colors.primary, 0.25)} 0%, ${darken(e.club.colors.primary, 0.7)} 55%, #05080a 100%)`,
+              background: `linear-gradient(135deg, ${darken(e.club.colors.primary, 0.25)} 0%, ${darken(e.club.colors.primary, 0.7)} 55%, var(--color-night-950) 100%)`,
             }}
             initial={{ scale: 0.8, y: 30, rotate: -2 }}
             animate={{ scale: 1, y: 0, rotate: 0 }}

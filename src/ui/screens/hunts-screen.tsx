@@ -182,7 +182,7 @@ function HuntCard({ h }: { h: HuntView }) {
                 key={(last?.text ?? '') + (error ?? '')}
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`mt-3 rounded-lg border px-3 py-2 text-sm ${error ? 'border-alert-400/40 text-alert-400' : last?.success ? 'border-grass-400/40 text-grass-300' : 'border-white/10 text-mist-300'}`}
+                className={`mt-3 rounded-lg border px-3 py-2 text-sm ${error ? 'border-alert-400/40 text-alert-400' : last?.success ? 'border-good-400/40 text-good-300' : 'border-white/10 text-mist-300'}`}
               >
                 {error ?? last?.text}
               </motion.div>

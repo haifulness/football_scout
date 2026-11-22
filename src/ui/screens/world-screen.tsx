@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react';
+import { STRENGTH_FILL } from '../theme/color';
 import { useMemo, useState, type ReactNode } from 'react';
 import type { ContinentId } from '../../engine/core/ids';
 import { formatDate } from '../../engine/core/calendar';
@@ -71,7 +72,7 @@ function SeasonStrip({ home, money }: { home: HomeView; money: number }) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
       <LinkTile onClick={() => navigate({ screen: 'finances' })} hint="Open Finances">
-        <StatTile label="Money" sub={`${s.label}: +${formatUSD(s.earned)} in · −${formatUSD(s.spent)} out`} accent="#2fcf73">
+        <StatTile label="Money" sub={`${s.label}: +${formatUSD(s.earned)} in · −${formatUSD(s.spent)} out`} accent="var(--color-good-400)">
           <Money value={money} animated />
         </StatTile>
       </LinkTile>
@@ -81,7 +82,7 @@ function SeasonStrip({ home, money }: { home: HomeView; money: number }) {
           sub={
             scout?.nextUnlock ? `#${s.rank} of ${s.scouts} · ${scout.nextUnlock.label} at ${scout.nextUnlock.reputation}` : `#${s.rank} of ${s.scouts} scouts`
           }
-          accent="#ffc933"
+          accent="var(--color-flood-400)"
         >
           {s.reputation}
           <span className="text-sm text-mist-400">/100</span>
@@ -89,14 +90,14 @@ function SeasonStrip({ home, money }: { home: HomeView; money: number }) {
       </LinkTile>
       {s.work.mode === 'freelance' ? (
         <LinkTile onClick={() => navigate({ screen: 'career' })} hint="Your clients and job offers">
-          <StatTile label="Clients" sub="Freelance" accent="#38bdf8">
+          <StatTile label="Clients" sub="Freelance" accent="var(--color-sky-400)">
             {s.work.clients}
             <span className="text-sm text-mist-400">/{s.work.slots}</span>
           </StatTile>
         </LinkTile>
       ) : (
         <LinkTile onClick={() => s.work.mode === 'fulltime' && navigate({ screen: 'club', id: s.work.club.id })} hint="Open your employer's page">
-          <StatTile label="Employer" sub="Full-time" accent="#38bdf8">
+          <StatTile label="Employer" sub="Full-time" accent="var(--color-sky-400)">
             <span className="flex items-center gap-2 text-lg">
               <Crest club={s.work.club} size={22} />
               <span className="truncate">{s.work.club.shortName}</span>
@@ -110,7 +111,7 @@ function SeasonStrip({ home, money }: { home: HomeView; money: number }) {
         </StatTile>
       </LinkTile>
       <LinkTile onClick={() => navigate({ screen: 'pool' })} hint="Open your player pool">
-        <StatTile label="Player pool" sub="Players you're tracking" accent="#a9bec7">
+        <StatTile label="Player pool" sub="Players you're tracking" accent="var(--color-mist-300)">
           {s.poolSize}
         </StatTile>
       </LinkTile>
@@ -282,7 +283,7 @@ function MapPanel() {
           <div className="pointer-events-none absolute bottom-2 left-3 flex items-center gap-2 text-[11px] text-mist-400">
             Football strength
             {[1, 2, 3, 4, 5].map((s) => (
-              <span key={s} className="h-2 w-4 rounded-sm" style={{ background: ['#1d4d3a', '#1f6a45', '#21874f', '#27a75c', '#2fcf73'][s - 1] }} />
+              <span key={s} className="h-2 w-4 rounded-sm" style={{ background: STRENGTH_FILL[s] }} />
             ))}
           </div>
           <AnimatePresence>

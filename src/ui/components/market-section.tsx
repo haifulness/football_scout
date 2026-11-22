@@ -1,4 +1,5 @@
 import { motion } from 'motion/react';
+import { alpha } from '../theme/color';
 import { useState } from 'react';
 import { formatDate } from '../../engine/core/calendar';
 import { formatUSD } from '../../engine/core/money';
@@ -12,12 +13,12 @@ import { useGame } from '../store/game-store';
 import { DealStageBadge } from './deal-stage';
 
 const STATUS: Record<MandateView['status'], { label: string; color: string }> = {
-  offered: { label: 'Offered', color: '#ffc933' },
-  active: { label: 'Selling', color: '#38bdf8' },
-  succeeded: { label: 'Sold', color: '#2fcf73' },
-  failed: { label: 'Failed', color: '#ef4444' },
-  declined: { label: 'Declined', color: '#8aa2ad' },
-  expired: { label: 'Lapsed', color: '#8aa2ad' },
+  offered: { label: 'Offered', color: 'var(--color-flood-400)' },
+  active: { label: 'Selling', color: 'var(--color-sky-400)' },
+  succeeded: { label: 'Sold', color: 'var(--color-good-400)' },
+  failed: { label: 'Failed', color: 'var(--color-alert-500)' },
+  declined: { label: 'Declined', color: 'var(--color-mist-400)' },
+  expired: { label: 'Lapsed', color: 'var(--color-mist-400)' },
 };
 
 const mid = (r: [number, number]) => Math.round((r[0] + r[1]) / 2);
@@ -71,7 +72,7 @@ export function MarketSection({ market }: { market: MarketView }) {
 const Status = ({ status }: { status: MandateView['status'] }) => (
   <span
     className="rounded-md px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider"
-    style={{ color: STATUS[status].color, background: `${STATUS[status].color}18`, boxShadow: `inset 0 0 0 1px ${STATUS[status].color}44` }}
+    style={{ color: STATUS[status].color, background: `${alpha(STATUS[status].color, '18')}`, boxShadow: `inset 0 0 0 1px ${alpha(STATUS[status].color, '44')}` }}
   >
     {STATUS[status].label}
   </span>
@@ -152,7 +153,7 @@ function MandateCard({ m, i }: { m: MandateView; i: number }) {
             )}
           </div>
           <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
-            <div className="h-full rounded-full" style={{ width: `${elapsed * 100}%`, background: m.daysLeft! <= 7 ? '#ef4444' : '#38bdf8' }} />
+            <div className="h-full rounded-full" style={{ width: `${elapsed * 100}%`, background: m.daysLeft! <= 7 ? 'var(--color-alert-500)' : 'var(--color-sky-400)' }} />
           </div>
         </div>
       )}

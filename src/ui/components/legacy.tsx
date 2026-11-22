@@ -10,10 +10,10 @@ import { Panel } from './ui';
 import { useSize } from './use-size';
 
 export const FORM_STYLE: Record<PlacementForm, { color: string; label: string }> = {
-  star: { color: '#ffc933', label: 'Starring' },
-  good: { color: '#2fcf73', label: 'Doing well' },
-  ok: { color: '#38bdf8', label: 'Holding his own' },
-  poor: { color: '#f87171', label: 'Struggling' },
+  star: { color: 'var(--color-flood-400)', label: 'Starring' },
+  good: { color: 'var(--color-good-400)', label: 'Doing well' },
+  ok: { color: 'var(--color-sky-400)', label: 'Holding his own' },
+  poor: { color: 'var(--color-alert-400)', label: 'Struggling' },
   bench: { color: '#94a3b8', label: 'Barely playing' },
   gone: { color: '#64748b', label: 'Moved on' },
 };

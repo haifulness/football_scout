@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react';
+import { alpha } from '../theme/color';
 import { useEffect, useState } from 'react';
 import type { ClubId, CountryId, LeagueId, PlayerId, StaffId } from '../../engine/core/ids';
 import { formatUSD, usd } from '../../engine/core/money';
@@ -253,7 +254,7 @@ function PlayerPicker({ onPick, brief }: { onPick: (id: PlayerId) => void; brief
                   Might fit
                 </span>
               )}
-              {useBrief && briefFit(p) === 'yes' && <span className="text-[11px] text-grass-300">Fits</span>}
+              {useBrief && briefFit(p) === 'yes' && <span className="text-[11px] text-good-300">Fits</span>}
               <PosBadge pos={p.position} />
               <OvrBadge ovr={p.ovr} range={p.ovrRange} size="sm" />
             </button>
@@ -478,7 +479,7 @@ function PitchView({
               </div>
               <BarCompare avg={preview.positionalAverage} est={preview.estimate} />
               <div
-                className={`mt-2 text-sm ${preview.clearsBar === 'yes' ? 'text-grass-300' : preview.clearsBar === 'no' ? 'text-alert-400' : 'text-flood-300'}`}
+                className={`mt-2 text-sm ${preview.clearsBar === 'yes' ? 'text-good-300' : preview.clearsBar === 'no' ? 'text-alert-400' : 'text-flood-300'}`}
               >
                 {preview.clearsBar === 'yes'
                   ? 'Even your cautious estimate beats their average.'
@@ -561,14 +562,14 @@ function PitchView({
                         {m.position} brief · reward <b className="num">{formatUSD(m.reward)}</b>
                         {!m.samePosition && <span className="ml-2 text-[11px] text-flood-300">(pitch him as a {m.position} to count)</span>}
                       </span>
-                      <span className={`text-xs font-semibold ${anyNo ? 'text-alert-400' : allYes ? 'text-grass-300' : 'text-flood-300'}`}>
+                      <span className={`text-xs font-semibold ${anyNo ? 'text-alert-400' : allYes ? 'text-good-300' : 'text-flood-300'}`}>
                         {anyNo ? "Doesn't fit" : allYes ? 'Fits the brief' : 'Might fit'}
                       </span>
                     </div>
                     <ul className="mt-1 flex flex-wrap gap-1.5">
                       {m.checks.map((c) => (
                         <li key={c.label} className="chip">
-                          <span className={c.status === 'yes' ? 'text-grass-300' : c.status === 'no' ? 'text-alert-400' : 'text-flood-300'}>
+                          <span className={c.status === 'yes' ? 'text-good-300' : c.status === 'no' ? 'text-alert-400' : 'text-flood-300'}>
                             {c.status === 'yes' ? '✓' : c.status === 'no' ? '✕' : '?'}
                           </span>{' '}
                           {c.label}
@@ -587,7 +588,7 @@ function PitchView({
                       <ul className="mt-1 flex flex-wrap gap-1.5">
                         {m.preferences.map((c) => (
                           <li key={c.label} className="chip border-flood-400/20">
-                            <span className={c.status === 'yes' ? 'text-grass-300' : c.status === 'no' ? 'text-alert-400' : 'text-flood-300'}>
+                            <span className={c.status === 'yes' ? 'text-good-300' : c.status === 'no' ? 'text-alert-400' : 'text-flood-300'}>
                               {c.status === 'yes' ? '✓' : c.status === 'no' ? '✕' : '?'}
                             </span>{' '}
                             {c.label}
@@ -626,7 +627,7 @@ function PitchView({
           </div>
           <ul className="mt-2 space-y-1">
             {deal.log.slice(-4).map((l, i) => (
-              <li key={i} className={`text-[13px] ${l.tone === 'good' ? 'text-grass-300' : l.tone === 'bad' ? 'text-alert-400' : 'text-mist-300'}`}>
+              <li key={i} className={`text-[13px] ${l.tone === 'good' ? 'text-good-300' : l.tone === 'bad' ? 'text-alert-400' : 'text-mist-300'}`}>
                 {l.text}
               </li>
             ))}
@@ -734,7 +735,7 @@ function Verdict({ preview, wageOffer, deal }: { preview: Preview; wageOffer: nu
         strong: "Strong case: they'll likely say yes",
         'toss-up': preview.clearsBar === 'yes' ? 'Good player, hard sell: a toss-up' : 'A toss-up',
       }[tone];
-  const color = deal ? 'text-mist-100' : { blocked: 'text-alert-400', weak: 'text-alert-400', strong: 'text-grass-300', 'toss-up': 'text-flood-300' }[tone];
+  const color = deal ? 'text-mist-100' : { blocked: 'text-alert-400', weak: 'text-alert-400', strong: 'text-good-300', 'toss-up': 'text-flood-300' }[tone];
   const brief = preview.missions.find((m) => m.checks.every((c) => c.status === 'yes') && m.samePosition);
   const briefNo = !brief && preview.missions.some((m) => m.checks.some((c) => c.status === 'no'));
   const chips: { text: string; tone: 'good' | 'bad' | 'warn' }[] = [
@@ -769,19 +770,19 @@ function Verdict({ preview, wageOffer, deal }: { preview: Preview; wageOffer: nu
   if (preview.rivalInterest.length)
     chips.push({ text: `${preview.rivalInterest.length} rival${preview.rivalInterest.length > 1 ? 's' : ''} after him`, tone: 'warn' });
   if (preview.rights === 'open') chips.push({ text: 'Open pitch: half bonus', tone: 'warn' });
-  const chipColor = { good: 'border-grass-400/25 text-grass-200', bad: 'border-alert-500/40 text-alert-400', warn: 'border-flood-400/30 text-flood-300' };
+  const chipColor = { good: 'border-good-400/25 text-good-200', bad: 'border-alert-500/40 text-alert-400', warn: 'border-flood-400/30 text-flood-300' };
   return (
     <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4">
       <div className={`font-display text-2xl font-bold uppercase leading-tight ${color}`}>{head}</div>
       {blocked && !deal && <div className="mt-1 text-sm text-alert-400">{blocked}</div>}
       {preview.repitch && (deal?.stage === 'rejected' || preview.repitch.ok) && (
-        <div className={`mt-1 text-sm ${preview.repitch.ok ? 'text-grass-300' : 'text-mist-300'}`}>{preview.repitch.message}</div>
+        <div className={`mt-1 text-sm ${preview.repitch.ok ? 'text-good-300' : 'text-mist-300'}`}>{preview.repitch.message}</div>
       )}
       {preview.board && !deal && (
         <div className="mt-1.5 text-[12px] text-mist-400">
           President {preview.board.president}:{' '}
           {preview.board.reasons.length ? preview.board.reasons.map((r, i) => (
-            <span key={r.text} className={r.good ? 'text-grass-300' : 'text-alert-400'}>
+            <span key={r.text} className={r.good ? 'text-good-300' : 'text-alert-400'}>
               {i > 0 && ', '}
               {r.text}
             </span>
@@ -818,7 +819,7 @@ function BarCompare({ avg, est }: { avg: number; est: [number, number] }) {
       <div className="absolute inset-x-0 top-5 h-2 rounded-full bg-white/[0.06]" />
       <motion.div
         className="absolute top-4 h-4 rounded-md"
-        style={{ background: `repeating-linear-gradient(135deg, ${c}55 0 4px, ${c}99 4px 8px)`, boxShadow: `0 0 12px ${c}66` }}
+        style={{ background: `repeating-linear-gradient(135deg, ${alpha(c, '55')} 0 4px, ${alpha(c, '99')} 4px 8px)`, boxShadow: `0 0 12px ${alpha(c, '66')}` }}
         initial={{ left: x(avg), width: 0 }}
         animate={{ left: x(est[0]), width: `calc(${x(est[1])} - ${x(est[0])})` }}
         transition={{ duration: 0.6 }}
@@ -835,7 +836,7 @@ function BarCompare({ avg, est }: { avg: number; est: [number, number] }) {
 }
 
 const READ = {
-  good: { label: 'Good chance', c: 'text-grass-300' },
+  good: { label: 'Good chance', c: 'text-good-300' },
   'toss-up': { label: 'Toss-up', c: 'text-flood-300' },
   'long-shot': { label: 'Long shot', c: 'text-alert-400' },
 } as const;
@@ -869,7 +870,7 @@ function OfficialPitchCard({
   return (
     <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
       <div className="flex items-start gap-3">
-        <Portrait seed={o.portraitSeed} size={48} age={o.age} shirt="#24363f" trim="#d4af37" className="rounded-lg" />
+        <Portrait seed={o.portraitSeed} size={48} age={o.age} shirt="var(--color-night-600)" trim="#d4af37" className="rounded-lg" />
         <div className="min-w-0 flex-1">
           <div className="text-[10px] uppercase tracking-wider text-mist-400">{role}</div>
           <div className="truncate font-semibold">{o.name}</div>
@@ -970,7 +971,7 @@ function AgreementBox({
     <div className={`rounded-xl border p-4 ${optional ? 'border-sky-400/25 bg-sky-400/[0.04]' : 'border-flood-400/30 bg-flood-500/5'}`}>
       <div className={`text-sm ${optional ? 'text-mist-200' : 'text-flood-300'}`}>{reason}</div>
       {result ? (
-        <div className={`mt-2 text-sm ${result.accepted ? 'text-grass-300' : 'text-alert-400'}`}>{result.reason}</div>
+        <div className={`mt-2 text-sm ${result.accepted ? 'text-good-300' : 'text-alert-400'}`}>{result.reason}</div>
       ) : !agreement.ok ? (
         <div className="mt-2 text-[12px] text-mist-400">{agreement.reason}</div>
       ) : !inCity ? (

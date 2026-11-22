@@ -110,7 +110,7 @@ export function ScoutingPanel({ player: p }: { player: PlayerView }) {
               <span
                 key={m.level}
                 className="absolute top-1/2 h-3.5 w-0.5 -translate-y-1/2 rounded-full"
-                style={{ left: `calc(${m.level}% - 1px)`, background: p.knowledge >= m.level ? '#2fcf73' : '#34505c' }}
+                style={{ left: `calc(${m.level}% - 1px)`, background: p.knowledge >= m.level ? 'var(--color-good-400)' : 'var(--color-night-500)' }}
                 title={`${m.level}: ${m.label}`}
               />
             ))}

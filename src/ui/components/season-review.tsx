@@ -69,14 +69,14 @@ function ReviewBody({ r }: { r: SeasonReviewView }) {
       <h2 className="font-display text-5xl font-bold uppercase leading-none">{r.label}</h2>
 
       <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Tile label="Net" accent={net >= 0 ? 'text-grass-300' : 'text-alert-400'}>
+        <Tile label="Net" accent={net >= 0 ? 'text-good-300' : 'text-alert-400'}>
           <CountUp value={net} format={(n) => formatUSD(Math.round(n))} />
         </Tile>
         <Tile label="Placements">{r.placements}</Tile>
         <Tile label="Reputation" accent="text-flood-300">
           {r.reputation.end}
           {repDelta !== undefined && (
-            <span className={`ml-1 text-sm ${repDelta >= 0 ? 'text-grass-300' : 'text-alert-400'}`}>
+            <span className={`ml-1 text-sm ${repDelta >= 0 ? 'text-good-300' : 'text-alert-400'}`}>
               {repDelta >= 0 ? '+' : ''}
               {repDelta}
             </span>
@@ -96,7 +96,7 @@ function ReviewBody({ r }: { r: SeasonReviewView }) {
             <div className="flex flex-wrap items-center gap-1.5 text-[12px]">
               <span className="panel-title mr-1 text-[11px]">Season goals</span>
               {r.objectives.map((o, i) => (
-                <span key={i} className={`chip ${o.status === 'done' ? 'border-grass-400/50 text-grass-300' : 'text-mist-400'}`}>
+                <span key={i} className={`chip ${o.status === 'done' ? 'border-good-400/50 text-good-300' : 'text-mist-400'}`}>
                   {o.status === 'done' ? '✓' : '✗'} {o.title}
                 </span>
               ))}
@@ -133,7 +133,7 @@ function ReviewBody({ r }: { r: SeasonReviewView }) {
                   <span className="truncate text-mist-300">{x.label}</span>
                   <span className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
                     <span
-                      className={`block h-full rounded-full ${x.amount >= 0 ? 'bg-grass-400' : 'bg-alert-500'}`}
+                      className={`block h-full rounded-full ${x.amount >= 0 ? 'bg-good-400' : 'bg-alert-500'}`}
                       style={{ width: `${(Math.abs(x.amount) / biggest) * 100}%` }}
                     />
                   </span>
@@ -279,7 +279,7 @@ export function SeasonReviewsPanel() {
               onClick={() => openReview(r.season)}
             >
               <span className="num w-16 font-bold">{r.label}</span>
-              <span className={`num w-24 ${r.income + r.expenses >= 0 ? 'text-grass-300' : 'text-alert-400'}`}>{formatUSD(r.income + r.expenses)}</span>
+              <span className={`num w-24 ${r.income + r.expenses >= 0 ? 'text-good-300' : 'text-alert-400'}`}>{formatUSD(r.income + r.expenses)}</span>
               <span className="flex-1 text-mist-400">
                 {r.placements} placement{r.placements === 1 ? '' : 's'} · reputation {r.reputation.end}
                 {r.rank ? ` · ${ordinal(r.rank.position)} of ${r.rank.of} scouts` : ''}

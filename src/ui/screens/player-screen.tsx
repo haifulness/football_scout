@@ -42,8 +42,8 @@ export function PlayerScreen({ id }: { id: PlayerId }) {
         <p className="mt-2 text-mist-300">This player has retired from professional football.</p>
       </div>
     );
-  const shirt = p.club?.colors.primary ?? '#24363f';
-  const trim = p.club?.colors.secondary ?? '#8aa2ad';
+  const shirt = p.club?.colors.primary ?? 'var(--color-night-600)';
+  const trim = p.club?.colors.secondary ?? 'var(--color-mist-400)';
   const groups = (
     p.naturalPosition === 'GK' ? ['Goalkeeping', 'Mental', 'Physical', 'Technical'] : ['Technical', 'Mental', 'Physical']
   ) as (keyof typeof ATTRIBUTE_GROUPS)[];
@@ -122,10 +122,10 @@ export function PlayerScreen({ id }: { id: PlayerId }) {
       </motion.header>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile label="Market value" accent="#ffc933">
+        <StatTile label="Market value" accent="var(--color-flood-400)">
           <Money value={p.value} animated />
         </StatTile>
-        <StatTile label="Wage" accent="#38bdf8">
+        <StatTile label="Wage" accent="var(--color-sky-400)">
           {p.isFreeAgent ? (
             '–'
           ) : (
@@ -135,13 +135,13 @@ export function PlayerScreen({ id }: { id: PlayerId }) {
             </>
           )}
         </StatTile>
-        <StatTile label="Contract" accent="#a9bec7">
+        <StatTile label="Contract" accent="var(--color-mist-300)">
           {p.contractUntil ? formatDate(p.contractUntil) : 'None'}
         </StatTile>
         <StatTile
           label="Potential"
           sub={p.potential ? (p.prodigy ? '★ A genuine prodigy' : 'Your judgement of his ceiling') : 'Learn more to judge his ceiling'}
-          accent="#f87171"
+          accent="var(--color-alert-400)"
         >
           {p.potential ? (
             <span className={p.prodigy ? 'text-flood-300' : ''}>

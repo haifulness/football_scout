@@ -47,13 +47,13 @@ export function CountryScreen({ id, leagueId }: { id: CountryId; leagueId?: Leag
             <StatTile label="Clubs" sub={`${country.leagueCount} leagues`}>
               {country.clubCount}
             </StatTile>
-            <StatTile label="Players" sub={`${country.freeAgents} free agents`} accent="#38bdf8">
+            <StatTile label="Players" sub={`${country.freeAgents} free agents`} accent="var(--color-sky-400)">
               {country.playerCount.toLocaleString('en-US')}
             </StatTile>
-            <StatTile label="Wealth index" sub="Scales fees & wages" accent="#ffc933">
+            <StatTile label="Wealth index" sub="Scales fees & wages" accent="var(--color-flood-400)">
               {country.wealthIndex.toFixed(2)}×
             </StatTile>
-            <StatTile label="Cost index" sub="Travel & search costs" accent="#f87171">
+            <StatTile label="Cost index" sub="Travel & search costs" accent="var(--color-alert-400)">
               {country.costIndex.toFixed(2)}×
             </StatTile>
           </div>
@@ -95,9 +95,9 @@ export function CountryScreen({ id, leagueId }: { id: CountryId; leagueId?: Leag
                   hasRelegation={league.hasRelegation}
                 />
                 <div className="flex gap-4 border-t border-white/5 px-4 py-2 text-[11px] text-mist-400">
-                  <Legend color="#ffc933" label="Champion" />
-                  {league.hasPromotion && <Legend color="#2fcf73" label="Promotion" />}
-                  {league.hasRelegation && <Legend color="#ef4444" label="Relegation" />}
+                  <Legend color="var(--color-flood-400)" label="Champion" />
+                  {league.hasPromotion && <Legend color="var(--color-good-400)" label="Promotion" />}
+                  {league.hasRelegation && <Legend color="var(--color-alert-500)" label="Relegation" />}
                 </div>
               </>
             )}

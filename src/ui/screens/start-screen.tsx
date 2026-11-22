@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react';
+import { ThemeSwitch } from '../components/theme-switch';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { formatDate, type GameDate } from '../../engine/core/calendar';
 import type { SaveMeta } from '../../persistence/db';
@@ -70,7 +71,7 @@ export function StartScreen() {
       <div className="pointer-events-none fixed inset-0">
         <div className="absolute -left-40 -top-40 h-[700px] w-[700px] rotate-12 bg-[conic-gradient(from_200deg_at_20%_20%,rgba(255,224,138,0.18),transparent_25%)] blur-2xl" />
         <div className="absolute -right-40 -top-40 h-[700px] w-[700px] -rotate-12 bg-[conic-gradient(from_120deg_at_80%_20%,rgba(255,224,138,0.14),transparent_25%)] blur-2xl" />
-        <div className="absolute inset-x-0 bottom-0 h-[45%] bg-[linear-gradient(180deg,transparent,rgba(15,77,46,0.35))]" />
+        <div className="absolute inset-x-0 bottom-0 h-[45%] bg-[linear-gradient(180deg,transparent,color-mix(in_srgb,var(--color-grass-700)_35%,transparent))]" />
       </div>
 
       <div className="relative z-10 grid w-full max-w-5xl grid-cols-1 items-center gap-10 px-6 py-10 lg:grid-cols-[1fr_440px]">
@@ -147,7 +148,7 @@ export function StartScreen() {
               onClick={() => void run(() => loadSave(latest.id))}
               className="panel group relative overflow-hidden p-5 text-left transition-transform hover:-translate-y-0.5 disabled:opacity-50"
             >
-              <div className="absolute inset-0 bg-[radial-gradient(400px_160px_at_100%_0%,rgba(47,207,115,0.16),transparent_70%)]" />
+              <div className="absolute inset-0 bg-[radial-gradient(400px_160px_at_100%_0%,color-mix(in_srgb,var(--color-grass-400)_16%,transparent),transparent_70%)]" />
               <div className="relative">
                 <div className="panel-title text-grass-300">Continue</div>
                 <div className="mt-1 font-display text-3xl font-bold uppercase leading-none">{latest.name}</div>
@@ -244,6 +245,10 @@ export function StartScreen() {
             Saves live in this browser. Export a backup if you clear browser data or switch browsers.
           </p>
           <HallOfFame />
+          <div className="flex items-center gap-3 px-1">
+            <span className="text-[11px] text-mist-400">Colours</span>
+            <ThemeSwitch className="w-56" />
+          </div>
         </motion.section>
       </div>
       <AnimatePresence>

@@ -4,7 +4,11 @@
 @import '@fontsource/barlow-condensed/700.css';
 @import 'tailwindcss';
 
-/* "Stadium night": deep pitch-blacks, grass greens, floodlight amber. */
+/*
+ * Two themes share these token names. "Stadium night" (the default): deep pitch-blacks, grass greens,
+ * floodlight amber. "Floodlit navy" (data-theme="navy", below): ink navy, floodlight cyan, soft gold.
+ * grass = the theme's main colour (buttons, links, selection); good = good news, green in both.
+ */
 @theme {
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
   --font-display: 'Barlow Condensed', 'Inter Variable', sans-serif;
@@ -16,14 +20,24 @@
   --color-night-700: #1a2830;
   --color-night-600: #24363f;
   --color-night-500: #34505c;
+  --color-mist-500: #6b838e;
   --color-mist-400: #8aa2ad;
   --color-mist-300: #a9bec7;
+  --color-mist-200: #c6d6dd;
   --color-mist-100: #e4eef2;
+  --color-mist-50: #f3f8fa;
 
   --color-grass-700: #0f5132;
   --color-grass-500: #1f9d55;
   --color-grass-400: #2fcf73;
   --color-grass-300: #6ee7a0;
+  --color-grass-200: #a7f3c4;
+
+  --color-good-700: #0f5132;
+  --color-good-500: #1f9d55;
+  --color-good-400: #2fcf73;
+  --color-good-300: #6ee7a0;
+  --color-good-200: #a7f3c4;
 
   --color-flood-500: #f5b301;
   --color-flood-400: #ffc933;
@@ -35,6 +49,49 @@
   --color-sky-400: #38bdf8;
 
   --ease-broadcast: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Floodlit navy: the same tokens, repainted. Picked under Save/Menu in the sidebar (or on the start screen); kept per browser. */
+:root[data-theme='navy'] {
+  --color-night-950: #070a12;
+  --color-night-900: #0c111c;
+  --color-night-850: #101726;
+  --color-night-800: #141c2c;
+  --color-night-700: #1d2739;
+  --color-night-600: #29354b;
+  --color-night-500: #3a4a66;
+  --color-mist-500: #67718a;
+  --color-mist-400: #8590ab;
+  --color-mist-300: #b3bdd3;
+  --color-mist-200: #d0d7e6;
+  --color-mist-100: #eef2fa;
+  --color-mist-50: #f6f8fd;
+
+  --color-grass-700: #0c4a63;
+  --color-grass-500: #22b5e0;
+  --color-grass-400: #4cc9f0;
+  --color-grass-300: #8fdcf6;
+  --color-grass-200: #c4ecfa;
+
+  --color-good-700: #0f5132;
+  --color-good-500: #22b866;
+  --color-good-400: #3ddc84;
+  --color-good-300: #7eeaac;
+  --color-good-200: #c0f3d4;
+
+  --color-flood-500: #e0a82e;
+  --color-flood-400: #f2c14e;
+  --color-flood-300: #f8da8f;
+  --color-flood-200: #fcecc4;
+
+  --color-alert-500: #f04f4f;
+  --color-alert-400: #ff6b6b;
+
+  --color-sky-100: #e6e9ff;
+  --color-sky-200: #cdd4ff;
+  --color-sky-300: #b4bfff;
+  --color-sky-400: #9aa8ff;
+  --color-sky-500: #7d8cf5;
 }
 
 @layer base {
@@ -90,9 +147,9 @@
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(1200px 600px at 15% -10%, rgba(255, 201, 51, 0.07), transparent 60%),
-    radial-gradient(900px 500px at 100% 0%, rgba(47, 207, 115, 0.06), transparent 60%),
-    radial-gradient(1000px 700px at 50% 120%, rgba(56, 189, 248, 0.04), transparent 60%);
+    radial-gradient(1200px 600px at 15% -10%, color-mix(in srgb, var(--color-flood-400) 7%, transparent), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, color-mix(in srgb, var(--color-grass-400) 6%, transparent), transparent 60%),
+    radial-gradient(1000px 700px at 50% 120%, color-mix(in srgb, var(--color-sky-400) 4%, transparent), transparent 60%);
   z-index: 0;
 }
 .app-atmosphere::after {

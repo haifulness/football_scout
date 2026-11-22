@@ -6,7 +6,7 @@ import type { FixtureView, TableRowView } from '../../engine/views';
 import { Crest } from '../visuals/crest';
 import { useGame } from '../store/game-store';
 
-const FORM_COLOR = { W: '#2fcf73', D: '#8aa2ad', L: '#ef4444' } as const;
+const FORM_COLOR = { W: 'var(--color-good-400)', D: 'var(--color-mist-400)', L: 'var(--color-alert-500)' } as const;
 
 export function FormPills({ form }: { form: ('W' | 'D' | 'L')[] }) {
   return (
@@ -110,7 +110,7 @@ export function LeagueTable({
 }) {
   const navigate = useGame((s) => s.navigate);
   const zone = (pos: number) =>
-    pos === 1 ? '#ffc933' : hasPromotion && pos <= promotionSpots ? '#2fcf73' : hasRelegation && pos > rows.length - promotionSpots ? '#ef4444' : undefined;
+    pos === 1 ? 'var(--color-flood-400)' : hasPromotion && pos <= promotionSpots ? 'var(--color-good-400)' : hasRelegation && pos > rows.length - promotionSpots ? 'var(--color-alert-500)' : undefined;
   return (
     <table className="w-full text-sm">
       <thead>
@@ -160,7 +160,7 @@ export function LeagueTable({
                   <td className="num text-right text-mist-300">{r.lost}</td>
                 </>
               )}
-              <td className={`num text-right ${gd > 0 ? 'text-grass-300' : gd < 0 ? 'text-alert-400' : 'text-mist-300'}`}>{gd > 0 ? `+${gd}` : gd}</td>
+              <td className={`num text-right ${gd > 0 ? 'text-good-300' : gd < 0 ? 'text-alert-400' : 'text-mist-300'}`}>{gd > 0 ? `+${gd}` : gd}</td>
               <td className="num pr-3 text-right text-base font-bold">{r.points}</td>
               {!compact && (
                 <td className="pr-4">

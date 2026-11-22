@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react';
+import { ThemeSwitch } from './components/theme-switch';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { TimeControls } from './components/time-controls';
 import { ClubScreen } from './screens/club-screen';
@@ -272,6 +273,7 @@ function Sidebar({ onClose }: { onClose: () => void }) {
             Menu
           </button>
         </div>
+        <ThemeSwitch />
       </div>
     </aside>
   );
@@ -324,7 +326,7 @@ function MoneyPill() {
     <div className="flex items-center gap-3">
       {scout.employer && <EmployerChip employer={scout.employer} onOpen={() => navigate({ screen: 'club', id: scout.employer!.club.id })} />}
       <div className="text-right">
-        <div className={`num text-lg font-bold leading-none ${low ? 'text-alert-400' : 'text-grass-300'}`}>
+        <div className={`num text-lg font-bold leading-none ${low ? 'text-alert-400' : 'text-good-300'}`}>
           <CountUp value={scout.money} format={(n) => formatUSD(Math.round(n), { compact: false })} />
         </div>
         <div className="text-[10px] uppercase tracking-wider text-mist-400">{scout.employer ? 'Full-time' : scout.employmentLabel}</div>

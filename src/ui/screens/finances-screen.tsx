@@ -13,7 +13,7 @@ import { useEngineQuery, useGame } from '../store/game-store';
 
 /**
  * Chart colours (validated with the dataviz palette checker against this app's
- * dark surface #0e161b): income and expenses are a polarity, so they use the
+ * dark surface var(--color-night-850)): income and expenses are a polarity, so they use the
  * diverging pair's poles; the balance line is the single-series blue.
  */
 const INCOME = '#3987e5';
@@ -41,13 +41,13 @@ export function FinancesScreen() {
             <Money value={f.money} animated />
           </span>
         </StatTile>
-        <StatTile label="Season net" accent="#a9bec7" sub={`${formatUSD(income)} in · ${formatUSD(expenses)} out`}>
+        <StatTile label="Season net" accent="var(--color-mist-300)" sub={`${formatUSD(income)} in · ${formatUSD(expenses)} out`}>
           <Money value={income - expenses} animated />
         </StatTile>
-        <StatTile label="Earned scouting" accent="#ffc933" sub="Signing + match bonuses, whole career">
+        <StatTile label="Earned scouting" accent="var(--color-flood-400)" sub="Signing + match bonuses, whole career">
           <Money value={scouting} animated />
         </StatTile>
-        <StatTile label="Active placements" accent="#2fcf73" sub={`${f.placements.length} signings in total`}>
+        <StatTile label="Active placements" accent="var(--color-good-400)" sub={`${f.placements.length} signings in total`}>
           {f.placements.filter((p) => p.active).length}
         </StatTile>
       </div>
@@ -124,7 +124,7 @@ function BalanceChart({ history }: { history: FinancesView['history'] }) {
           {geo.ticks.map((t) => (
             <g key={t}>
               <line x1={pad.l} x2={w - pad.r} y1={geo.y(t)} y2={geo.y(t)} stroke="#ffffff" strokeOpacity={t === 0 ? 0.25 : 0.06} />
-              <text x={pad.l - 8} y={geo.y(t) + 4} textAnchor="end" fontSize={11} fill="#8aa2ad" className="num">
+              <text x={pad.l - 8} y={geo.y(t) + 4} textAnchor="end" fontSize={11} fill="var(--color-mist-400)" className="num">
                 {formatUSD(t)}
               </text>
             </g>
@@ -148,16 +148,16 @@ function BalanceChart({ history }: { history: FinancesView['history'] }) {
               />
             </>
           )}
-          <text x={pad.l} y={h - 6} fontSize={11} fill="#8aa2ad">
+          <text x={pad.l} y={h - 6} fontSize={11} fill="var(--color-mist-400)">
             {formatDate(pts[0]!.date as GameDate)}
           </text>
-          <text x={w - pad.r} y={h - 6} fontSize={11} fill="#8aa2ad" textAnchor="end">
+          <text x={w - pad.r} y={h - 6} fontSize={11} fill="var(--color-mist-400)" textAnchor="end">
             {formatDate(pts.at(-1)!.date as GameDate)}
           </text>
           {hover !== undefined && (
             <g pointerEvents="none">
               <line x1={geo.x(pts[hover]!.date)} x2={geo.x(pts[hover]!.date)} y1={pad.t} y2={h - pad.b} stroke="#ffffff" strokeOpacity={0.25} />
-              <circle cx={geo.x(pts[hover]!.date)} cy={geo.y(pts[hover]!.money)} r={5} fill={INCOME} stroke="#0e161b" strokeWidth={2} />
+              <circle cx={geo.x(pts[hover]!.date)} cy={geo.y(pts[hover]!.money)} r={5} fill={INCOME} stroke="var(--color-night-850)" strokeWidth={2} />
             </g>
           )}
         </svg>

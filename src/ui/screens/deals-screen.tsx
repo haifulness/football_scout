@@ -144,10 +144,10 @@ function DealRow({ d, i }: { d: DealView; i: number }) {
               <li key={j} className="relative text-[13px]">
                 <span
                   className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full"
-                  style={{ background: l.tone === 'good' ? '#2fcf73' : l.tone === 'bad' ? '#ef4444' : '#8aa2ad' }}
+                  style={{ background: l.tone === 'good' ? 'var(--color-good-400)' : l.tone === 'bad' ? 'var(--color-alert-500)' : 'var(--color-mist-400)' }}
                 />
                 <span className="num mr-2 text-[11px] text-mist-400">{formatDate(l.date)}</span>
-                <span className={l.tone === 'good' ? 'text-grass-300' : l.tone === 'bad' ? 'text-alert-400' : 'text-mist-300'}>{l.text}</span>
+                <span className={l.tone === 'good' ? 'text-good-300' : l.tone === 'bad' ? 'text-alert-400' : 'text-mist-300'}>{l.text}</span>
               </li>
             ))}
           </ol>

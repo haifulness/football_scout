@@ -1,4 +1,5 @@
 import { DilemmaCards } from '../components/dilemma-cards';
+import { alpha } from '../theme/color';
 import { BoardAskCards } from '../components/board-ask-cards';
 import { ConsultationCards } from '../components/consultation-cards';
 import { motion } from 'motion/react';
@@ -11,14 +12,14 @@ import { engine } from '../store/engine-client';
 import { useEngineQuery, useGame } from '../store/game-store';
 
 const KIND_META: Record<NewsKind, { label: string; color: string; icon: string }> = {
-  'season-review': { label: 'Season review', color: '#ffc933', icon: '🏆' },
-  coaching: { label: 'Coaching', color: '#38bdf8', icon: '📋' },
-  retirement: { label: 'Retirement', color: '#a9bec7', icon: '👟' },
-  'season-start': { label: 'Season', color: '#2fcf73', icon: '📅' },
-  milestone: { label: 'Hat-tricks', color: '#f87171', icon: '⚽' },
+  'season-review': { label: 'Season review', color: 'var(--color-flood-400)', icon: '🏆' },
+  coaching: { label: 'Coaching', color: 'var(--color-sky-400)', icon: '📋' },
+  retirement: { label: 'Retirement', color: 'var(--color-mist-300)', icon: '👟' },
+  'season-start': { label: 'Season', color: 'var(--color-good-400)', icon: '📅' },
+  milestone: { label: 'Hat-tricks', color: 'var(--color-alert-400)', icon: '⚽' },
   transfer: { label: 'Transfers', color: '#a3e635', icon: '⇄' },
-  finance: { label: 'Money', color: '#ef4444', icon: '$' },
-  career: { label: 'Career', color: '#ffc933', icon: '★' },
+  finance: { label: 'Money', color: 'var(--color-alert-500)', icon: '$' },
+  career: { label: 'Career', color: 'var(--color-flood-400)', icon: '★' },
   rumour: { label: 'Rumours', color: '#c084fc', icon: '👁' },
   board: { label: 'Boardroom', color: '#f59e0b', icon: '🏛' },
 };
@@ -154,7 +155,7 @@ function NewsFeed({ news, kinds, newFrom, empty }: { news: NewsItem[]; kinds: Ne
               >
                 <span
                   className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm"
-                  style={{ background: `${meta.color}1a`, boxShadow: `inset 0 0 0 1px ${meta.color}40` }}
+                  style={{ background: `${alpha(meta.color, '1a')}`, boxShadow: `inset 0 0 0 1px ${alpha(meta.color, '40')}` }}
                 >
                   {meta.icon}
                 </span>

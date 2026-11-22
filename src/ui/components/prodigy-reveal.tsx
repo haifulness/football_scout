@@ -37,7 +37,7 @@ export function ProdigyReveal() {
                 transition={{ duration: 40, repeat: Infinity, ease: 'linear' }}
               />
             )}
-            <div className="absolute inset-0 bg-[radial-gradient(360px_260px_at_50%_35%,transparent,rgba(5,8,10,0.92)_75%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(360px_260px_at_50%_35%,transparent,color-mix(in_srgb,var(--color-night-950)_92%,transparent)_75%)]" />
             <div className="relative p-8 text-center">
               <motion.div className="panel-title text-flood-400" initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
                 Your scouting reveals
@@ -61,8 +61,8 @@ export function ProdigyReveal() {
                   culture={cultureOf(d.nationalityId)}
                   size={128}
                   age={d.age}
-                  shirt={d.club?.colors.primary ?? '#24363f'}
-                  trim={d.club?.colors.secondary ?? '#8aa2ad'}
+                  shirt={d.club?.colors.primary ?? 'var(--color-night-600)'}
+                  trim={d.club?.colors.secondary ?? 'var(--color-mist-400)'}
                   className="rounded-2xl shadow-2xl ring-2 ring-flood-400/50"
                 />
               </motion.div>

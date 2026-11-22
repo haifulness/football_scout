@@ -1,4 +1,5 @@
 import { motion } from 'motion/react';
+import { alpha } from '../theme/color';
 import { useState } from 'react';
 import { formatDate } from '../../engine/core/calendar';
 import type { ClubId } from '../../engine/core/ids';
@@ -14,12 +15,12 @@ import { engine } from '../store/engine-client';
 import { useEngineQuery, useGame } from '../store/game-store';
 
 const STATUS: Record<MissionView['status'], { label: string; color: string }> = {
-  offered: { label: 'Offered', color: '#ffc933' },
-  active: { label: 'Active', color: '#38bdf8' },
-  succeeded: { label: 'Accomplished', color: '#2fcf73' },
-  failed: { label: 'Failed', color: '#ef4444' },
-  declined: { label: 'Declined', color: '#8aa2ad' },
-  expired: { label: 'Lapsed', color: '#8aa2ad' },
+  offered: { label: 'Offered', color: 'var(--color-flood-400)' },
+  active: { label: 'Active', color: 'var(--color-sky-400)' },
+  succeeded: { label: 'Accomplished', color: 'var(--color-good-400)' },
+  failed: { label: 'Failed', color: 'var(--color-alert-500)' },
+  declined: { label: 'Declined', color: 'var(--color-mist-400)' },
+  expired: { label: 'Lapsed', color: 'var(--color-mist-400)' },
 };
 
 export function MissionsScreen() {
@@ -112,7 +113,7 @@ export function MissionsScreen() {
                   <ClubLink club={m.club} />: {m.requirements.join(', ')}
                 </span>
                 {m.completedBy ? (
-                  <span className="text-grass-300">{m.completedBy}</span>
+                  <span className="text-good-300">{m.completedBy}</span>
                 ) : (
                   m.recommendations.length > 0 && <span className="text-[12px] text-mist-400">{m.recommendations.length} recommended</span>
                 )}
@@ -130,7 +131,7 @@ export function MissionsScreen() {
 const StatusBadge = ({ status }: { status: MissionView['status'] }) => (
   <span
     className="rounded-md px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider"
-    style={{ color: STATUS[status].color, background: `${STATUS[status].color}18`, boxShadow: `inset 0 0 0 1px ${STATUS[status].color}44` }}
+    style={{ color: STATUS[status].color, background: `${alpha(STATUS[status].color, '18')}`, boxShadow: `inset 0 0 0 1px ${alpha(STATUS[status].color, '44')}` }}
   >
     {STATUS[status].label}
   </span>
@@ -197,7 +198,7 @@ function MissionCard({ m, i }: { m: MissionView; i: number }) {
             )}
           </div>
           <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
-            <div className="h-full rounded-full" style={{ width: `${elapsed * 100}%`, background: m.daysLeft! <= 7 ? '#ef4444' : '#38bdf8' }} />
+            <div className="h-full rounded-full" style={{ width: `${elapsed * 100}%`, background: m.daysLeft! <= 7 ? 'var(--color-alert-500)' : 'var(--color-sky-400)' }} />
           </div>
         </div>
       )}
@@ -274,7 +275,7 @@ function MissionCard({ m, i }: { m: MissionView; i: number }) {
 }
 
 const FIT = {
-  yes: { label: 'Fits', className: 'text-grass-300' },
+  yes: { label: 'Fits', className: 'text-good-300' },
   maybe: { label: 'Might fit', className: 'text-flood-300' },
   no: { label: "Doesn't fit", className: 'text-alert-400' },
 } as const;
@@ -369,7 +370,7 @@ function Preferences({
                   {n.rewardCut && !n.outcome && <span className="text-alert-400/80"> · reward −{Math.round(n.rewardCut * 100)}%</span>}
                 </span>
                 {n.outcome ? (
-                  <span className={`w-20 text-right text-[11px] font-semibold ${n.outcome === 'agreed' ? 'text-grass-300' : 'text-alert-400'}`}>
+                  <span className={`w-20 text-right text-[11px] font-semibold ${n.outcome === 'agreed' ? 'text-good-300' : 'text-alert-400'}`}>
                     {n.outcome === 'agreed' ? '✓ Agreed' : '✕ Refused'}
                   </span>
                 ) : (
