@@ -5,6 +5,7 @@ import type { WorldSummary } from '../engine/views';
 import { BACKGROUNDS } from '../engine/systems/scouting';
 import { ensureSeasonEvents } from '../engine/systems/events';
 import { ensurePredictions } from '../engine/systems/newspaper';
+import { ensurePresidents } from '../engine/systems/board';
 import type { CareerSummary } from '../engine/systems/career-end';
 import { db, type HallEntry, type SaveMeta } from '../persistence/db';
 import { CURRENT_SCHEMA_VERSION, SaveError, decodeEnvelope, encodeEnvelope, gzip } from '../persistence/save-format';
@@ -149,6 +150,7 @@ export class GameHost extends Engine {
     this.state = state;
     // Saves from before the scouting calendar get this season's events straight away.
     ensureSeasonEvents(state);
+    ensurePresidents(state);
     ensurePredictions(state);
     this.slotId = id;
     this.slotName = meta.name;

@@ -156,6 +156,7 @@ export function ClubScreen({ id }: { id: ClubId }) {
           </Panel>
 
           <OfficialCard official={club.coach} club={club} />
+          {club.president && <PresidentCard club={club} />}
         </div>
       </div>
 
@@ -256,7 +257,7 @@ function OfficialCard({ official, club }: { official: OfficialView; club: ClubVi
   const top = (Object.entries(official.priorities) as [keyof OfficialView['priorities'], number][]).sort((a, b) => b[1] - a[1]).slice(0, 3);
   const max = Math.max(...Object.values(official.priorities));
   return (
-    <Panel title="Head Coach" right={<span className="chip">Signs off every proposal</span>}>
+    <Panel title="Head Coach" right={<span className="chip">Signs off every pitch</span>}>
       <div className="flex gap-4 p-4">
         <Portrait
           seed={official.portraitSeed}
@@ -623,5 +624,39 @@ function RecommendHere({ clubId }: { clubId: ClubView['id'] }) {
     >
       ★ Recommend a player
     </motion.button>
+  );
+}
+
+/** The president: never pitched to, but his money decides big signings and his patience decides the coach. */
+function PresidentCard({ club }: { club: ClubView }) {
+  const p = club.president!;
+  const scout = useGame((s) => s.scout);
+  const culture = useCulture(club.country.id);
+  return (
+    <Panel title="President" right={<span className="chip">Signs off big money</span>}>
+      <div className="flex gap-4 p-4">
+        <Portrait seed={p.portraitSeed} culture={culture} size={60} age={p.age} shirt="#1a2830" trim="#d4af37" className="shrink-0 rounded-lg" />
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-semibold">{p.name}</div>
+          <div className="text-[11px] text-mist-400">
+            {p.age} · {p.nationality}
+          </div>
+          <div className="mt-2 inline-block rounded border border-flood-400/30 px-1.5 py-0.5 text-[11px] font-semibold text-flood-300">{p.policyLabel}</div>
+          <p className="mt-1.5 text-[12px] leading-snug text-mist-300">{p.policyLine}</p>
+          <p className="mt-1 text-[11px] text-mist-400">
+            Fees over {formatUSD(p.feeThreshold, { compact: true })} (or a big wage) need his yes after the coach's.
+          </p>
+        </div>
+      </div>
+      {scout && (
+        <div className="border-t border-white/[0.05] px-4 py-2.5 text-[12px] text-mist-300">
+          Board standing <b className="num text-mist-100">{p.standing}</b>
+          <span className="text-mist-400">
+            {' '}
+            · {p.standing >= 45 ? 'he asks your advice when the coach goes' : 'built by signings that work and his end-of-season review'}
+          </span>
+        </div>
+      )}
+    </Panel>
   );
 }

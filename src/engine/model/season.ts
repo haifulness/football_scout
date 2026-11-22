@@ -89,7 +89,7 @@ export interface Injury {
   description: string;
 }
 
-export type NewsKind = 'season-review' | 'coaching' | 'retirement' | 'season-start' | 'milestone' | 'transfer' | 'finance' | 'career' | 'rumour';
+export type NewsKind = 'season-review' | 'coaching' | 'retirement' | 'season-start' | 'milestone' | 'transfer' | 'finance' | 'career' | 'rumour' | 'board';
 
 /** Where a message takes you when it isn't about one player, club or country. */
 export type NewsLink = 'staff' | 'pool-assistants' | 'missions' | 'career' | 'hunts' | 'goals' | 'agency';

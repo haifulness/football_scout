@@ -1,5 +1,6 @@
 import type { ScoutingEvent } from './event';
 import type { Prediction } from './prediction';
+import type { BoardAsk, President } from './president';
 import type { Dilemma } from './dilemma';
 import type { Assistant, AssistantCandidate } from './assistant';
 import type { DeadlineDay, ReviewBaseline, SeasonReview } from './review';
@@ -82,6 +83,10 @@ export interface GameState {
   events?: ScoutingEvent[];
   /** The Touchline pundit's pre-season picks for your home top flight, one set per season. */
   predictions?: Prediction[];
+  /** Club presidents (filled on load for older saves). */
+  presidents?: Record<StaffId, President>;
+  /** Presidents asking you who should coach their club next. */
+  boardAsks?: BoardAsk[];
   /** Choices put to you (recent ones kept for the record). */
   dilemmas?: Dilemma[];
   /** Your season reviews, newest last (kept for the last 20 seasons). */

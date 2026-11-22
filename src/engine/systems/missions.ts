@@ -10,6 +10,7 @@ import { ATTRIBUTE_LABEL, type AttributeKey, type Player, type Position } from '
 import type { GameState } from '../model/world-state';
 import { clubPositionalAverage } from './deals';
 import { clubRecord, clubTrust } from './employment';
+import { presidentOf } from './board';
 import { positionGroup, specialties } from './goals';
 import { POSITION_WEIGHTS, ovrAt } from './ratings';
 import { brokeredWage, hasWageRoomForSigning } from './transfers';
@@ -77,10 +78,14 @@ function makeMission(state: GameState, club: Club, rng: Rng): Mission | undefine
   const avg = clubPositionalAverage(state, club, pos);
   const coach = state.officials[club.headCoachId]!;
   const req: MissionRequirements = { minOvr: avg + rng.int(1, 4) };
-  if (topPriorities(coach.priorities, 3).some((k) => k === 'resale' || k === 'potential') && rng.chance(0.6)) req.maxAge = 23;
+  const policy = presidentOf(state, club)?.policy;
+  if (policy === 'youth' && rng.chance(0.7)) req.maxAge = 23;
+  else if (topPriorities(coach.priorities, 3).some((k) => k === 'resale' || k === 'potential') && rng.chance(0.6)) req.maxAge = 23;
   else if (rng.chance(0.3)) req.maxAge = rng.int(27, 30);
   else if (rng.chance(0.12)) req.minAge = 25;
-  if (club.transferBudget > 20_000) req.maxFee = roundPrice(club.transferBudget * rng.float(0.3, 0.7));
+  if (policy === 'win-now') req.minOvr += 2;
+  if (policy === 'homegrown' && rng.chance(0.6)) req.nationality = club.countryId;
+  if (club.transferBudget > 20_000) req.maxFee = roundPrice(club.transferBudget * (policy === 'sell' ? rng.float(0.1, 0.3) : rng.float(0.3, 0.7)));
   if (LEFT.has(pos) && rng.chance(0.4)) req.foot = 'Left';
   if (RIGHT.has(pos) && rng.chance(0.4)) req.foot = 'Right';
   const weeks = rng.int(4, 10);
@@ -89,6 +94,13 @@ function makeMission(state: GameState, club: Club, rng: Rng): Mission | undefine
     e.mode === 'fulltime' ? usd(Math.round((e.salary / 52) * rng.int(2, 6))) : usd(Math.round(rng.float(...FREELANCE_REWARD[club.tier]) / 100) * 100);
   const brief =
     (byName ? `We hear you're the one to ask about ${group === 'GK' ? 'goalkeepers' : group === 'DEF' ? 'defenders' : group === 'MID' ? 'midfielders' : 'forwards'}. ` : '') +
+    (policy === 'sell' && req.maxFee !== undefined
+      ? `Money's tight, so the board wants a bargain at ${pos}. `
+      : req.nationality
+        ? `The board wants one of our own: a ${pos} from ${state.countries[club.countryId]!.name}. `
+        : policy === 'win-now'
+          ? `The board wants results this season. `
+          : '') +
     (need.severity >= 0.45
       ? `We're short at ${pos}. We need someone ready to start.`
       : req.maxAge && req.maxAge <= 23
@@ -108,12 +120,13 @@ function makeMission(state: GameState, club: Club, rng: Rng): Mission | undefine
   };
 }
 
-export function describeRequirements(r: MissionRequirements, pos: Position): string[] {
+export function describeRequirements(r: MissionRequirements, pos: Position, state?: GameState): string[] {
   const out = [`${pos} rated ${r.minOvr}+`];
   if (r.maxAge !== undefined) out.push(`aged ${r.maxAge} or under`);
   if (r.minAge !== undefined) out.push(`aged ${r.minAge} or over`);
   if (r.maxFee !== undefined) out.push(`fee up to ${formatUSD(r.maxFee)}`);
   if (r.foot) out.push(`${r.foot.toLowerCase()}-footed`);
+  if (r.nationality) out.push(`from ${state?.countries[r.nationality]?.name ?? r.nationality.toUpperCase()}`);
   return out;
 }
 
@@ -127,6 +140,7 @@ export function missionFit(state: GameState, m: Mission, p: Player, fee: USD): {
   if (r.minAge !== undefined && age < r.minAge) failed.push('too young');
   if (r.maxFee !== undefined && fee > r.maxFee) failed.push('too expensive');
   if (r.foot && p.foot !== r.foot && p.foot !== 'Both') failed.push(`not ${r.foot.toLowerCase()}-footed`);
+  if (r.nationality && p.nationality !== r.nationality) failed.push('not from the club’s country');
   return { ok: failed.length === 0, failed };
 }
 
@@ -362,7 +376,7 @@ export function onDealSecured(state: GameState, deal: Deal) {
     kind: 'career',
     link: 'missions',
     title: `Mission accomplished: ${club.name}`,
-    body: `${p.firstName} ${p.lastName} fits the brief (${describeRequirements(m.requirements, m.position).join(', ')}). Reward ${formatUSD(m.reward)}, and the club's trust in you grows.`,
+    body: `${p.firstName} ${p.lastName} fits the brief (${describeRequirements(m.requirements, m.position, state).join(', ')}). Reward ${formatUSD(m.reward)}, and the club's trust in you grows.`,
     clubIds: [club.id],
     countryId: club.countryId,
   });
@@ -413,7 +427,7 @@ export function missionTick(state: GameState, date: GameDate) {
         kind: 'career',
         link: 'missions',
         title: `Mission failed: ${club.name}`,
-        body: `You didn't deliver a ${describeRequirements(m.requirements, m.position).join(', ')} in time. your standing at ${club.name} drops.`,
+        body: `You didn't deliver a ${describeRequirements(m.requirements, m.position, state).join(', ')} in time. your standing at ${club.name} drops.`,
         clubIds: [club.id],
         countryId: club.countryId,
       });
@@ -444,7 +458,7 @@ export function missionTick(state: GameState, date: GameDate) {
       kind: 'career',
       link: 'missions',
       title: `Mission offer: ${club.name} want a ${m.position}`,
-      body: `"${m.brief}" Brief: ${describeRequirements(m.requirements, m.position).join(', ')}, within ${m.weeks} weeks. Reward ${formatUSD(m.reward)}. Accept by ${formatDate(m.acceptBy)} in Missions.`,
+      body: `"${m.brief}" Brief: ${describeRequirements(m.requirements, m.position, state).join(', ')}, within ${m.weeks} weeks. Reward ${formatUSD(m.reward)}. Accept by ${formatDate(m.acceptBy)} in Missions.`,
       clubIds: [club.id],
       countryId: club.countryId,
     });

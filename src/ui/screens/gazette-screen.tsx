@@ -179,6 +179,7 @@ export function GazetteScreen() {
                         {p.club.shortName} · {ordinal(p.tablePos)} · {p.recentPoints} pt{p.recentPoints === 1 ? '' : 's'} from 5
                         {p.daysInJob !== undefined && p.daysInJob < 120 && ` · ${p.daysInJob} days in the job`}
                       </div>
+                      {p.president && <div className="truncate text-[11px] text-mist-500">Board: {p.president} · {p.policy}</div>}
                     </div>
                     <span
                       className="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide"
@@ -334,7 +335,7 @@ function FrontStory({
   onPlayer: (id: string) => void;
   onSearch: (n: GazetteNeed) => void;
 }) {
-  const accent = f.kind === 'yours' ? '#f5b301' : f.kind === 'sacking' ? '#ef4444' : f.need ? severityColor(f.need.severity) : '#2fcf73';
+  const accent = f.kind === 'yours' ? '#f5b301' : f.kind === 'sacking' ? '#ef4444' : f.kind === 'board' ? '#f59e0b' : f.need ? severityColor(f.need.severity) : '#2fcf73';
   return (
     <article className="grid grid-cols-1 content-start gap-4 sm:grid-cols-[auto_1fr]">
       {f.club && (

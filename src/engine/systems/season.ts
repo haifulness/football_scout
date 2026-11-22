@@ -17,7 +17,7 @@ import { scheduleLeague, seasonWindow } from './fixtures';
 import { ovrAt } from './ratings';
 import { bestXI } from './squad-needs';
 import { computeTable, promotionSpots, type TableRow } from './standings';
-import { announceChange, replaceCoach } from './coaching';
+import { boardNewSeason, sackOrAsk } from './board';
 
 const MIN_SQUAD = 22;
 const MAX_SQUAD = 32;
@@ -241,12 +241,16 @@ export function rolloverSeason(state: GameState, date: GameDate) {
     const { sacked } = promoteAndRelegate(state, country, rng);
     const lines: string[] = [];
     for (const { club, reason } of sacked) {
-      const ch = replaceCoach(state, club, rng, date, reason);
-      const { old, coach } = ch;
+      const old = state.officials[club.headCoachId]!;
+      const ch = sackOrAsk(state, club, rng, date, reason, false);
+      if (!ch) {
+        lines.push(`${club.name}: ${old.firstName} ${old.lastName} is on his way out ${reason}.`);
+        continue;
+      }
+      const { coach } = ch;
       lines.push(
         `${club.name}: ${old.firstName} ${old.lastName} leaves ${reason}; ${coach.firstName} ${coach.lastName} takes over${club.formation !== ch.formationBefore ? ` and switches to ${club.formation}` : ''}.`,
       );
-      announceChange(state, ch, date, false);
     }
     if (lines.length)
       addNews(state, {
@@ -420,6 +424,7 @@ export function rolloverSeason(state: GameState, date: GameDate) {
 
   // 8. New season.
   state.season = { year: oldYear + 1, ended: false };
+  boardNewSeason(state, date);
   snapshotReviewBaseline(state);
   setSeasonObjectives(state);
   for (const league of Object.values(state.leagues)) state.fixtures[league.id] = scheduleLeague(league, state.season.year, state.seed);

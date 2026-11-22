@@ -1,4 +1,5 @@
 import { DilemmaCards } from '../components/dilemma-cards';
+import { BoardAskCards } from '../components/board-ask-cards';
 import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { formatDate } from '../../engine/core/calendar';
@@ -18,10 +19,11 @@ const KIND_META: Record<NewsKind, { label: string; color: string; icon: string }
   finance: { label: 'Money', color: '#ef4444', icon: '$' },
   career: { label: 'Career', color: '#ffc933', icon: '★' },
   rumour: { label: 'Rumours', color: '#c084fc', icon: '👁' },
+  board: { label: 'Boardroom', color: '#f59e0b', icon: '🏛' },
 };
 
 const INBOX_KINDS: NewsKind[] = ['career', 'finance', 'rumour'];
-const NEWS_KINDS: NewsKind[] = ['transfer', 'milestone', 'coaching', 'retirement', 'rumour', 'season-review', 'season-start'];
+const NEWS_KINDS: NewsKind[] = ['transfer', 'milestone', 'coaching', 'board', 'retirement', 'rumour', 'season-review', 'season-start'];
 
 /** Your messages: deals, offers, missions, money, rumours about your players. */
 export function InboxScreen() {
@@ -49,6 +51,7 @@ export function InboxScreen() {
           Messages for you: deals, offers, missions, money, and rumours about players you are working on. World news is under News.
         </p>
       </header>
+      <BoardAskCards />
       <DilemmaCards />
       <NewsFeed news={news} kinds={INBOX_KINDS} newFrom={newFrom} empty="No messages yet. Deals, offers and missions will land here." />
     </div>

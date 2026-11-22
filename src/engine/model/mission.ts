@@ -1,5 +1,5 @@
 import type { GameDate } from '../core/calendar';
-import type { ClubId, PlayerId } from '../core/ids';
+import type { ClubId, CountryId, PlayerId } from '../core/ids';
 import type { USD } from '../core/money';
 import type { AttributeKey, Foot, Position } from './player';
 
@@ -11,6 +11,8 @@ export interface MissionRequirements {
   /** Transfer fee the club will pay at most (free agents always fit). */
   maxFee?: USD;
   foot?: Exclude<Foot, 'Both'>;
+  /** The board wants one of the club's own countrymen. */
+  nationality?: CountryId;
 }
 
 /** What the club told you when you discussed the brief: preferences, not requirements. */

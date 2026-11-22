@@ -8,6 +8,7 @@ import type { Country } from '../model/geography';
 import type { GameState } from '../model/world-state';
 import { seasonWindow } from './fixtures';
 import { addNews, leagueTable } from './season';
+import { sackOrAsk } from './board';
 
 /**
  * The coaching carousel: struggling clubs sack their Head Coach mid-season, sacked coaches look for work,
@@ -42,7 +43,7 @@ function foreignPicker(state: GameState, rng: Rng) {
 }
 
 /** Out goes the Head Coach, in comes another: often someone out of work, otherwise a newcomer. */
-export function replaceCoach(state: GameState, club: Club, rng: Rng, date: GameDate, reason: string): CoachChange {
+export function replaceCoach(state: GameState, club: Club, rng: Rng, date: GameDate, reason: string, pick?: ClubOfficial): CoachChange {
   const old = state.officials[club.headCoachId]!;
   const country = state.countries[club.countryId]!;
   const formationBefore = club.formation;
@@ -52,7 +53,11 @@ export function replaceCoach(state: GameState, club: Club, rng: Rng, date: GameD
   let coach: ClubOfficial;
   let rehired = false;
   let previousClubId: ClubId | undefined;
-  if (pool.length && rng.chance(0.55)) {
+  if (pick) {
+    coach = pick;
+    rehired = true;
+    previousClubId = pick.clubId;
+  } else if (pool.length && rng.chance(0.55)) {
     coach = rng.weighted(pool, (o) => (o.nationality === country.id ? 3 : 1) * (state.clubs[o.clubId]?.countryId === country.id ? 2 : 1));
     rehired = true;
     previousClubId = coach.clubId;
@@ -142,8 +147,7 @@ export function coachTick(state: GameState, date: GameDate) {
       if (p.played < MIN_GAMES || p.pressure < 0.25) continue;
       const chance = clamp((p.pressure - 0.2) * 0.35, 0, 0.08) * (p.recentPoints <= 4 ? 1.6 : 0.5);
       if (!rng.chance(chance)) continue;
-      const ch = replaceCoach(state, club, rng, date, `after a poor run (${p.recentPoints} point${p.recentPoints === 1 ? '' : 's'} from their last five)`);
-      announceChange(state, ch, date, true);
+      sackOrAsk(state, club, rng, date, `after a poor run (${p.recentPoints} point${p.recentPoints === 1 ? '' : 's'} from their last five)`, true);
     }
   }
 }

@@ -226,9 +226,19 @@ export function runBot(opts: { seed: number; seasons: number; difficulty: Diffic
             );
             continue;
           }
+          // Like a player reading the pitch dialog: don't waste a pitch the board will surely block.
+          if (preview.board?.read === 'long-shot') {
+            note('board would block');
+            continue;
+          }
           if (!byPhone) goTo(club);
           const res = safe(() => e.pitch({ playerId: p.id, clubId: club.id, position: need.position, to: 'coach', remote: byPhone }), 'pitch');
           if (res && byPhone) note('pitched by phone');
+          if (res) {
+            const d = s.deals.find((x) => x.id === res.deal.id);
+            if (d?.boardBlocked) note('board blocked');
+            else if (d?.boardChecked) note('board backed');
+          }
           if (res) {
             counters.pitches++;
             tally.pitches++;

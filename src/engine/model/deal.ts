@@ -1,3 +1,4 @@
+import type { BoardPolicy } from './president';
 import type { GameDate } from '../core/calendar';
 import type { ClubId, CountryId, PlayerId, StaffId } from '../core/ids';
 import type { USD } from '../core/money';
@@ -41,6 +42,12 @@ export interface Deal {
   signOff?: { by: Official; date: GameDate };
   /** A club-level "no" (not good enough, can't afford it): asking the other official won't help. */
   clubLevelRejection?: boolean;
+  /** The board had its say on a big signing (after the coach's yes). */
+  boardChecked?: boolean;
+  /** The board blocked the money. */
+  boardBlocked?: boolean;
+  /** The board's policy when it blocked the money (a change of direction lets you try again). */
+  boardPolicy?: BoardPolicy;
   /** The coach who said no (a different coach may see it differently). */
   rejectedBy?: StaffId;
   /** Your estimate of him at this position when you pitched (to tell when you know more). */

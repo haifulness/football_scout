@@ -8,7 +8,7 @@ import type { DeadlineFeedItem, ReviewPlayer, SeasonReview } from './model/revie
  * They carry only what a screen renders, never the whole world.
  */
 import type { GameDate } from './core/calendar';
-import type { CityId, ClubId, ContinentId, CountryId, LeagueId, PlayerId } from './core/ids';
+import type { CityId, ClubId, ContinentId, CountryId, LeagueId, PlayerId, StaffId } from './core/ids';
 import type { USD } from './core/money';
 import type { FormationId } from './data/formations';
 import type { Club, ClubOfficial, ClubTier } from './model/club';
@@ -128,6 +128,39 @@ export interface OfficialView extends Pick<ClubOfficial, 'id' | 'role' | 'firstN
   meeting: MeetingView | null;
 }
 
+export interface PresidentView {
+  id: StaffId;
+  name: string;
+  age: number;
+  nationality: string;
+  portraitSeed: number;
+  policy: 'youth' | 'win-now' | 'homegrown' | 'sell';
+  policyLabel: string;
+  policyLine: string;
+  /** Your standing in the boardroom, 0–100. */
+  standing: number;
+  /** Fees above this go to the board. */
+  feeThreshold: USD;
+}
+
+/** A big signing needs the board's yes after the coach's. */
+export interface BoardPreview {
+  president: string;
+  policyLabel: string;
+  read: 'good' | 'toss-up' | 'long-shot';
+  reasons: { text: string; good: boolean }[];
+}
+
+export interface BoardAskView {
+  id: number;
+  club: ClubBadge;
+  president: string;
+  outgoing: string;
+  reason: string;
+  daysLeft: number;
+  candidates: { id: StaffId; name: string; age: number; relationship: number; lastClub?: string; formation?: string }[];
+}
+
 export interface ClubView extends ClubBadge {
   city: { id: CityId; name: string; lat: number; lon: number };
   country: { id: CountryId; name: string; wealthIndex: number };
@@ -147,6 +180,7 @@ export interface ClubView extends ClubBadge {
   needs: SlotNeed[];
   squad: PlayerRow[];
   coach: OfficialView;
+  president?: PresidentView;
   leaguePosition?: number;
   fixtures: FixtureView[];
   history: { season: string; leagueName: string; position: number; points: number }[];
@@ -776,6 +810,8 @@ export interface PitchPreview {
   staleReason?: string;
   /** After a no: whether you may pitch him again now, from when, and what would open it sooner. */
   repitch?: { ok: boolean; because?: string; from: GameDate; conditions: string[]; message: string };
+  /** A signing this size goes to the board after the coach says yes. */
+  board?: BoardPreview;
 }
 
 export interface ClubSuggestion {
@@ -1131,7 +1167,7 @@ export type TouchlineSection = 'front' | 'results' | 'transfers' | 'rumours' | '
 
 /** The Touchline's front page: the week's biggest story. */
 export interface FrontPage {
-  kind: 'yours' | 'sacking' | 'transfer' | 'top' | 'need';
+  kind: 'yours' | 'sacking' | 'board' | 'transfer' | 'top' | 'need';
   kicker: string;
   headline: string;
   standfirst: string;
@@ -1179,6 +1215,8 @@ export interface TouchlinePressure {
   recentPoints: number;
   tablePos: number;
   heat: 'warm' | 'hot' | 'boiling';
+  president?: string;
+  policy?: string;
 }
 
 export interface TouchlinePundit {

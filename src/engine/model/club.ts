@@ -43,6 +43,8 @@ export interface Club {
   squad: PlayerId[];
   captainId?: PlayerId;
   headCoachId: StaffId;
+  /** The president (absent only in a world from before presidents came back, until it loads). */
+  presidentId?: StaffId;
   acceptsProspects: 'never' | 'prodigies' | 'yes';
   colors: ClubColors;
   crest: { shape: CrestShape; pattern: CrestPattern; emblem: 'ball' | 'star' | 'lion' | 'castle' | 'eagle' | 'crown' | 'none' };

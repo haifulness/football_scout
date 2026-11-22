@@ -12,6 +12,7 @@ import { settleSigningBonuses } from './payouts';
 import { canWorkWith, clubTrust, onSigningCompleted, recordWeakPitch } from './employment';
 import { onDealSecured, preferenceBonus } from './missions';
 import { onMandateSecured, payCommission, pitchRights } from './market';
+import { boardDecides, needsBoard, presidentOf } from './board';
 import type { Player, Position } from '../model/player';
 import type { GameState } from '../model/world-state';
 import { meetingInfo, metToday } from './fieldwork';
@@ -225,7 +226,13 @@ export function repitchCheck(state: GameState, deal: Deal): RepitchCheck {
     if (!p.clubId) met.push("he's a free agent now");
     else conditions.push('he becomes a free agent');
   }
-  if (deal.clubLevelRejection) {
+  if (deal.boardBlocked) {
+    const pres = presidentOf(state, club);
+    if (pres && deal.boardPolicy && pres.policy !== deal.boardPolicy) met.push('the board has changed direction');
+    else conditions.push('the board changes direction');
+    if (!needsBoard(state, club, pitchFee(state, p), brokeredWage(state, p, club))) met.push('the fee no longer needs the board');
+    else conditions.push('the money no longer needs the board');
+  } else if (deal.clubLevelRejection) {
     const gate = gateCheck(state, p, club, deal.position);
     const afford = canAfford(state, club, pitchFee(state, p), brokeredWage(state, p, club));
     if (gate.passes && afford.ok) met.push("the club's reasons no longer apply");
@@ -336,7 +343,24 @@ export function pitch(state: GameState, args: PitchArgs): Deal {
   // The official decides.
   const rng = Rng.derive(state.seed, `signoff:${deal.id}:${args.to}`);
   const chance = signOffProbability(state, o, p, club, args.position, deal.fee, remote);
-  if (rng.next() < chance) {
+  const coachYes = rng.next() < chance;
+  if (coachYes && needsBoard(state, club, deal.fee, deal.wage)) {
+    const board = boardDecides(state, deal, p, club);
+    if (!board.backed) {
+      // The coach wanted him: that still counts with the coach.
+      scout.relationships[officialId] = clamp((scout.relationships[officialId] ?? 0) + (remote ? 1 : 2), 0, 100);
+      deal.stage = 'rejected';
+      deal.clubLevelRejection = true;
+      deal.boardBlocked = true;
+      deal.boardPolicy = presidentOf(state, club)?.policy;
+      deal.reason = board.text;
+      log(deal, state.date, `The ${roleName(args.to)} wants him.`, 'good');
+      log(deal, state.date, board.text, 'bad');
+      return deal;
+    }
+    log(deal, state.date, board.text, 'good');
+  }
+  if (coachYes) {
     deal.stage = 'negotiating';
     deal.reason = undefined;
     deal.signOff = { by: args.to, date: state.date };

@@ -21,6 +21,7 @@ import type {
   TouchlineTableRow,
 } from '../views';
 import { pressure } from './coaching';
+import { POLICY_LABEL, presidentOf } from './board';
 import { ovrAt } from './ratings';
 import { leagueTable } from './season';
 import { computeTable, promotionSpots } from './standings';
@@ -246,7 +247,13 @@ function frontPage(
     const club = sack.clubIds?.[0] ? state.clubs[sack.clubIds[0]] : undefined;
     return { kind: 'sacking', kicker: 'The hot seat', headline: sack.title, standfirst: sack.body, club: club && badge(club) };
   }
-  // 3. A change at the top.
+  // 3. New orders from a boardroom.
+  const board = ctx.weekNews.find((n) => n.kind === 'board' && n.countryId === ctx.leagueCountry);
+  if (board) {
+    const club = board.clubIds?.[0] ? state.clubs[board.clubIds[0]] : undefined;
+    return { kind: 'board', kicker: 'Boardroom', headline: board.title, standfirst: board.body, club: club && badge(club) };
+  }
+  // 4. A change at the top.
   if (ctx.table.length && ctx.table[0]!.played >= 3) {
     const leader = ctx.table[0]!;
     const before = computeTable(
@@ -265,7 +272,7 @@ function frontPage(
       };
     }
   }
-  // 4. A big transfer at home.
+  // 5. A big transfer at home.
   const deal = ctx.weekNews.find((n) => n.kind === 'transfer' && n.countryId === ctx.leagueCountry);
   if (deal) {
     const club = deal.clubIds?.[0] ? state.clubs[deal.clubIds[0]] : undefined;
@@ -273,7 +280,7 @@ function frontPage(
     const p = pid ? state.players[pid] : undefined;
     return { kind: 'transfer', kicker: 'Done deal', headline: deal.title, standfirst: deal.body, club: club && badge(club), player: p && { id: p.id, name: name(p) } };
   }
-  // 5. The wish lists.
+  // 6. The wish lists.
   const need = ctx.yourClubs[0];
   if (need) {
     const pos = POSITION_NAME[need.position];
@@ -411,6 +418,7 @@ function hotSeats(state: GameState, table: ReturnType<typeof leagueTable>, size:
       const club = state.clubs[row.clubId]!;
       const coach = state.officials[club.headCoachId];
       if (!coach) return [];
+      const pres = presidentOf(state, club);
       const heat: TouchlinePressure['heat'] = p.pressure >= 0.45 && p.recentPoints <= 4 ? 'boiling' : p.pressure >= 0.35 ? 'hot' : 'warm';
       return [
         {
@@ -420,6 +428,8 @@ function hotSeats(state: GameState, table: ReturnType<typeof leagueTable>, size:
           recentPoints: p.recentPoints,
           tablePos: i + 1,
           heat,
+          president: pres && `${pres.firstName} ${pres.lastName}`,
+          policy: pres && POLICY_LABEL[pres.policy],
         },
       ];
     });

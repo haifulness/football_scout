@@ -1,6 +1,6 @@
 import { ATTRIBUTE_LABEL } from './model/player';
 import { CAREER_START, ageOn, formatDate, isTransferWindow, makeDate, toParts, type GameDate } from './core/calendar';
-import type { CityId, ClubId, CountryId, LeagueId, PlayerId } from './core/ids';
+import type { CityId, ClubId, CountryId, LeagueId, PlayerId, StaffId } from './core/ids';
 import { formatUSD, usd, type USD } from './core/money';
 import { generateWorld, type ProgressFn } from './generation/world-generator';
 import type { Club, ClubOfficial } from './model/club';
@@ -105,10 +105,13 @@ import { huntAction, huntOptions, huntPlace, type HuntMethod } from './systems/h
 import { dilemmaText, resolveDilemma } from './systems/dilemmas';
 import { isUnlocked, nextUnlock } from './systems/unlocks';
 import { buildTouchline, ensurePredictions } from './systems/newspaper';
+import { answerBoardAsk, boardOdds, ensurePresidents, needsBoard, presidentOf, presidentView } from './systems/board';
 import { attendCheck, attendEvent, ensureSeasonEvents, eventEnd, eventLabel, eventStatus } from './systems/events';
 import { closeDeadline, DEADLINE_ACTION_HOURS, DEADLINE_FEE_PREMIUM, passDeadlineHours } from './systems/deadline';
 import type {
   AdvanceSummary,
+  BoardAskView,
+  BoardPreview,
   ClubBadge,
   ClubRow,
   ClubView,
@@ -227,6 +230,7 @@ export class Engine {
 
   generate(seed: number, onProgress?: ProgressFn): WorldSummary {
     this.state = generateWorld(seed, onProgress);
+    ensurePresidents(this.state);
     return this.getWorldSummary();
   }
 
@@ -1193,7 +1197,7 @@ export class Engine {
         id: m.id,
         club: { ...badge(club), cityName: s.cities[club.cityId]!.name, countryId: club.countryId },
         position: m.position,
-        requirements: describeRequirements(m.requirements, m.position),
+        requirements: describeRequirements(m.requirements, m.position, s),
         raw: m.requirements,
         brief: m.brief,
         status: m.status,
@@ -2308,7 +2312,54 @@ export class Engine {
         message: again.ok ? `They said no on ${formatDate(latest!.openedOn)}, but ${again.because}: you can try again.` : repitchMessage(latest!, again),
       },
       missions: this.missionFits(p, club, pos, fee),
+      board: (() => {
+        if (!s.scout || !needsBoard(s, club, fee, wage)) return undefined;
+        const pres = presidentOf(s, club)!;
+        const odds = boardOdds(s, p, club, fee, est[0] <= avg);
+        return {
+          president: `${pres.firstName} ${pres.lastName}`,
+          policyLabel: presidentView(s, club)!.policyLabel,
+          read: (odds.chance >= 0.62 ? 'good' : odds.chance >= 0.38 ? 'toss-up' : 'long-shot') as BoardPreview['read'],
+          reasons: odds.reasons,
+        };
+      })(),
     };
+  }
+
+  /** Presidents asking you who should coach their club next. */
+  getBoardAsks(): BoardAskView[] {
+    const s = this.s;
+    return (s.boardAsks ?? []).map((a) => {
+      const club = s.clubs[a.clubId]!;
+      const pres = s.presidents![a.presidentId]!;
+      const out = s.officials[a.outgoingId];
+      return {
+        id: a.id,
+        club: badge(club),
+        president: `${pres.firstName} ${pres.lastName}`,
+        outgoing: out ? `${out.firstName} ${out.lastName}` : 'the coach',
+        reason: a.reason,
+        daysLeft: Math.max(0, a.answerBy - s.date),
+        candidates: a.candidates.flatMap((id) => {
+          const o = s.officials[id];
+          if (!o) return [];
+          return [
+            {
+              id,
+              name: `${o.firstName} ${o.lastName}`,
+              age: o.age,
+              relationship: Math.round(s.scout?.relationships[id] ?? 0),
+              lastClub: s.clubs[o.clubId]?.name,
+              formation: o.formation,
+            },
+          ];
+        }),
+      };
+    });
+  }
+
+  answerBoardAsk(id: number, coachId: StaffId | null): { message: string } {
+    return { message: answerBoardAsk(this.s, id, coachId) };
   }
 
   /** Clubs in a league, for the recommend dialog's club picker. */
@@ -2776,6 +2827,7 @@ export class Engine {
       needs: squadNeeds(club.formation, squad),
       squad: squad.map((p) => this.playerRow(p, club)).sort((a, b) => POSITIONS.indexOf(a.position) - POSITIONS.indexOf(b.position) || b.ovr - a.ovr),
       coach: this.official(s.officials[club.headCoachId]!),
+      president: presidentView(s, club),
       leaguePosition: position || undefined,
       fixtures: (s.fixtures[league.id] ?? []).filter((f) => f.homeId === id || f.awayId === id).map((f) => this.fixtureView(f)),
       history: [...club.history]

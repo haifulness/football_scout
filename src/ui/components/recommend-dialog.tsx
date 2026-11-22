@@ -752,6 +752,11 @@ function Verdict({ preview, wageOffer, deal }: { preview: Preview; wageOffer: nu
     },
     { text: `Coach: ${READ[read].label.toLowerCase()}`, tone: read === 'good' ? 'good' : read === 'long-shot' ? 'bad' : 'warn' },
   ];
+  if (preview.board)
+    chips.push({
+      text: `Big money: the board (${preview.board.policyLabel.toLowerCase()}) must back it too · ${READ[preview.board.read].label.toLowerCase()}`,
+      tone: preview.board.read === 'good' ? 'good' : preview.board.read === 'long-shot' ? 'bad' : 'warn',
+    });
   if (brief) chips.push({ text: `Fits the ${brief.position} brief (${formatUSD(brief.reward)})`, tone: 'good' });
   else if (briefNo) chips.push({ text: "Doesn't fit their brief", tone: 'warn' });
   if (preview.freshness === 'stale' || preview.freshness === 'ageing') {
@@ -771,6 +776,18 @@ function Verdict({ preview, wageOffer, deal }: { preview: Preview; wageOffer: nu
       {blocked && !deal && <div className="mt-1 text-sm text-alert-400">{blocked}</div>}
       {preview.repitch && (deal?.stage === 'rejected' || preview.repitch.ok) && (
         <div className={`mt-1 text-sm ${preview.repitch.ok ? 'text-grass-300' : 'text-mist-300'}`}>{preview.repitch.message}</div>
+      )}
+      {preview.board && !deal && (
+        <div className="mt-1.5 text-[12px] text-mist-400">
+          President {preview.board.president}:{' '}
+          {preview.board.reasons.length ? preview.board.reasons.map((r, i) => (
+            <span key={r.text} className={r.good ? 'text-grass-300' : 'text-alert-400'}>
+              {i > 0 && ', '}
+              {r.text}
+            </span>
+          )) : 'nothing for or against'}
+          .
+        </div>
       )}
       <ul className="mt-2.5 flex flex-wrap gap-1.5">
         {chips.map((c) => (
