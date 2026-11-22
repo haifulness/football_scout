@@ -1,4 +1,5 @@
 import type { PlayerId } from '../core/ids';
+import { ON_THE_PITCH, revealTrait, type TraitId } from './character';
 import { Rng, clamp } from '../core/rng';
 import { POSITION_GROUP, type AttributeKey, type Player } from '../model/player';
 import type { Fixture, PlayerMatchLine } from '../model/season';
@@ -204,6 +205,8 @@ export interface FocusOutcome {
   after: number;
   /** Attributes you saw up close, with how well you now know each (0–100). */
   seen: { attribute: AttributeKey; before: number; after: number }[];
+  /** Something about his character the match showed you. */
+  trait?: TraitId;
 }
 
 export interface AttendedMatch {
@@ -310,7 +313,9 @@ export function writeAttendedMatch(state: GameState, fixture: Fixture, lines: Pl
     const p = state.players[id]!;
     const line = lines.find((l) => l.playerId === id);
     learn(state, p, line ? Math.round(26 + eye * 0.8) : 6, line ? 100 : 60, state.date);
+    const trait = line ? revealTrait(state, p, 0.55, `attend:${fixture.id}`, ON_THE_PITCH) : undefined;
     return {
+      trait,
       playerId: id,
       played: !!line,
       minutes: line?.minutes ?? 0,

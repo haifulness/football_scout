@@ -1,3 +1,4 @@
+import { hasTrait } from './character';
 import { ageOn, type GameDate } from '../core/calendar';
 import { Rng, clamp } from '../core/rng';
 import type { AttributeKey, Player } from '../model/player';
@@ -31,12 +32,14 @@ export function developPlayer(p: Player, rng: Rng, date: GameDate) {
   const ovr = ovrAt(p, p.naturalPosition);
   const playing = p.clubId ? clamp(0.6 + p.stats.minutes / 1500, 0.6, 1.4) : 0.45;
 
-  if (age <= 23 && p.hidden.potential > ovr) {
-    const chance = clamp(((p.hidden.potential - ovr) / 38) * playing * (p.isProdigy ? 1.35 : 1), 0, 0.95);
+  const youthUntil = hasTrait(p, 'late-bloomer') ? 26 : 23;
+  const work = hasTrait(p, 'professional') ? 1.1 : 1;
+  if (age <= youthUntil && p.hidden.potential > ovr) {
+    const chance = clamp(((p.hidden.potential - ovr) / 38) * playing * work * (p.isProdigy ? 1.35 : 1), 0, 0.95);
     if (rng.chance(chance)) bump(p, relevantAttribute(rng, p), 1);
     if (rng.chance(chance * 0.6)) bump(p, relevantAttribute(rng, p), 1);
   } else if (age <= 29) {
-    if (p.hidden.potential > ovr && rng.chance(0.12 * playing)) bump(p, relevantAttribute(rng, p), 1);
+    if (p.hidden.potential > ovr && rng.chance(0.12 * playing * work)) bump(p, relevantAttribute(rng, p), 1);
     if (rng.chance(0.03)) bump(p, rng.pick(ATTRIBUTES), -1);
   } else {
     if (rng.chance((age - 29) * 0.045)) bump(p, rng.pick(PHYSICAL_DECLINE), -1);

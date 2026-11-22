@@ -1,3 +1,4 @@
+import { TRAIT_INFO } from '../../engine/systems/character';
 import { AnimatePresence, motion } from 'motion/react';
 import { ReportBlock } from './report-panel';
 import { useState, type ReactNode } from 'react';
@@ -41,13 +42,13 @@ export function ScoutingPanel({ player: p }: { player: PlayerView }) {
     act(async () => {
       const r = await scoutLive(p.id);
       return r.played
-        ? `Watched him live: +${r.after - r.before} knowledge (and a look at ${r.others} others)`
+        ? `Watched him live: +${r.after - r.before} knowledge (and a look at ${r.others} others)${r.trait ? `. You saw he's a ${TRAIT_INFO[r.trait].label.toLowerCase()}` : ''}`
         : `He didn't play. You learned a little from the warm-up (+${r.after - r.before}).`;
     });
   const meetHim = () =>
     act(async () => {
       const r = await meet({ kind: 'player', id: p.id });
-      return `Rapport ${r.before} → ${r.after}`;
+      return `Rapport ${r.before} → ${r.after}${r.trait ? `. You learn he's ${TRAIT_INFO[r.trait].label.toLowerCase()}` : ''}`;
     });
   const checkIn = () =>
     act(async () => {
@@ -137,6 +138,8 @@ export function ScoutingPanel({ player: p }: { player: PlayerView }) {
               )}
             </div>
           )}
+
+          <CharacterRow character={p.character} />
 
           <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
             <Block title="Watch him live" hint="The only way past what footage shows">
@@ -288,5 +291,31 @@ export function MeetingControls({
         <div className="mt-2 text-[11px] text-mist-400">Be anywhere in {meeting.countryName} and he'll come to you.</div>
       )}
     </>
+  );
+}
+
+const TONE_CLASS = { good: 'border-good-400/30 text-good-300', bad: 'border-alert-400/30 text-alert-400', mixed: 'border-flood-400/30 text-flood-300' };
+
+/** What you know of the man: his traits, and how many are still to find. */
+function CharacterRow({ character }: { character: PlayerView['character'] }) {
+  const left = character.total === undefined ? undefined : character.total - character.known.length;
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs">
+      <span className="text-mist-400">Character:</span>
+      {character.known.map((t) => (
+        <span key={t.id} className={`chip ${TONE_CLASS[t.tone]}`} title={t.effect}>
+          {t.label}
+        </span>
+      ))}
+      {character.total === 0 ? (
+        <span className="text-mist-400">nothing stands out</span>
+      ) : left === undefined ? (
+        <span className="text-mist-400">{character.known.length ? 'there may be more. ' : 'unknown. '}Meet him or watch him live to find out.</span>
+      ) : left > 0 ? (
+        <span className="text-mist-400">
+          {left} more to find {character.known.length ? '' : '(meet him, watch him live, ask his coach)'}
+        </span>
+      ) : null}
+    </div>
   );
 }

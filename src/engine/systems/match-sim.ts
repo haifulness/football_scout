@@ -1,3 +1,4 @@
+import { hasTrait } from './character';
 import { addDays, type GameDate } from '../core/calendar';
 import type { PlayerId } from '../core/ids';
 import { clamp, type Rng } from '../core/rng';
@@ -251,6 +252,8 @@ export function simulateMatch(rng: Rng, home: { club: Club; squad: Player[] }, a
     [A, H, awayGoals, homeGoals],
   ] as const) {
     const teamAvg = team.players.reduce((s, p) => s + p.ovr, 0) / Math.max(1, team.players.length);
+    const oppAvg = opp.players.reduce((s, p) => s + p.ovr, 0) / Math.max(1, opp.players.length);
+    const bigGame = oppAvg > teamAvg + 2;
     const pressure = clamp(1 + (opp.attack - team.defense) / 40, 0.7, 1.4);
     const result = scored > conceded ? 1 : scored < conceded ? -1 : 0;
     for (const p of team.all) {
@@ -273,6 +276,7 @@ export function simulateMatch(rng: Rng, home: { club: Club; squad: Player[] }, a
         (p.ovr - teamAvg) / 25 +
         rng.gaussian(0, 0.55 - consistency * 0.015);
       if (!p.started) rating -= 0.2;
+      if (bigGame && hasTrait(p.player, 'big-game')) rating += 0.35;
       lines.push({
         playerId: p.player.id,
         clubId: team.club.id,

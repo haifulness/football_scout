@@ -24,7 +24,9 @@ import { isInboxItem, type Fixture, type NewsItem, type PlayerMatchLine, type Se
 import type { CareerSetup, SearchFilters, SearchRecord } from './model/scout';
 import type { GameState } from './model/world-state';
 import { seasonWindow } from './systems/fixtures';
-import { VIDEO_KNOWLEDGE_CAP, attributeRanges, estimate, fog, freshness, knowledgeLevel, seenOn } from './systems/knowledge';
+import { TRAITS_REVEAL_LEVEL, VIDEO_KNOWLEDGE_CAP, attributeRanges, estimate, fog, freshness, knowledgeLevel, seenOn } from './systems/knowledge';
+import { TRAIT_INFO, characterView } from './systems/character';
+import type { TraitId } from './model/player';
 import { MAX_FOCUS, validateFocus, writeAttendedMatch } from './systems/matchday';
 import {
   completeLiveScouting,
@@ -255,6 +257,8 @@ const fold = (s: string) =>
 const seasonLabel = (year: number) => `${year}/${String(year + 1).slice(2)}`;
 
 /** Engine facade: owns the GameState, runs commands, and answers UI queries with small view models. */
+const traitView = (id: TraitId) => ({ id, ...TRAIT_INFO[id] });
+
 export class Engine {
   protected state?: GameState;
 
@@ -3256,6 +3260,10 @@ export class Engine {
       potential: f.potential,
       prodigy: f.prodigy,
       traits: f.traits,
+      character: (() => {
+        const c = characterView(s, p);
+        return { known: c.known.map(traitView), total: c.met || f.level >= TRAITS_REVEAL_LEVEL ? c.total : undefined };
+      })(),
       inPool: !!s.pool[p.id],
       starred: !!s.pool[p.id]?.starred,
       video: { cost: videoCost(s, p), gain: s.scout ? Math.min(videoGain(s), VIDEO_KNOWLEDGE_CAP - f.level) : 0, available: canVideo },

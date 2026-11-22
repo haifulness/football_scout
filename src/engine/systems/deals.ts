@@ -1,3 +1,4 @@
+import { characterOf, hasTrait } from './character';
 import { addDays, ageOn, formatDate, isTransferWindow, type GameDate } from '../core/calendar';
 import { MENTOR_PHONE_TRUST } from './mentor';
 import { DEADLINE_FEE_PREMIUM, DEADLINE_SIGNOFF_BONUS } from './deadline';
@@ -91,9 +92,16 @@ function fitness(state: GameState, p: Player, club: Club, pos: Position, fee: US
     potential: clamp((p.hidden.potential - avg) / 15 + 0.3, 0, 1),
     value: club.transferBudget > 0 ? clamp(1 - fee / club.transferBudget, 0, 1) : fee === 0 ? 1 : 0,
     resale: age <= 23 ? 1 : age <= 26 ? 0.6 : age <= 29 ? 0.3 : 0.1,
-    marketing: clamp(Math.log10(Math.max(p.value, 1000)) / 8 + (p.isProdigy ? 0.3 : 0), 0, 1),
-    personality: p.hidden.consistency / 20,
+    marketing: clamp(Math.log10(Math.max(p.value, 1000)) / 8 + (p.isProdigy ? 0.3 : 0) + (hasTrait(p, 'media-darling') ? 0.25 : 0), 0, 1),
+    personality: personalityScore(p),
   };
+}
+
+/** What a Head Coach makes of the man (his club knows him): steadiness, plus what his character adds or costs. */
+export function personalityScore(p: Player): number {
+  const t = characterOf(p);
+  const nudge = (t.includes('professional') ? 0.2 : 0) + (t.includes('leader') ? 0.15 : 0) - (t.includes('hothead') ? 0.3 : 0);
+  return clamp(p.hidden.consistency / 20 + nudge, 0, 1);
 }
 
 /** Chance that this official signs off, 0–1. */
@@ -153,6 +161,9 @@ export function playerChance(state: GameState, deal: Deal): number {
   // Taking a pay cut to move makes him a little less keen (up to a 25% cut).
   if (raise < 1) x -= (1 - raise) * 2;
   if (ambitious && tierGap < 0) x -= 1;
+  // A loyal man needs a real reason to leave; a mercenary goes where the money is.
+  if (seller && hasTrait(p, 'loyal')) x -= 0.7;
+  if (hasTrait(p, 'mercenary')) x += raise >= 1.3 ? 0.6 : -0.4;
   if (!seller) x += 0.8; // free agents want a club
   if (deal.mandateId !== undefined) x += 1; // his club is pushing him out
   if (deal.represented) x += 0.6; // you speak for him

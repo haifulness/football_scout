@@ -100,6 +100,8 @@ export interface Knowledge {
   seenContext?: { clubId?: ClubId; age: number; form?: number; injuredUntil?: GameDate };
   /** Last quick check-in: your read was brought up to date (no new knowledge). */
   checkedOn?: GameDate;
+  /** Character traits your work has uncovered. */
+  characterSeen?: import('./player').TraitId[];
 }
 
 export interface PoolEntry {

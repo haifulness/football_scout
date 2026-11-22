@@ -1,3 +1,4 @@
+import { hasTrait } from './character';
 import { ageOn, makeDate, toParts, type GameDate } from '../core/calendar';
 import type { ClubId, PlayerId } from '../core/ids';
 import { formatUSD, roundPrice, usd, type USD } from '../core/money';
@@ -65,7 +66,8 @@ export const RAPPORT_WAGE_DISCOUNT = 0.2;
  * (rapport from meeting him). Never a bigger cut than 25% on what he earns now.
  */
 export function brokeredWage(state: GameState, p: Player, buyer: Club): USD {
-  const base = offeredWage(state, p, buyer);
+  // A mercenary asks for more.
+  const base = offeredWage(state, p, buyer) * (hasTrait(p, 'mercenary') ? 1.15 : 1);
   const rapport = state.scout?.rapport[p.id] ?? 0;
   return usd(Math.max(Math.round(p.wage * (1 - MAX_PAY_CUT)), Math.round(base * (1 - (RAPPORT_WAGE_DISCOUNT * rapport) / 100))));
 }

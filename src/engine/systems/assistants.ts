@@ -1,3 +1,4 @@
+import { revealTrait } from './character';
 import { addDays, ageOn, toParts, type GameDate } from '../core/calendar';
 import type { PlayerId } from '../core/ids';
 import { formatUSD, usd, type USD } from '../core/money';
@@ -176,6 +177,7 @@ function scanWeek(state: GameState, a: Assistant, rng: Rng) {
   for (const s of seen.slice(0, n)) {
     const p = state.players[s.id]!;
     learn(state, p, 8 + Math.round(a.skill / 2), 20 + a.skill, state.date);
+    revealTrait(state, p, 0.1 + a.skill / 80, `assistant:${a.id}`);
     state.pool[p.id] = {
       addedOn: state.date,
       source: 'assistant',

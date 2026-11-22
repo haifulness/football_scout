@@ -66,6 +66,10 @@ export const ATTRIBUTE_LABEL: Record<AttributeKey, string> = {
   commandOfArea: 'Command of Area',
 };
 
+/** Character traits (see systems/character.ts). */
+export const TRAITS = ['professional', 'leader', 'big-game', 'homesick', 'adaptable', 'hothead', 'late-bloomer', 'mercenary', 'loyal', 'media-darling'] as const;
+export type TraitId = (typeof TRAITS)[number];
+
 export type Foot = 'Left' | 'Right' | 'Both';
 
 export interface Player {

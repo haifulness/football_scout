@@ -5,6 +5,8 @@ import type { ClubTier } from '../model/club';
 import type { Player } from '../model/player';
 import type { Fixture, PlayerMatchLine } from '../model/season';
 import type { GameState } from '../model/world-state';
+import { ON_THE_PITCH, TRAIT_INFO, revealTrait, type TraitId } from './character';
+import { addNews } from './season';
 import { knowledgeLevel, learn, marketOf } from './knowledge';
 import { ScoutingError, addLedger } from './scouting';
 
@@ -61,6 +63,8 @@ export interface LiveResult {
   after: number;
   /** Other players you got a look at in the same match. */
   others: number;
+  /** Something about his character the match showed you. */
+  trait?: TraitId;
 }
 
 export function completeLiveScouting(state: GameState, playerId: PlayerId, lines: PlayerMatchLine[], before: number): LiveResult {
@@ -78,7 +82,8 @@ export function completeLiveScouting(state: GameState, playerId: PlayerId, lines
     others++;
   }
   scout.regionKnowledge[marketOf(state, p)] = clamp((scout.regionKnowledge[marketOf(state, p)] ?? 0) + 1, 0, 100);
-  return { played, before, after: knowledgeLevel(state, p), others };
+  const trait = played ? revealTrait(state, p, 0.45, 'live', ON_THE_PITCH) : undefined;
+  return { played, before, after: knowledgeLevel(state, p), others, trait };
 }
 
 // ── Meetings ────────────────────────────────────────────────────────────
@@ -198,6 +203,10 @@ export interface MeetingResult {
   before: number;
   after: number;
   cost: USD;
+  /** Meeting a player: something about his character you now know. */
+  trait?: TraitId;
+  /** Meeting a coach: he lets slip something about one of his players you're tracking. */
+  heard?: { playerId: PlayerId; trait: TraitId };
 }
 
 /** A one-day meeting over coffee or dinner. Diminishing returns as you get closer. */
@@ -239,15 +248,36 @@ export function meet(state: GameState, target: MeetTarget): MeetingResult {
   const after = clamp(info.level + gain, 0, 100);
   const label = target.kind === 'player' ? `Meeting: ${info.name}` : `Meeting: ${info.name} (Head Coach)`;
   addLedger(state, { amount: usd(-info.cost), kind: 'meeting', label });
+  let trait: TraitId | undefined;
+  let heard: MeetingResult['heard'];
   if (target.kind === 'player') {
     scout.rapport[target.id] = after;
     // Talking to him tells you about his character and ambitions.
     learn(state, state.players[target.id]!, 8, 85, state.date);
+    trait = revealTrait(state, state.players[target.id]!, 0.5 + after / 200, 'meet');
   } else {
     scout.relationships[target.id] = after;
+    // Coaches talk about their players: your network decides how often something useful slips out.
+    const club = state.clubs[state.officials[target.id]!.clubId]!;
+    for (const id of club.squad.filter((id) => state.pool[id])) {
+      const t = revealTrait(state, state.players[id]!, 0.1 + scout.skills.network * 0.02, `coach:${target.id}`);
+      if (t) {
+        heard = { playerId: id, trait: t };
+        const p = state.players[id]!;
+        const coach = state.officials[target.id]!;
+        addNews(state, {
+          date: state.date,
+          kind: 'career',
+          title: `${coach.lastName} on ${p.firstName} ${p.lastName}: ${TRAIT_INFO[t].label.toLowerCase()}`,
+          body: `Over coffee, ${club.name}'s Head Coach lets slip what ${p.firstName} ${p.lastName} is like. ${TRAIT_INFO[t].effect}`,
+          playerIds: [id],
+        });
+        break;
+      }
+    }
   }
   scout.lastMet[target.id] = state.date;
-  return { before: info.level, after, cost: info.cost };
+  return { before: info.level, after, cost: info.cost, trait, heard };
 }
 
 export function relationshipLabel(level: number): string {

@@ -1,3 +1,4 @@
+import { TRAIT_INFO } from '../../engine/systems/character';
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
 import { formatDate } from '../../engine/core/calendar';
@@ -309,6 +310,11 @@ function FocusCard({ o, done, onOpen }: { o: AttendedMatchView['focus'][number];
             </ul>
           ) : (
             <div className="mt-2 text-[12px] text-mist-400">{o.played ? 'Not much came his way today.' : 'He was not in the squad. A wasted look.'}</div>
+          )}
+          {o.trait && (
+            <div className="mt-2 rounded-md border border-flood-400/25 bg-flood-400/[0.06] px-2 py-1 text-[12px]">
+              <b className="text-flood-300">{TRAIT_INFO[o.trait].label}.</b> <span className="text-mist-300">{TRAIT_INFO[o.trait].effect}</span>
+            </div>
           )}
         </motion.div>
       ) : (

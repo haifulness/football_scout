@@ -1,3 +1,4 @@
+import { revealTrait } from './character';
 import { addDays, ageOn, type GameDate } from '../core/calendar';
 import type { PlayerId } from '../core/ids';
 import { clamp } from '../core/rng';
@@ -64,7 +65,11 @@ export function writeReport(state: GameState, args: ReportArgs): ScoutReport {
     reviewOn: addDays(state.date, REVIEW_DAYS),
   };
   if (existing) state.reports[state.reports.indexOf(existing)] = report;
-  else state.reports.unshift(report);
+  else {
+    state.reports.unshift(report);
+    // Putting it all down on paper makes you think about the man as well as the player.
+    if (known >= 70) revealTrait(state, p, 0.6, 'report');
+  }
   return report;
 }
 

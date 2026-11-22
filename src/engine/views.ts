@@ -252,6 +252,8 @@ export interface PlayerView {
   potential?: Range;
   prodigy: boolean;
   traits?: { consistency: string; injuryRisk: string; ambition?: string };
+  /** His character as far as you know it. `total` shows once you've met him or know him well. */
+  character: { known: TraitView[]; total?: number };
   inPool: boolean;
   starred: boolean;
   video: { cost: USD; gain: number; available: boolean };
@@ -1459,4 +1461,11 @@ export interface DilemmaView {
   choice?: string;
   outcome?: string;
   lapsed?: boolean;
+}
+
+export interface TraitView {
+  id: import('./model/player').TraitId;
+  label: string;
+  tone: 'good' | 'bad' | 'mixed';
+  effect: string;
 }
