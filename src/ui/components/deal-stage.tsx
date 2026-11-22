@@ -3,11 +3,11 @@ import { alpha } from '../theme/color';
 
 const STAGE: Record<DealStage, { label: string; color: string }> = {
   negotiating: { label: 'Negotiating', color: 'var(--color-sky-400)' },
-  agreed: { label: 'Agreed · awaiting window', color: '#a3e635' },
+  agreed: { label: 'Agreed · awaiting window', color: 'var(--color-scale-3)' },
   completed: { label: 'Signed', color: 'var(--color-good-400)' },
   rejected: { label: 'Rejected', color: 'var(--color-alert-500)' },
   failed: { label: 'Fell through', color: 'var(--color-alert-400)' },
-  hijacked: { label: 'Hijacked', color: '#fb923c' },
+  hijacked: { label: 'Hijacked', color: 'var(--color-scale-5)' },
   collapsed: { label: 'Collapsed', color: 'var(--color-mist-400)' },
 };
 

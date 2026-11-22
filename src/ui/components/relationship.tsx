@@ -3,7 +3,7 @@ import { alpha } from '../theme/color';
 
 /** 0–100 relationship / rapport bar with its label ("Acquaintance", "Trusted"…). */
 export function RelationshipBar({ level, label }: { level: number; label: string }) {
-  const c = level >= 60 ? 'var(--color-good-400)' : level >= 35 ? '#a3e635' : level >= 15 ? '#facc15' : 'var(--color-mist-400)';
+  const c = level >= 60 ? 'var(--color-scale-2)' : level >= 35 ? 'var(--color-scale-3)' : level >= 15 ? 'var(--color-scale-4)' : 'var(--color-mist-400)';
   return (
     <div>
       <div className="flex items-baseline justify-between text-[11px]">

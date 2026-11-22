@@ -5,9 +5,15 @@
 @import 'tailwindcss';
 
 /*
- * Two themes share these token names. "Stadium night" (the default): deep pitch-blacks, grass greens,
- * floodlight amber. "Floodlit navy" (data-theme="navy", below): ink navy, floodlight cyan, soft gold.
- * grass = the theme's main colour (buttons, links, selection); good = good news, green in both.
+ * Every theme fills in the same tokens; data-theme on <html> picks one (src/ui/theme/theme.ts).
+ *   night  surfaces, darkest → lightest     mist   text, brightest → faintest
+ *   grass  the theme's main colour (buttons, links, selection)
+ *   good   good news (green in every theme)  alert  bad news
+ *   flood  reputation, trophies, the paper    sky    things in progress
+ *   scale  a six-step quality scale, best (1) → worst (6): ratings, tiers, standing
+ * Key colours were checked so every pair stays distinct with normal vision; good vs flood is close for
+ * red-green colour blindness in every theme, which is why both always come with a label.
+ * The default below is "Stadium night": pitch-blacks, grass greens, floodlight amber.
  */
 @theme {
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
@@ -48,10 +54,26 @@
   --color-alert-400: #f87171;
   --color-sky-400: #38bdf8;
 
+  --color-scale-1: #22d3ee;
+  --color-scale-2: #2fcf73;
+  --color-scale-3: #a3e635;
+  --color-scale-4: #facc15;
+  --color-scale-5: #fb923c;
+  --color-scale-6: #f87171;
+
   --ease-broadcast: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Floodlit navy: the same tokens, repainted. Picked under Save/Menu in the sidebar (or on the start screen); kept per browser. */
+/* Atmosphere: the light over the whole app, and how much grain. Each theme sets its own. Picked in the sidebar or on the start screen. */
+:root {
+  --atmo:
+    radial-gradient(1200px 600px at 15% -10%, color-mix(in srgb, var(--color-flood-400) 7%, transparent), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, color-mix(in srgb, var(--color-grass-400) 6%, transparent), transparent 60%),
+    radial-gradient(1000px 700px at 50% 120%, color-mix(in srgb, var(--color-sky-400) 4%, transparent), transparent 60%);
+  --grain: 0.035;
+}
+
+/* Floodlit navy: ink navy under cold overhead floodlights; cyan, soft gold, orchid. */
 :root[data-theme='navy'] {
   --color-night-950: #070a12;
   --color-night-900: #0c111c;
@@ -60,7 +82,7 @@
   --color-night-700: #1d2739;
   --color-night-600: #29354b;
   --color-night-500: #3a4a66;
-  --color-mist-500: #67718a;
+  --color-mist-500: #77819a;
   --color-mist-400: #8590ab;
   --color-mist-300: #b3bdd3;
   --color-mist-200: #d0d7e6;
@@ -87,11 +109,191 @@
   --color-alert-500: #f04f4f;
   --color-alert-400: #ff6b6b;
 
-  --color-sky-100: #e6e9ff;
-  --color-sky-200: #cdd4ff;
-  --color-sky-300: #b4bfff;
-  --color-sky-400: #9aa8ff;
-  --color-sky-500: #7d8cf5;
+  --color-sky-100: #fbeefa;
+  --color-sky-200: #f4d5f1;
+  --color-sky-300: #edbce9;
+  --color-sky-400: #e6a3e0;
+  --color-sky-500: #d681ce;
+
+  --color-scale-1: #f0abfc;
+  --color-scale-2: #3ddc84;
+  --color-scale-3: #a3e635;
+  --color-scale-4: #facc15;
+  --color-scale-5: #fb923c;
+  --color-scale-6: #ff6b6b;
+
+  --atmo:
+    radial-gradient(1400px 520px at 50% -18%, color-mix(in srgb, var(--color-grass-400) 9%, transparent), transparent 62%),
+    radial-gradient(700px 420px at 8% 0%, color-mix(in srgb, var(--color-mist-100) 3%, transparent), transparent 60%),
+    radial-gradient(1000px 600px at 100% 110%, color-mix(in srgb, var(--color-sky-400) 4%, transparent), transparent 60%);
+  --grain: 0.03;
+}
+
+/* Midnight plum: a plum-black box at a night game; lavender, gold, aqua. */
+:root[data-theme='plum'] {
+  --color-night-950: #0b070d;
+  --color-night-900: #130d17;
+  --color-night-850: #18111d;
+  --color-night-800: #1d1523;
+  --color-night-700: #291e31;
+  --color-night-600: #382a42;
+  --color-night-500: #4f3d5c;
+  --color-mist-500: #857a9c;
+  --color-mist-400: #9d90ad;
+  --color-mist-300: #c4b9d2;
+  --color-mist-200: #ddd4e8;
+  --color-mist-100: #f3eef8;
+  --color-mist-50: #faf7fd;
+
+  --color-grass-700: #4b3a8c;
+  --color-grass-500: #9b7ff5;
+  --color-grass-400: #b69cff;
+  --color-grass-300: #d0c0ff;
+  --color-grass-200: #e6ddff;
+
+  --color-good-700: #14532d;
+  --color-good-500: #22c55e;
+  --color-good-400: #4ade80;
+  --color-good-300: #86efac;
+  --color-good-200: #bbf7d0;
+
+  --color-flood-500: #e6ae2e;
+  --color-flood-400: #f5c451;
+  --color-flood-300: #f9da8f;
+  --color-flood-200: #fcecc5;
+
+  --color-alert-500: #f2496a;
+  --color-alert-400: #ff6b81;
+
+  --color-sky-100: #e3fbff;
+  --color-sky-200: #c2f4ff;
+  --color-sky-300: #a2eeff;
+  --color-sky-400: #7fe7ff;
+  --color-sky-500: #4fd3f0;
+
+  --color-scale-1: #7fe7ff;
+  --color-scale-2: #4ade80;
+  --color-scale-3: #bef264;
+  --color-scale-4: #facc15;
+  --color-scale-5: #fb923c;
+  --color-scale-6: #ff6b81;
+
+  --atmo:
+    radial-gradient(1100px 560px at 100% -10%, color-mix(in srgb, var(--color-flood-400) 8%, transparent), transparent 60%),
+    radial-gradient(1000px 700px at -5% 105%, color-mix(in srgb, var(--color-grass-400) 8%, transparent), transparent 60%);
+  --grain: 0.035;
+}
+
+/* Terrace ember: warm espresso under the terrace lights; teal, amber, lilac. */
+:root[data-theme='terrace'] {
+  --color-night-950: #0d0907;
+  --color-night-900: #17110d;
+  --color-night-850: #1c1511;
+  --color-night-800: #221a15;
+  --color-night-700: #2f241d;
+  --color-night-600: #403229;
+  --color-night-500: #59473a;
+  --color-mist-500: #8b7b6c;
+  --color-mist-400: #ab9b8b;
+  --color-mist-300: #cfc2b1;
+  --color-mist-200: #e4d9ca;
+  --color-mist-100: #f7f0e5;
+  --color-mist-50: #fcf8f1;
+
+  --color-grass-700: #0f5552;
+  --color-grass-500: #22aaa5;
+  --color-grass-400: #36c6c0;
+  --color-grass-300: #7fdcd7;
+  --color-grass-200: #bdeeeb;
+
+  --color-good-700: #2d5a14;
+  --color-good-500: #62c548;
+  --color-good-400: #86e36b;
+  --color-good-300: #b2ef9d;
+  --color-good-200: #d6f7cb;
+
+  --color-flood-500: #df9425;
+  --color-flood-400: #f2a93b;
+  --color-flood-300: #f7c97f;
+  --color-flood-200: #fbe3bd;
+
+  --color-alert-500: #f04a47;
+  --color-alert-400: #ff6461;
+
+  --color-sky-100: #f0ecff;
+  --color-sky-200: #ddd5ff;
+  --color-sky-300: #cabeff;
+  --color-sky-400: #b8a8ff;
+  --color-sky-500: #9a86f5;
+
+  --color-scale-1: #9ed0ff;
+  --color-scale-2: #86e36b;
+  --color-scale-3: #c5e86c;
+  --color-scale-4: #f5d04a;
+  --color-scale-5: #f59a3b;
+  --color-scale-6: #ff6461;
+
+  --atmo:
+    radial-gradient(1400px 600px at 50% 118%, color-mix(in srgb, var(--color-flood-400) 10%, transparent), transparent 62%),
+    radial-gradient(800px 500px at 0% -10%, color-mix(in srgb, var(--color-grass-400) 5%, transparent), transparent 60%);
+  --grain: 0.05;
+}
+
+/* Matchday pitch: the only theme off black. Floodlit turf with mowing stripes; sky blue, gold, pink. */
+:root[data-theme='pitch'] {
+  --color-night-950: #0f2419;
+  --color-night-900: #173426;
+  --color-night-850: #1b3a2b;
+  --color-night-800: #1f4130;
+  --color-night-700: #284f3a;
+  --color-night-600: #33614a;
+  --color-night-500: #457c60;
+  --color-mist-500: #8fae9b;
+  --color-mist-400: #a7c3b0;
+  --color-mist-300: #c9dccf;
+  --color-mist-200: #dfeae2;
+  --color-mist-100: #f1f6f0;
+  --color-mist-50: #f8fbf7;
+
+  --color-grass-700: #174a6b;
+  --color-grass-500: #43b2ef;
+  --color-grass-400: #62c4f8;
+  --color-grass-300: #9ad9fb;
+  --color-grass-200: #cdecfd;
+
+  --color-good-700: #1d5a2c;
+  --color-good-500: #3fcb62;
+  --color-good-400: #5ee07a;
+  --color-good-300: #95eda7;
+  --color-good-200: #c8f6d1;
+
+  --color-flood-500: #e6b232;
+  --color-flood-400: #f5c84c;
+  --color-flood-300: #f9dc8e;
+  --color-flood-200: #fcedc6;
+
+  --color-alert-500: #f2553f;
+  --color-alert-400: #ff7058;
+
+  --color-sky-100: #fde8f4;
+  --color-sky-200: #fbd2ea;
+  --color-sky-300: #f8b8dd;
+  --color-sky-400: #f59bd0;
+  --color-sky-500: #e879b9;
+
+  --color-scale-1: #6cc4ff;
+  --color-scale-2: #5ee07a;
+  --color-scale-3: #c2ec4f;
+  --color-scale-4: #ffcf3d;
+  --color-scale-5: #ff9440;
+  --color-scale-6: #ff7058;
+
+  --atmo:
+    radial-gradient(1000px 520px at 0% -12%, rgba(255, 255, 255, 0.07), transparent 60%),
+    radial-gradient(1000px 520px at 100% -12%, rgba(255, 255, 255, 0.06), transparent 60%),
+    radial-gradient(1400px 700px at 50% 120%, rgba(0, 0, 0, 0.25), transparent 65%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.018) 0 120px, transparent 120px 240px);
+  --grain: 0.03;
 }
 
 @layer base {
@@ -146,10 +348,7 @@
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background:
-    radial-gradient(1200px 600px at 15% -10%, color-mix(in srgb, var(--color-flood-400) 7%, transparent), transparent 60%),
-    radial-gradient(900px 500px at 100% 0%, color-mix(in srgb, var(--color-grass-400) 6%, transparent), transparent 60%),
-    radial-gradient(1000px 700px at 50% 120%, color-mix(in srgb, var(--color-sky-400) 4%, transparent), transparent 60%);
+  background: var(--atmo);
   z-index: 0;
 }
 .app-atmosphere::after {
@@ -157,7 +356,7 @@
   position: fixed;
   inset: 0;
   pointer-events: none;
-  opacity: 0.035;
+  opacity: var(--grain);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   z-index: 50;
 }

@@ -278,7 +278,7 @@ const Mini = ({ label, value }: { label: string; value: string }) => (
 );
 
 function TrustBar({ value }: { value: number }) {
-  const c = value >= 60 ? 'var(--color-good-400)' : value >= 30 ? '#a3e635' : value >= 12 ? '#facc15' : 'var(--color-alert-500)';
+  const c = value >= 60 ? 'var(--color-scale-2)' : value >= 30 ? 'var(--color-scale-3)' : value >= 12 ? 'var(--color-scale-4)' : 'var(--color-scale-6)';
   return (
     <span className="inline-flex items-center gap-1.5">
       <span className="h-1.5 w-20 overflow-hidden rounded-full bg-white/[0.06]">

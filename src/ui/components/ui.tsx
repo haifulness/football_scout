@@ -8,12 +8,12 @@ import { useGame } from '../store/game-store';
 
 /** Colour for a 1–100 rating, from red (poor) through amber to green and cyan (elite). */
 export function ratingColor(ovr: number): string {
-  if (ovr >= 85) return '#22d3ee';
-  if (ovr >= 75) return 'var(--color-good-400)';
-  if (ovr >= 65) return '#a3e635';
-  if (ovr >= 55) return '#facc15';
-  if (ovr >= 45) return '#fb923c';
-  return 'var(--color-alert-400)';
+  if (ovr >= 85) return 'var(--color-scale-1)';
+  if (ovr >= 75) return 'var(--color-scale-2)';
+  if (ovr >= 65) return 'var(--color-scale-3)';
+  if (ovr >= 55) return 'var(--color-scale-4)';
+  if (ovr >= 45) return 'var(--color-scale-5)';
+  return 'var(--color-scale-6)';
 }
 
 /** Colour for a 1–20 attribute. */
@@ -52,7 +52,7 @@ export function OvrBadge({ ovr, range, size = 'md' }: { ovr: number; range?: [nu
 
 /** How well you know a player, 0–100. */
 export function KnowledgeMeter({ level, compact }: { level: number; compact?: boolean }) {
-  const c = level >= 80 ? '#22d3ee' : level >= 60 ? 'var(--color-good-400)' : level >= 40 ? '#facc15' : 'var(--color-mist-400)';
+  const c = level >= 80 ? 'var(--color-scale-1)' : level >= 60 ? 'var(--color-scale-2)' : level >= 40 ? 'var(--color-scale-4)' : 'var(--color-mist-400)';
   return (
     <span className={`inline-flex items-center gap-1.5 ${compact ? '' : 'min-w-24'}`} title={`Knowledge ${level}/100`}>
       <span className={`h-1.5 overflow-hidden rounded-full bg-white/[0.08] ${compact ? 'w-10' : 'w-16'}`}>
@@ -95,7 +95,7 @@ export function PosBadge({ pos }: { pos: Position }) {
 }
 
 const TIER_LABEL: Record<ClubTier, string> = { 1: 'Elite', 2: 'Top Flight', 3: 'Established', 4: 'Professional', 5: 'Semi-Pro' };
-const TIER_COLOR: Record<ClubTier, string> = { 1: '#22d3ee', 2: 'var(--color-good-400)', 3: '#facc15', 4: '#fb923c', 5: 'var(--color-mist-300)' };
+const TIER_COLOR: Record<ClubTier, string> = { 1: 'var(--color-scale-1)', 2: 'var(--color-scale-2)', 3: 'var(--color-scale-4)', 4: 'var(--color-scale-5)', 5: 'var(--color-mist-300)' };
 export function TierBadge({ tier, compact }: { tier: ClubTier; compact?: boolean }) {
   const c = TIER_COLOR[tier];
   return (

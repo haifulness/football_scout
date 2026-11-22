@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react';
-import { ThemeSwitch } from '../components/theme-switch';
+import { ThemeGrid } from '../components/theme-switch';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { formatDate, type GameDate } from '../../engine/core/calendar';
 import type { SaveMeta } from '../../persistence/db';
@@ -245,9 +245,9 @@ export function StartScreen() {
             Saves live in this browser. Export a backup if you clear browser data or switch browsers.
           </p>
           <HallOfFame />
-          <div className="flex items-center gap-3 px-1">
-            <span className="text-[11px] text-mist-400">Colours</span>
-            <ThemeSwitch className="w-56" />
+          <div className="panel p-3">
+            <div className="panel-title mb-2 text-[11px]">Colours</div>
+            <ThemeGrid columns={3} />
           </div>
         </motion.section>
       </div>

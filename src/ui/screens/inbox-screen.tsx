@@ -17,11 +17,11 @@ const KIND_META: Record<NewsKind, { label: string; color: string; icon: string }
   retirement: { label: 'Retirement', color: 'var(--color-mist-300)', icon: '👟' },
   'season-start': { label: 'Season', color: 'var(--color-good-400)', icon: '📅' },
   milestone: { label: 'Hat-tricks', color: 'var(--color-alert-400)', icon: '⚽' },
-  transfer: { label: 'Transfers', color: '#a3e635', icon: '⇄' },
+  transfer: { label: 'Transfers', color: 'var(--color-scale-3)', icon: '⇄' },
   finance: { label: 'Money', color: 'var(--color-alert-500)', icon: '$' },
   career: { label: 'Career', color: 'var(--color-flood-400)', icon: '★' },
   rumour: { label: 'Rumours', color: '#c084fc', icon: '👁' },
-  board: { label: 'Boardroom', color: '#f59e0b', icon: '🏛' },
+  board: { label: 'Boardroom', color: 'var(--color-flood-500)', icon: '🏛' },
 };
 
 const INBOX_KINDS: NewsKind[] = ['career', 'finance', 'rumour'];
