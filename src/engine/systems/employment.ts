@@ -154,7 +154,10 @@ export function proposeAgreement(state: GameState, clubId: ClubId): { accepted: 
 
 function addClient(state: GameState, clubId: ClubId) {
   const e = state.scout!.employment;
-  if (e.mode === 'freelance' && !e.clients.includes(clubId)) e.clients.push(clubId);
+  if (e.mode === 'freelance' && !e.clients.includes(clubId)) {
+    e.clients.push(clubId);
+    state.scout!.clientSince = { ...state.scout!.clientSince, [clubId]: state.date };
+  }
 }
 
 export function dropClient(state: GameState, clubId: ClubId) {

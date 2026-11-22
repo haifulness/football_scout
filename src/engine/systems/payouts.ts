@@ -27,6 +27,9 @@ export const SIGNING_FLOOR: Record<Mode, Record<ClubTier, number>> = {
 export const MATCH_BASE = { appearance: 50, goal: 150, assist: 100, tackleMatch: 75, cleanSheet: 150, captain: 75 };
 export const MATCH_TIER_MULT: Record<ClubTier, number> = { 5: 0.25, 4: 0.5, 3: 1, 2: 2, 1: 5 };
 export const MODE_MULT: Record<Mode, number> = { fulltime: 1, freelance: 2 };
+/** Match bonuses fade the longer he has been at the club: full in his first year, then 60%, then 30%. */
+export const BONUS_TAPER = [1, 0.6, 0.3] as const;
+export const bonusTaper = (signedOn: GameDate, date: GameDate) => BONUS_TAPER[Math.min(BONUS_TAPER.length - 1, Math.floor((date - signedOn) / 365))]!;
 
 const ATTACKING = new Set<Position>(['ST', 'LW', 'RW', 'AM']);
 const CENTRAL_DEFENSIVE = new Set<Position>(['CB', 'DM']);
@@ -106,7 +109,10 @@ export function payMatchBonuses(state: GameState, lines: PlayerMatchLine[], fixt
     const pl = active.find((x) => x.playerId === line.playerId && x.clubId === line.clubId);
     if (!pl) continue;
     const club = state.clubs[pl.clubId]!;
-    const { items, total } = matchPayout(line, club.tier, pl.mode);
+    const full = matchPayout(line, club.tier, pl.mode);
+    const taper = bonusTaper(pl.signedOn, date);
+    const items = full.items.map((it) => ({ ...it, amount: usd(Math.round(it.amount * taper)) }));
+    const total = usd(items.reduce((n, it) => n + it.amount, 0));
     if (!total) continue;
     for (const it of items) pl.earnings[it.kind] += it.amount;
     const p = state.players[line.playerId]!;

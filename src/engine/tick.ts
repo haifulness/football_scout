@@ -1,3 +1,5 @@
+import { reviewClients } from './systems/client-review';
+import { overheadsTick, payTax } from './systems/overheads';
 import { placementTick, trackPlacements } from './systems/placement-stories';
 import { addDays, isTransferWindow, makeDate, toParts, type GameDate } from './core/calendar';
 import { Rng } from './core/rng';
@@ -64,6 +66,8 @@ function playDay(state: GameState, date: GameDate, onMatch?: MatchListener): { m
   if (month === 7 && day === 1 && state.season.year < year) {
     rolloverSeason(state, date);
     rolled = true;
+    payTax(state, state.season.year - 1, date);
+    reviewClients(state, date);
   }
   if (day === 1) {
     monthlyUpdate(state, date);
@@ -139,6 +143,7 @@ function playDay(state: GameState, date: GameDate, onMatch?: MatchListener): { m
     boardTick(state, date);
     dilemmaTick(state, date);
     consultationTick(state, date);
+    overheadsTick(state, date);
     if (toParts(date).day === 1) placementTick(state, date);
     unlockTick(state, date);
     staleTick(state, date);

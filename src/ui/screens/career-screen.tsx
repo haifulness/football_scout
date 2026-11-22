@@ -353,6 +353,7 @@ function EmploymentPanel({ c }: { c: CareerView }) {
                 <span className="block truncate font-semibold">{cl.name}</span>
                 <span className="block text-[11px] text-mist-400">{cl.cityName}</span>
               </button>
+              <ReviewChip r={cl.review} />
               <TrustBar value={cl.trust} />
               {confirm === cl.id ? (
                 <span className="flex gap-1">
@@ -468,5 +469,24 @@ function TrustPanel({ c }: { c: CareerView }) {
         </table>
       )}
     </Panel>
+  );
+}
+
+const OUTLOOK = {
+  delighted: { label: 'Delighted', cls: 'border-good-400/30 text-good-300' },
+  satisfied: { label: 'On track', cls: 'border-white/15 text-mist-200' },
+  'at-risk': { label: 'Wants more', cls: 'border-flood-400/35 text-flood-300' },
+  leaving: { label: 'Will drop you', cls: 'border-alert-400/40 text-alert-400' },
+} as const;
+
+/** How a client's July review is shaping up, with the tally behind it on hover. */
+function ReviewChip({ r }: { r: Extract<CareerView['employment'], { mode: 'freelance' }>['clients'][number]['review'] }) {
+  if (r.grace) return <span className="chip hidden text-mist-400 sm:inline-flex">New client</span>;
+  const o = OUTLOOK[r.outlook];
+  const tally = `This year: ${r.deals} deals, ${r.briefs} briefs delivered${r.failed ? `, ${r.failed} failed` : ''}${r.hits ? `, ${r.hits} hits` : ''}${r.flops ? `, ${r.flops} flops` : ''}. Review on ${formatDate(r.reviewOn)}.${r.warned ? ' They warned you last summer.' : ''}`;
+  return (
+    <span className={`chip shrink-0 text-[11px] ${o.cls}`} title={tally}>
+      {o.label}
+    </span>
   );
 }

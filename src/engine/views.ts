@@ -918,6 +918,8 @@ export interface FinancesView {
   ledger: LedgerEntry[];
   placements: PlacementView[];
   rates: { mode: 'freelance' | 'fulltime'; matchMultiplier: number };
+  /** Costs of being a scout: weekly living costs, and the tax bill building up on this season's profit. */
+  overheads: { livingWeekly: USD; taxRate: number; taxProfit: number; taxEstimate: USD; taxDay: GameDate };
 }
 
 export interface ClubWorkView {
@@ -955,7 +957,16 @@ export interface CareerView {
   markets: { countryId: CountryId; name: string; level: number }[];
   homeCity: string;
   employment:
-    | { mode: 'freelance'; slots: number; clients: (ClubBadge & { cityName: string; trust: number })[] }
+    | {
+        mode: 'freelance';
+        slots: number;
+        clients: (ClubBadge & {
+          cityName: string;
+          trust: number;
+          /** How their July review is shaping up. */
+          review: { outlook: 'delighted' | 'satisfied' | 'at-risk' | 'leaving'; score: number; bar: number; warned: boolean; grace: boolean; reviewOn: GameDate; deals: number; briefs: number; failed: number; hits: number; flops: number };
+        })[];
+      }
     | {
         mode: 'fulltime';
         club: ClubBadge & { cityName: string };

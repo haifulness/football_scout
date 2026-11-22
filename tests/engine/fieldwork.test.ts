@@ -39,13 +39,18 @@ describe('travel', () => {
     expect(w.scout!.location).toBe(dest);
     expect(w.scout!.money).toBe(money - q.cost);
     const before = w.scout!.money;
+    const living = () => -w.ledger.filter((l) => l.kind === 'living').reduce((n, l) => n + l.amount, 0);
+    const livingBefore = living();
     advanceDays(w, 5);
-    expect(before - w.scout!.money).toBe(q.nightly * 5);
-    expect(w.ledger.filter((l) => l.kind === 'accommodation').length).toBe(1); // merged into one line
+    // Hotels only (weekly living costs fall in any week, wherever you are).
+    expect(before - w.scout!.money - (living() - livingBefore)).toBe(q.nightly * 5);
+    // Nights merge into one line (a living-cost line in between can split it).
+    expect(-w.ledger.filter((l) => l.kind === 'accommodation').reduce((n, l) => n + l.amount, 0)).toBe(q.nightly * 5);
     startTravel(w, w.scout!.homeCity);
     const atHome = w.scout!.money;
+    const livingAtHome = living();
     advanceDays(w, 3);
-    expect(w.scout!.money).toBe(atHome);
+    expect(w.scout!.money + (living() - livingAtHome)).toBe(atHome);
   });
 
   it('refuses trips you cannot afford', () => {

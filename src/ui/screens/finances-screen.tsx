@@ -52,6 +52,28 @@ export function FinancesScreen() {
         </StatTile>
       </div>
 
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="panel flex items-center gap-4 px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <div className="panel-title text-[11px]">Tax bill · {formatDate(f.overheads.taxDay)}</div>
+            <div className="mt-0.5 text-[12px] text-mist-400">
+              {Math.round(f.overheads.taxRate * 100)}% of this season's profit ({formatUSD(Math.max(0, f.overheads.taxProfit))} so far). Work costs are deducted; living costs are not.
+            </div>
+          </div>
+          <div className={`num text-2xl font-bold ${f.overheads.taxEstimate > f.money ? 'text-alert-400' : 'text-mist-100'}`}>{formatUSD(f.overheads.taxEstimate)}</div>
+        </div>
+        <div className="panel flex items-center gap-4 px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <div className="panel-title text-[11px]">Living costs</div>
+            <div className="mt-0.5 text-[12px] text-mist-400">Rent, car, phone, insurance. A bigger name lives bigger: it rises with your reputation.</div>
+          </div>
+          <div className="num text-2xl font-bold text-mist-100">
+            {formatUSD(f.overheads.livingWeekly)}
+            <span className="text-sm font-normal text-mist-400">/wk</span>
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_440px]">
         <Panel title="Balance over time">
           <BalanceChart history={f.history} />

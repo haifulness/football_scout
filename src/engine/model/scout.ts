@@ -64,6 +64,10 @@ export interface Scout {
   mentorOffer?: { rivalId: number; expiresOn: GameDate };
   /** You have had (or turned down) a mentor: no more offers. */
   mentorDone?: boolean;
+  /** When each freelance client took you on (their first review waits a while). */
+  clientSince?: Record<ClubId, GameDate>;
+  /** Clients that warned you at their last review: another thin year and they go. */
+  clientWarned?: ClubId[];
 }
 
 /** Working under a big-name scout: his clients take your calls, he takes a share of what you earn. */
@@ -188,7 +192,9 @@ export type LedgerKind =
   | 'agency-cut'
   | 'mentor-cut'
   | 'consultation'
-  | 'campaign';
+  | 'campaign'
+  | 'living'
+  | 'tax';
 
 export type Employment =
   | { mode: 'freelance'; clients: ClubId[] }

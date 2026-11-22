@@ -27,6 +27,8 @@ import { seasonWindow } from './systems/fixtures';
 import { TRAITS_REVEAL_LEVEL, VIDEO_KNOWLEDGE_CAP, attributeRanges, estimate, fog, freshness, knowledgeLevel, seenOn } from './systems/knowledge';
 import { TRAIT_INFO, characterOf, characterView, knownTraits } from './systems/character';
 import { aftercareCheck, isSettling, settleForecast, settlePenalty } from './systems/settling';
+import { taxDay, taxFor, weeklyLiving } from './systems/overheads';
+import { clientYear, nextReview } from './systems/client-review';
 import { START_MORALE, latestVerdict, moodOf, placementForm, visitCheck } from './systems/placement-stories';
 import type { TraitId } from './model/player';
 import { MAX_FOCUS, validateFocus, writeAttendedMatch } from './systems/matchday';
@@ -247,6 +249,8 @@ const LEDGER_LABELS: Record<string, string> = {
   'mentor-cut': 'Mentor’s share',
   consultation: 'Player consultations',
   campaign: 'Profile campaigns',
+  living: 'Living costs',
+  tax: 'Tax',
 };
 
 const isInbox = isInboxItem;
@@ -811,6 +815,10 @@ export class Engine {
       ledger: s.ledger.slice(0, 200),
       placements: [...s.placements].reverse().map((pl) => this.placementView(pl)),
       rates: { mode: 'freelance', matchMultiplier: 2 },
+      overheads: (() => {
+        const t = taxFor(s, s.season.year);
+        return { livingWeekly: weeklyLiving(s), taxRate: t.rate, taxProfit: t.profit, taxEstimate: t.bill, taxDay: taxDay(s.season.year) };
+      })(),
     };
   }
 
@@ -1159,7 +1167,27 @@ export class Engine {
       homeCity: s.cities[sc.homeCity]!.name,
       employment:
         e.mode === 'freelance'
-          ? { mode: 'freelance', slots: clientCapacity(s), clients: e.clients.map((id) => ({ ...badgeCity(id), trust: clubTrust(s, id) })) }
+          ? { mode: 'freelance', slots: clientCapacity(s), clients: e.clients.map((id) => {
+                const y = clientYear(s, id);
+                return {
+                  ...badgeCity(id),
+                  trust: clubTrust(s, id),
+                  review: {
+                    outlook: y.outlook,
+                    score: y.score,
+                    bar: y.bar,
+                    warned: y.warned,
+                    grace: y.grace,
+                    reviewOn: y.reviewOn,
+                    deals: y.signings + y.sales,
+                    briefs: y.briefsDone,
+                    failed: y.briefsFailed,
+                    hits: y.hits,
+                    flops: y.flops,
+                  },
+                };
+              }),
+            }
           : {
               mode: 'fulltime',
               club: badgeCity(e.clubId),
@@ -1863,6 +1891,10 @@ export class Engine {
     const job = s.scout?.employment;
     if (job?.mode === 'fulltime') add({ key: 'contract', kind: 'work', start: job.leavingOn ?? job.until, label: job.leavingOn ? `You leave ${club(job.clubId)}` : `Your contract at ${club(job.clubId)} ends`, link: { screen: 'career' } });
 
+    const tax = taxFor(s, s.season.year);
+    add({ key: `tax-${s.season.year}`, kind: 'work', start: taxDay(s.season.year), label: `Tax bill${tax.bill ? `, about ${formatUSD(tax.bill)} so far` : ''}`, detail: `${Math.round(tax.rate * 100)}% of the season's profit`, link: { screen: 'finances' } });
+    if (s.scout?.employment.mode === 'freelance' && s.scout.employment.clients.length)
+      add({ key: `reviews-${s.season.year}`, kind: 'work', start: nextReview(s.date), label: 'Clients review your year', detail: 'Each client judges your season', link: { screen: 'career' } });
     const from = addDays(s.date, -45);
     const to = addDays(s.date, 400);
     return {
@@ -2032,6 +2064,23 @@ export class Engine {
         link: { screen: 'deals' },
       });
     }
+    // Clients unhappy with your year: their July review could end the agreement.
+    if (s.scout!.employment.mode === 'freelance')
+      for (const id of (s.scout!.employment as { clients: ClubId[] }).clients) {
+        const y = clientYear(s, id);
+        if (y.grace || (y.outlook !== 'leaving' && !(y.outlook === 'at-risk' && y.reviewOn - s.date <= 90))) continue;
+        const club = s.clubs[id]!;
+        needsYou.push({
+          key: `review${id}`,
+          kind: 'clients',
+          tone: y.outlook === 'leaving' ? 'urgent' : 'action',
+          title: y.outlook === 'leaving' ? `${club.name} will drop you in July` : `${club.name} expect more by July`,
+          detail: `${y.signings + y.sales} deals and ${y.briefsDone} briefs this year${y.warned ? ' · they warned you last summer' : ''} · bring them a signing`,
+          daysLeft: y.reviewOn - s.date,
+          club: badge(club),
+          link: { screen: 'club', id },
+        });
+      }
     // Players you placed who are unhappy: a visit can talk them round before they ask to leave.
     for (const pl of s.placements.filter((x) => !x.endedOn)) {
       const p = s.players[pl.playerId];
