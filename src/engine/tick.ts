@@ -1,3 +1,4 @@
+import { tournamentTick } from './systems/tournaments';
 import { reviewClients } from './systems/client-review';
 import { overheadsTick, payTax } from './systems/overheads';
 import { placementTick, trackPlacements } from './systems/placement-stories';
@@ -144,6 +145,7 @@ function playDay(state: GameState, date: GameDate, onMatch?: MatchListener): { m
     dilemmaTick(state, date);
     consultationTick(state, date);
     overheadsTick(state, date);
+    tournamentTick(state, date);
     if (toParts(date).day === 1) placementTick(state, date);
     unlockTick(state, date);
     staleTick(state, date);

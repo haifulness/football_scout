@@ -105,4 +105,6 @@ export interface Player {
   joinedOn?: GameDate;
   /** Settling in after a move from abroad: plays below his level, fading to nothing by `until`. */
   settling?: { since: GameDate; until: GameDate; start: number; visited?: GameDate };
+  /** A big international tournament: fame raises his price and how well he is known, fading over a year. */
+  fame?: { boost: number; since: GameDate };
 }

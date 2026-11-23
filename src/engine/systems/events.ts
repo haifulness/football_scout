@@ -1,3 +1,4 @@
+import { ensureTournament, tournamentFor } from './tournaments';
 import { addDays, ageOn, formatDate, makeDate, type GameDate } from '../core/calendar';
 import type { CityId, PlayerId } from '../core/ids';
 import { formatUSD, usd, type USD } from '../core/money';
@@ -20,6 +21,7 @@ const KIND: Record<ScoutingEventKind, { days: number; ticket: number; size: numb
   'u20-championship': { days: 4, ticket: 400, size: 20, label: 'U20 championship' },
   'trial-day': { days: 1, ticket: 60, size: 12, label: 'Trial day' },
   showcase: { days: 2, ticket: 100, size: 20, label: 'Showcase for released players' },
+  international: { days: 4, ticket: 600, size: 40, label: 'International tournament' },
 };
 /** What a day watching at an event teaches you about each player there. */
 const EVENT_GAIN = 16;
@@ -76,9 +78,33 @@ export function ensureSeasonEvents(state: GameState) {
     add('trial-day', c, date(m), `${c.name} open trial day`, true);
   }
   add('showcase', home, makeDate(year + 1, 6, rng.int(5, 20)), `${home.name} free-agent showcase`);
+
   events.sort((a, b) => a.start - b.start);
   // Keep only the current season's (the old ones are history).
   state.events = [...(state.events ?? []).filter((e) => e.season === year - 1 && e.seen), ...events];
+}
+
+/** This summer's big international tournament as an event: its opening group games, in the host's biggest city. */
+function addTournamentEvent(state: GameState) {
+  const year = state.season.year;
+  ensureTournament(state);
+  const t = tournamentFor(state, year);
+  if (!t || state.events?.some((e) => e.season === year && e.kind === 'international')) return;
+  state.events = [
+    ...(state.events ?? []),
+    {
+      id: year * 100 + 90,
+      kind: 'international' as const,
+      name: `${t.name}: group stage`,
+      season: year,
+      cityId: t.cityId,
+      countryId: t.hostId,
+      start: t.start,
+      days: KIND.international.days,
+      ticket: usd(KIND.international.ticket),
+      size: KIND.international.size,
+    },
+  ].sort((a, b) => a.start - b.start);
 }
 
 /** Who you'll see there: picked when you attend, so released players and new academy graduates count. */
@@ -108,6 +134,16 @@ function participants(state: GameState, e: ScoutingEvent): PlayerId[] {
       );
       weight = (p) => (p.clubId ? 1 : 2);
       break;
+    case 'international': {
+      // The squads, once named: the stars are well known anyway, so the eye goes to the rest.
+      const t = tournamentFor(state, e.season);
+      pool = Object.values(t?.squads ?? {})
+        .flat()
+        .map((id) => state.players[id]!)
+        .filter(Boolean);
+      weight = (p) => (p.clubId && state.clubs[p.clubId]!.tier >= 3 ? 3 : 1);
+      break;
+    }
     case 'showcase':
       pool = state.freeAgents.map((id) => state.players[id]!).filter((p) => p && inCountry(p) && age(p) <= 32);
       weight = () => 1;
@@ -164,6 +200,7 @@ export function attendEvent(state: GameState, id: number): { event: ScoutingEven
 export function eventsTick(state: GameState, date: GameDate) {
   if (!state.scout) return;
   ensureSeasonEvents(state);
+  addTournamentEvent(state);
   for (const e of state.events ?? []) {
     if (e.reminded || e.season !== state.season.year || e.start - date !== REMIND_DAYS) continue;
     e.reminded = true;

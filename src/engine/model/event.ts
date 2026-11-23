@@ -2,7 +2,7 @@ import type { GameDate } from '../core/calendar';
 import type { CityId, CountryId, PlayerId } from '../core/ids';
 import type { USD } from '../core/money';
 
-export type ScoutingEventKind = 'youth-tournament' | 'u20-championship' | 'trial-day' | 'showcase';
+export type ScoutingEventKind = 'youth-tournament' | 'u20-championship' | 'trial-day' | 'showcase' | 'international';
 
 /** A date in the scouting calendar where many players can be seen at once. */
 export interface ScoutingEvent {

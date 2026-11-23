@@ -1,3 +1,4 @@
+import { TournamentPanel } from '../components/tournament-panel';
 import { useState } from 'react';
 import { formatDate } from '../../engine/core/calendar';
 import { formatUSD } from '../../engine/core/money';
@@ -11,6 +12,7 @@ const KIND_ICON: Record<ScoutingEventView['kind'], string> = {
   'u20-championship': '🌍',
   'trial-day': '⚽',
   showcase: '📋',
+  international: '🏟',
 };
 
 /** The scouting calendar: where many players can be seen in one trip. */
@@ -30,6 +32,7 @@ export function EventsScreen() {
           and can add them to your pool.
         </p>
       </div>
+      <TournamentPanel />
       {on.length > 0 && <Group title="On now" events={on} />}
       <Group title="Coming up" events={upcoming} empty="Nothing else this season. Next season's calendar appears in July." />
       {past.length > 0 && <Group title="Earlier this season" events={past} />}

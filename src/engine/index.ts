@@ -29,6 +29,7 @@ import { TRAIT_INFO, characterOf, characterView, knownTraits } from './systems/c
 import { aftercareCheck, isSettling, settleForecast, settlePenalty } from './systems/settling';
 import { taxDay, taxFor, weeklyLiving } from './systems/overheads';
 import { clientYear, nextReview } from './systems/client-review';
+import { ROUND_LABEL, groupTable } from './systems/tournaments';
 import { STYLE_INFO, fitLabel, styleAttrs, styleFit, styleOf, type ClubStyle } from './systems/styles';
 import { START_MORALE, latestVerdict, moodOf, placementForm, visitCheck } from './systems/placement-stories';
 import type { TraitId } from './model/player';
@@ -182,6 +183,8 @@ import type {
   HomeView,
   CalendarEntry,
   CalendarView,
+  TournamentView,
+  TournamentPlayerView,
   ScoutingEventView,
   DilemmaView,
   MarketView,
@@ -1855,6 +1858,10 @@ export class Engine {
       add({ key: `season-end-${y}`, kind: 'season', start: w.end, label: `Last day of the ${seasonLabel(y)} league season` });
       add({ key: `rollover-${y}`, kind: 'season', start: makeDate(y, 7, 1), label: 'New season: awards, goals and youth intakes' });
     }
+    for (const t of s.tournaments ?? []) {
+      add({ key: `tour-sq${t.id}`, kind: 'event', start: t.squadsOn, label: `${t.name}: squads named`, detail: 'Scout its players before they become famous', link: { screen: 'events' } });
+      add({ key: `tour${t.id}`, kind: 'event', start: t.start, end: t.end, label: t.name, detail: `In ${s.countries[t.hostId]!.name}`, link: { screen: 'events' } });
+    }
     for (const e of s.events ?? []) {
       const city = s.cities[e.cityId]!;
       add({
@@ -1907,6 +1914,75 @@ export class Engine {
     return {
       today: s.date,
       entries: entries.filter((e) => (e.end ?? e.start) >= from && e.start <= to).sort((a, b) => a.start - b.start),
+    };
+  }
+
+  /** This summer's international tournament (or the last one, just after it ends). */
+  getTournament(): TournamentView | null {
+    const s = this.s;
+    const list = (s.tournaments ?? []).filter((t) => t.end >= addDays(s.date, -60)).sort((a, b) => a.start - b.start);
+    const t = list.find((x) => !x.winner) ?? list[list.length - 1];
+    if (!t) return null;
+    const name = (c: CountryId) => s.countries[c]!.name;
+    const yoursOf = (id: PlayerId): TournamentPlayerView['yours'] =>
+      s.placements.some((pl) => pl.playerId === id && !pl.endedOn) ? 'placed' : s.pool[id] ? 'pool' : null;
+    const playerView = (id: PlayerId): TournamentPlayerView | null => {
+      const p = s.players[id];
+      if (!p) return null;
+      const l = t.lines[id];
+      return {
+        id,
+        name: `${p.firstName} ${p.lastName}`,
+        country: name(p.nationality),
+        club: p.clubId ? s.clubs[p.clubId]!.name : undefined,
+        apps: l?.apps ?? 0,
+        goals: l?.goals ?? 0,
+        avg: l?.apps ? Math.round((l.ratingSum / l.apps) * 10) / 10 : undefined,
+        yours: yoursOf(id),
+      };
+    };
+    const played = t.matches.some((m) => m.result);
+    const rounds = ['r16', 'qf', 'sf', 'final'] as const;
+    return {
+      name: t.name,
+      host: name(t.hostId),
+      city: s.cities[t.cityId]!.name,
+      start: t.start,
+      end: t.end,
+      squadsOn: t.squadsOn,
+      status: t.winner ? 'done' : played ? 'on' : t.squads ? 'squads' : 'upcoming',
+      winner: t.winner ? name(t.winner) : undefined,
+      groups: t.groups.map((_, gi) => ({
+        name: `Group ${String.fromCharCode(65 + gi)}`,
+        rows: groupTable(t, gi).map((r, i) => ({
+          country: name(r.id),
+          played: t.matches.filter((m) => m.round === 'group' && m.group === gi && m.result && (m.home === r.id || m.away === r.id)).length,
+          pts: r.pts,
+          gd: r.gd,
+          gf: r.gf,
+          through: i < 2 && t.matches.some((m) => m.round !== 'group'),
+        })),
+      })),
+      knockout: rounds
+        .map((r) => ({
+          round: ROUND_LABEL[r],
+          matches: t.matches
+            .filter((m) => m.round === r)
+            .map((m) => ({
+              home: name(m.home),
+              away: name(m.away),
+              score: m.result ? `${m.result.home}–${m.result.away}` : undefined,
+              winner: m.result?.winner ? name(m.result.winner) : undefined,
+              penalties: m.result?.penalties,
+            })),
+        }))
+        .filter((r) => r.matches.length),
+      yours: Object.values(t.squads ?? {})
+        .flat()
+        .filter((id) => yoursOf(id))
+        .map(playerView)
+        .filter((x): x is TournamentPlayerView => !!x),
+      standouts: (t.standouts ?? []).map(playerView).filter((x): x is TournamentPlayerView => !!x),
     };
   }
 

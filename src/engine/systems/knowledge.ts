@@ -1,3 +1,4 @@
+import { FAME_VISIBILITY, fameOf } from './tournaments';
 import { addDays, ageOn, formatDate, toParts, type GameDate } from '../core/calendar';
 import { recordProdigyFind } from './goals';
 import type { CountryId, PlayerId } from '../core/ids';
@@ -36,7 +37,9 @@ export function marketOf(state: GameState, p: Player): CountryId {
 export function publicLevel(state: GameState, p: Player): number {
   const tier = p.clubId ? state.clubs[p.clubId]!.tier : 5;
   const market = state.scout?.regionKnowledge[marketOf(state, p)] ?? 0;
-  return Math.round(PUBLIC_VISIBILITY[tier] + market * 0.25);
+  // A star of the last big tournament is known to everyone.
+  const fame = Math.max(0, fameOf(p, state.date)) * FAME_VISIBILITY;
+  return Math.round(Math.min(95, PUBLIC_VISIBILITY[tier] + market * 0.25 + fame));
 }
 
 export function knowledgeLevel(state: GameState, p: Player): number {

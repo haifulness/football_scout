@@ -1458,7 +1458,7 @@ export interface HomeView {
 
 export interface ScoutingEventView {
   id: number;
-  kind: 'youth-tournament' | 'u20-championship' | 'trial-day' | 'showcase';
+  kind: 'youth-tournament' | 'u20-championship' | 'trial-day' | 'showcase' | 'international';
   label: string;
   name: string;
   city: { id: CityId; name: string };
@@ -1527,4 +1527,32 @@ export interface StyleView {
   blurb: string;
   /** The attributes this style asks for, as labels. */
   attrs: string[];
+}
+
+export interface TournamentPlayerView {
+  id: PlayerId;
+  name: string;
+  country: string;
+  club?: string;
+  apps: number;
+  goals: number;
+  avg?: number;
+  /** In your pool, or one of the players you placed. */
+  yours: 'placed' | 'pool' | null;
+}
+
+export interface TournamentView {
+  name: string;
+  host: string;
+  city: string;
+  start: GameDate;
+  end: GameDate;
+  squadsOn: GameDate;
+  status: 'upcoming' | 'squads' | 'on' | 'done';
+  winner?: string;
+  groups: { name: string; rows: { country: string; played: number; pts: number; gd: number; gf: number; through: boolean }[] }[];
+  knockout: { round: string; matches: { home: string; away: string; score?: string; winner?: string; penalties?: boolean }[] }[];
+  /** Your players and pool players in the squads. */
+  yours: TournamentPlayerView[];
+  standouts: TournamentPlayerView[];
 }

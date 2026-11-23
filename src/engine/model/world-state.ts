@@ -91,6 +91,8 @@ export interface GameState {
   campaign?: import('./campaign').Campaign;
   /** Players asking your advice about a club (recent ones kept for the record). */
   consultations?: import('./consultation').Consultation[];
+  /** This summer's international tournament and the last couple. */
+  tournaments?: import('./tournament').Tournament[];
   /** Choices put to you (recent ones kept for the record). */
   dilemmas?: Dilemma[];
   /** Your season reviews, newest last (kept for the last 20 seasons). */

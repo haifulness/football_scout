@@ -1,3 +1,5 @@
+import { roundPrice } from '../core/money';
+import { fameOf } from './tournaments';
 import { hasTrait } from './character';
 import { ageOn, type GameDate } from '../core/calendar';
 import { Rng, clamp } from '../core/rng';
@@ -55,13 +57,16 @@ export function contractYearsLeft(p: Player, date: GameDate): number {
 export function revalue(state: GameState, p: Player, date: GameDate) {
   const club = p.clubId ? state.clubs[p.clubId] : undefined;
   const wealth = state.countries[club?.countryId ?? p.nationality]!.wealthIndex;
-  p.value = marketValue({
+  const base = marketValue({
     ovr: ovrAt(p, p.naturalPosition),
     age: ageOn(p.birthDate, date),
     potential: p.hidden.potential,
     contractYearsLeft: contractYearsLeft(p, date),
     wealthIndex: wealth,
   });
+  const fame = fameOf(p, date);
+  p.value = fame ? roundPrice(base * (1 + fame)) : base;
+  if (p.fame && !fame) p.fame = undefined;
 }
 
 /** First of every month: development, then market values. */
