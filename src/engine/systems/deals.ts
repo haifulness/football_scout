@@ -1,3 +1,4 @@
+import { STYLE_SIGNOFF, styleFit } from './styles';
 import { characterOf, hasTrait } from './character';
 import { addDays, ageOn, formatDate, isTransferWindow, type GameDate } from '../core/calendar';
 import { MENTOR_PHONE_TRUST } from './mentor';
@@ -142,6 +143,7 @@ export function signOffProbability(state: GameState, o: ClubOfficial, p: Player,
       brief +
       reportBonus(state, p.id, pos) +
       specialtyBonus(state, p, pos) +
+      styleFit(state, p, club, pos) * STYLE_SIGNOFF +
       (state.deadline ? DEADLINE_SIGNOFF_BONUS : 0) -
       (remote ? REMOTE_PITCH_PENALTY : 0),
   );

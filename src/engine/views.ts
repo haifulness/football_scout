@@ -217,6 +217,8 @@ export interface ClubView extends ClubBadge {
   squadValue: USD;
   averageAge: number;
   formation: FormationId;
+  /** How the club plays: what kind of footballer the coach wants. */
+  style: StyleView;
   acceptsProspects: Club['acceptsProspects'];
   lineup: (LineupSlot & { name?: string; portraitSeed?: number; ovrRange?: Range })[];
   needs: SlotNeed[];
@@ -832,6 +834,8 @@ export interface PitchPreview {
   report?: { role: Position; rating: number; sameRole: boolean };
   /** Your specialties this pitch falls in (they help the sign-off). */
   specialties: string[];
+  /** The club's style, and whether he suits it as far as you can tell (on your read of him). */
+  style: StyleView & { fit: 'fits' | 'neutral' | 'clashes' };
   /** How he'd settle at this club, judged on what you know of him (absent: a move at home, nothing to settle). */
   settling?: { months: number; label: 'quick' | 'a few months' | 'slow' | 'very slow'; reasons: string[]; unknownCharacter: boolean };
   affordable: boolean;
@@ -1515,4 +1519,12 @@ export interface CalendarEntry {
 export interface CalendarView {
   today: GameDate;
   entries: CalendarEntry[];
+}
+
+export interface StyleView {
+  id: import('./systems/styles').ClubStyle;
+  label: string;
+  blurb: string;
+  /** The attributes this style asks for, as labels. */
+  attrs: string[];
 }

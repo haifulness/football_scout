@@ -64,6 +64,19 @@ export function ClubScreen({ id }: { id: ClubId }) {
         </StatTile>
       </div>
 
+      <div className="panel flex flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-3">
+        <span className="panel-title text-[11px]">How they play</span>
+        <span className="font-display text-lg font-semibold uppercase leading-none text-flood-300">{club.style.label}</span>
+        <span className="min-w-[200px] flex-1 text-[12px] text-mist-300">{club.style.blurb}</span>
+        <span className="flex flex-wrap gap-1">
+          {club.style.attrs.map((a) => (
+            <span key={a} className="chip text-[11px]">
+              {a}
+            </span>
+          ))}
+        </span>
+      </div>
+
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[440px_1fr]">
         <Panel title={`Best XI · ${club.formation}`} right={<span className="chip">Tap a player</span>}>
           <div className="p-4">

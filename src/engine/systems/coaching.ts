@@ -1,3 +1,4 @@
+import { STYLE_INFO, adoptCoachStyle, styleOf, type ClubStyle } from './styles';
 import { addDays, toParts, type GameDate } from '../core/calendar';
 import type { ClubId, StaffId } from '../core/ids';
 import { Rng, clamp } from '../core/rng';
@@ -32,6 +33,7 @@ export interface CoachChange {
   /** Where a rehired coach last worked. */
   previousClubId?: ClubId;
   formationBefore: string;
+  styleBefore?: ClubStyle;
   reason: string;
 }
 
@@ -77,7 +79,9 @@ export function replaceCoach(state: GameState, club: Club, rng: Rng, date: GameD
   // He brings his own ideas more often than not.
   if (coach.formation && rng.chance(0.6)) club.formation = coach.formation;
   else if (!coach.formation && rng.chance(0.4)) club.formation = rng.pick(FORMATION_IDS);
-  return { club, old, coach, rehired, previousClubId, formationBefore, reason };
+  const styleBefore = styleOf(state, club);
+  adoptCoachStyle(state, club, coach);
+  return { club, old, coach, rehired, previousClubId, formationBefore, styleBefore, reason };
 }
 
 /** Clubs you work with, and coaches you know: a change there is news for you. */
@@ -95,7 +99,10 @@ export function announceChange(state: GameState, ch: CoachChange, date: GameDate
   const { club, old, coach } = ch;
   const oldName = `${old.firstName} ${old.lastName}`;
   const newName = `${coach.firstName} ${coach.lastName}`;
-  const formation = club.formation !== ch.formationBefore ? ` He switches to ${club.formation}, so the club's needs change.` : '';
+  const styleNow = styleOf(state, club);
+  const formation =
+    (club.formation !== ch.formationBefore ? ` He switches to ${club.formation}, so the club's needs change.` : '') +
+    (ch.styleBefore && styleNow !== ch.styleBefore ? ` He brings his own way of playing: ${STYLE_INFO[styleNow].label.toLowerCase()}. ${STYLE_INFO[styleNow].blurb}` : '');
   const forYou = yours || knowOld > 0 || knowNew > 0;
   const homeTopFlight = state.scout && club.countryId === state.scout.homeCountry && state.leagues[club.leagueId]!.level === 1;
   if (!forYou && !(midSeason && homeTopFlight)) return;

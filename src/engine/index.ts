@@ -29,6 +29,7 @@ import { TRAIT_INFO, characterOf, characterView, knownTraits } from './systems/c
 import { aftercareCheck, isSettling, settleForecast, settlePenalty } from './systems/settling';
 import { taxDay, taxFor, weeklyLiving } from './systems/overheads';
 import { clientYear, nextReview } from './systems/client-review';
+import { STYLE_INFO, fitLabel, styleAttrs, styleFit, styleOf, type ClubStyle } from './systems/styles';
 import { START_MORALE, latestVerdict, moodOf, placementForm, visitCheck } from './systems/placement-stories';
 import type { TraitId } from './model/player';
 import { MAX_FOCUS, validateFocus, writeAttendedMatch } from './systems/matchday';
@@ -266,6 +267,12 @@ const seasonLabel = (year: number) => `${year}/${String(year + 1).slice(2)}`;
 
 /** Engine facade: owns the GameState, runs commands, and answers UI queries with small view models. */
 const traitView = (id: TraitId) => ({ id, ...TRAIT_INFO[id] });
+const styleView = (id: ClubStyle, pos?: Position) => ({
+  id,
+  label: STYLE_INFO[id].label,
+  blurb: STYLE_INFO[id].blurb,
+  attrs: (pos ? styleAttrs(id, pos) : STYLE_INFO[id].attrs).map((a) => ATTRIBUTE_LABEL[a]),
+});
 
 export class Engine {
   protected state?: GameState;
@@ -2660,6 +2667,19 @@ export class Engine {
         return r ? { role: r.role, rating: r.rating, sameRole: r.role === pos } : undefined;
       })(),
       specialties: matchingSpecialties(s, p, pos).map((sp) => sp.label),
+      style: { ...styleView(styleOf(s, club), pos), fit: fitLabel(
+          styleFit(
+            s,
+            (() => {
+              // Judged on your read of him (the middle of each range), not the truth.
+              const r = attributeRanges(s, p);
+              return { ...p, attributes: Object.fromEntries(Object.entries(r).map(([k, v]) => [k, (v[0] + v[1]) / 2])) as Player['attributes'] };
+            })(),
+            club,
+            pos,
+          ),
+        ),
+      },
       settling: (() => {
         const f = settleForecast(s, p, club, s.date, true);
         if (!f.days) return undefined;
@@ -3295,6 +3315,7 @@ export class Engine {
       squadValue: usd(squad.reduce((n, p) => n + p.value, 0)),
       averageAge: Math.round((squad.reduce((n, p) => n + ageOn(p.birthDate, s.date), 0) / squad.length) * 10) / 10,
       formation: club.formation,
+      style: styleView(styleOf(s, club)),
       acceptsProspects: club.acceptsProspects,
       lineup,
       needs: squadNeeds(club.formation, squad),

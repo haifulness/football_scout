@@ -1,3 +1,4 @@
+import { styleAttrs, styleOf } from './styles';
 import { addDays, ageOn, formatDate, toParts, type GameDate } from '../core/calendar';
 import { CAMPAIGN_BOOST, SPOTLIGHT, inSpotlight } from './campaigns';
 import { mentorClients, mentorOf } from './mentor';
@@ -110,6 +111,7 @@ function makeMission(state: GameState, club: Club, rng: Rng): Mission | undefine
         : policy === 'win-now'
           ? `The board wants results this season. `
           : '') +
+    styleLine(state, club, pos) +
     (need.severity >= 0.45
       ? `We're short at ${pos}. We need someone ready to start.`
       : req.maxAge && req.maxAge <= 23
@@ -127,6 +129,13 @@ function makeMission(state: GameState, club: Club, rng: Rng): Mission | undefine
     reward,
     status: 'offered',
   };
+}
+
+/** How the club plays, in the coach's words, for the brief (only for outfield positions). */
+function styleLine(state: GameState, club: Club, pos: Position): string {
+  if (pos === 'GK') return '';
+  const st = styleOf(state, club);
+  return `We play ${st === 'pressing' ? 'a high press' : st === 'possession' ? 'possession football' : st === 'direct' ? 'direct' : st === 'counter' ? 'on the counter' : st === 'defensive' ? 'a low block' : 'with flair'}. `;
 }
 
 export function describeRequirements(r: MissionRequirements, pos: Position, state?: GameState): string[] {
@@ -177,6 +186,9 @@ export function discussMission(state: GameState, id: number): MissionPreferences
     .map(([k]) => k);
   const atPos = squad.filter((p) => p.naturalPosition === m.position);
   const pool = atPos.length ? atPos : squad;
+  // The way they play decides one of them: a pressing side asking for a striker wants him to run.
+  const styled = styleAttrs(styleOf(state, club), m.position).find((a) => !top.includes(a));
+  if (styled) top[1] = styled;
   const keyAttributes = top.map((attribute) => ({
     attribute,
     min: clamp(Math.round(pool.reduce((n, p) => n + p.attributes[attribute], 0) / Math.max(1, pool.length)) + 1, 6, 18),

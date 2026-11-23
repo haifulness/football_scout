@@ -616,6 +616,16 @@ function PitchView({
               Right in your niche ({preview.specialties.join(', ')}): the coach trusts your eye here.
             </div>
           )}
+          {preview.position !== 'GK' && (
+            <div className="rounded-lg border border-white/[0.06] px-3 py-2 text-[12px] text-mist-300">
+              They play <b className="text-mist-100">{preview.style.label.toLowerCase()}</b> and want {preview.style.attrs.join(', ').toLowerCase()}.{' '}
+              {preview.style.fit === 'fits'
+                ? 'From what you know, he is their kind of player: the coach is keener.'
+                : preview.style.fit === 'clashes'
+                  ? 'From what you know, he is not their type: the coach is warier.'
+                  : 'From what you know, he is neither here nor there for how they play.'}
+            </div>
+          )}
           {preview.settling && (
             <div
               className={`rounded-lg border px-3 py-2 text-[12px] ${preview.settling.label === 'slow' || preview.settling.label === 'very slow' ? 'border-flood-400/30 text-flood-300' : 'border-white/[0.06] text-mist-300'}`}
@@ -779,6 +789,8 @@ function Verdict({ preview, wageOffer, deal }: { preview: Preview; wageOffer: nu
   if (preview.rivalInterest.length)
     chips.push({ text: `${preview.rivalInterest.length} rival${preview.rivalInterest.length > 1 ? 's' : ''} after him`, tone: 'warn' });
   if (preview.rights === 'open') chips.push({ text: 'Open pitch: half bonus', tone: 'warn' });
+  if (preview.style.fit !== 'neutral')
+    chips.push({ text: preview.style.fit === 'fits' ? `Suits their ${preview.style.label.toLowerCase()}` : `Wrong type for their ${preview.style.label.toLowerCase()}`, tone: preview.style.fit === 'fits' ? 'good' : 'bad' });
   if (preview.settling && (preview.settling.label === 'slow' || preview.settling.label === 'very slow'))
     chips.push({ text: `Settling: ${preview.settling.label} (~${preview.settling.months} mo)`, tone: 'warn' });
   const chipColor = { good: 'border-good-400/25 text-good-200', bad: 'border-alert-500/40 text-alert-400', warn: 'border-flood-400/30 text-flood-300' };

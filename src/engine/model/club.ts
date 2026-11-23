@@ -52,6 +52,8 @@ export interface Club {
   history: ClubSeason[];
   /** Signings forced past the Head Coach: he picks them less readily. */
   coachDoubts?: PlayerId[];
+  /** How the club plays, once a coach has changed it (absent: its own tradition; see systems/styles.ts). */
+  style?: import('../systems/styles').ClubStyle;
 }
 
 export interface OfficialPriorities {
@@ -82,4 +84,6 @@ export interface ClubOfficial {
   unemployedSince?: GameDate;
   /** The shape he likes to play: a club that hires him often switches to it. */
   formation?: FormationId;
+  /** His way of playing, if set (absent: drawn from his id; see systems/styles.ts). */
+  style?: import('../systems/styles').ClubStyle;
 }
