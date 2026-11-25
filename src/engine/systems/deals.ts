@@ -45,6 +45,18 @@ export function formationPositions(club: Club): Position[] {
   return [...new Set(FORMATIONS[club.formation].map((s) => s.position))];
 }
 
+/**
+ * The position you pitch him for at this club unless you choose another: his natural one if they play it, else the
+ * one he plays best among theirs, else any outfield slot. (Formation order never decides it: a striker who can also
+ * play AM is pitched as a striker at a club that uses both.)
+ */
+export function defaultPitchPosition(p: Player, club: Club): Position {
+  const positions = formationPositions(club);
+  if (positions.includes(p.naturalPosition)) return p.naturalPosition;
+  const playable = positions.filter((x) => (p.positions[x] ?? 0) >= 0.75).sort((a, b) => ovrAt(p, b) - ovrAt(p, a));
+  return playable[0] ?? positions.find((x) => x !== 'GK') ?? positions[0]!;
+}
+
 export function clubPositionalAverage(state: GameState, club: Club, pos: Position): number {
   const squad = club.squad.map((id) => state.players[id]!);
   const { average } = positionalAverage(squad, pos);

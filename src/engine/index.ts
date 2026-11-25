@@ -106,7 +106,7 @@ import {
   proposeAgreement,
   resign,
 } from './systems/employment';
-import { REMOTE_PITCH_TRUST, clubPositionalAverage, formationPositions, pitch, pitchFee, remotePitchCheck, repitchCheck, repitchMessage, signOffProbability, type PitchArgs, playerChance, wageCeiling } from './systems/deals';
+import { REMOTE_PITCH_TRUST, clubPositionalAverage, defaultPitchPosition, formationPositions, pitch, pitchFee, remotePitchCheck, repitchCheck, repitchMessage, signOffProbability, type PitchArgs, playerChance, wageCeiling } from './systems/deals';
 import { canAfford, wageRoom, freeAgentWage, offeredWage, transferFee, brokeredWage } from './systems/transfers';
 import type { Deal, Official, Placement } from './model/deal';
 import type { Mission } from './model/mission';
@@ -2756,10 +2756,7 @@ export class Engine {
     const p = s.players[playerId]!;
     const club = s.clubs[clubId]!;
     const positions = formationPositions(club);
-    const pos =
-      position && positions.includes(position)
-        ? position
-        : (positions.find((x) => (p.positions[x] ?? 0) >= 0.75) ?? positions.find((x) => x !== 'GK') ?? positions[0]!);
+    const pos = position && positions.includes(position) ? position : defaultPitchPosition(p, club);
     const f = fog(s, p);
     const avg = clubPositionalAverage(s, club, pos);
     const est = f.positions[pos];

@@ -196,7 +196,7 @@ function buyers(state: GameState, a: Assistant, md: Mandate, p: Player, rng: Rng
     // The position he'd fill there: his own if they use it, else the one he plays best that they do use.
     const slots = formationPositions(club).filter((x) => (p.positions[x] ?? 0) >= 0.75);
     if (!slots.length) continue;
-    const position = slots.sort((x, y) => ovrAt(p, y) - ovrAt(p, x))[0]!;
+    const position = slots.includes(p.naturalPosition) ? p.naturalPosition : slots.sort((x, y) => ovrAt(p, y) - ovrAt(p, x))[0]!;
     const gain = Math.round(ovrAt(p, position) + rng.gaussian(0, noise)) - clubPositionalAverage(state, club, position);
     // He'd improve them, but not so much that they're out of his league.
     if (gain >= 1 && gain <= 14) out.push({ club, position, gain });
