@@ -30,6 +30,7 @@ import { aftercareCheck, isSettling, settleForecast, settlePenalty } from './sys
 import { taxDay, taxFor, weeklyLiving } from './systems/overheads';
 import { clientYear, nextReview } from './systems/client-review';
 import { ROUND_LABEL, groupTable } from './systems/tournaments';
+import { askCoach, askCoachCheck, askPlayer, askPlayerCheck, insidePlayers, swapCheck, swapRivals, swapWithRival } from './systems/club-asks';
 import { pressLeads, readLevel, seenAverage, seenNeeds, studyClub, studyDays, studyResult, tierOf } from './systems/club-read';
 import {
   CAPACITY,
@@ -1071,6 +1072,26 @@ export class Engine {
   checkIn(playerId: PlayerId): { cost: number } {
     this.assertActive();
     return checkIn(this.s, playerId);
+  }
+
+  /** Ask the head coach in person what he needs. Takes a day; he may say no, and remember it. */
+  askCoach(clubId: ClubId): { told: boolean; message: string; advance: AdvanceSummary } {
+    this.assertActive();
+    this.assertNoDeadline();
+    const r = askCoach(this.s, clubId);
+    return { ...r, advance: this.summarize(advanceDays(this.s, 1)) };
+  }
+
+  /** Call a player you know at the club: his part of the pitch. Free, no time. */
+  askPlayer(playerId: PlayerId): string {
+    this.assertActive();
+    return askPlayer(this.s, playerId);
+  }
+
+  /** Trade reads with a rival who works for the club. */
+  swapWithRival(clubId: ClubId, rivalId: number): string {
+    this.assertActive();
+    return swapWithRival(this.s, clubId, rivalId);
   }
 
   /** Study a club's squad from afar: a few days of work, free, as good as what you know of their players. */
@@ -3528,6 +3549,23 @@ export class Engine {
           since: r?.date,
           floor: works ? 'You work for them: they keep you informed.' : undefined,
           study: { days: studyDays(club), level: study, useful: study > level },
+          asks: s.scout
+            ? {
+                coach: (() => {
+                  const c = askCoachCheck(s, club.id);
+                  const o = s.officials[club.headCoachId]!;
+                  return { name: `${o.firstName} ${o.lastName}`, ok: c.ok, reason: c.reason, chance: c.chance, cost: c.cost };
+                })(),
+                players: insidePlayers(s, club.id).map((p) => {
+                  const c = askPlayerCheck(s, p.id);
+                  return { id: p.id, name: `${p.firstName} ${p.lastName}`, position: p.naturalPosition, ok: c.ok, reason: c.reason };
+                }),
+                rivals: swapRivals(s, club.id).map((r) => {
+                  const c = swapCheck(s, club.id, r.id);
+                  return { id: r.id, name: `${r.firstName} ${r.lastName}`, ok: c.ok, reason: c.reason };
+                }),
+              }
+            : null,
         };
       })(),
       squad: squad.map((p) => this.playerRow(p, club)).sort((a, b) => POSITIONS.indexOf(a.position) - POSITIONS.indexOf(b.position) || b.ovr - a.ovr),

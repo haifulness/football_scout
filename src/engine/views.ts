@@ -224,7 +224,20 @@ export interface ClubView extends ClubBadge {
   /** Their needs as far as you know them (see needsRead): none when unknown, the pressing ones when rough. */
   needs: (SlotNeed & { avgRange?: Range })[];
   /** How well you know their needs, why it may be out of date, and what studying their squad would give you. */
-  needsRead: { tier: 'unknown' | 'rough' | 'good' | 'sure'; level: number; stale?: string; since?: GameDate; floor?: string; study: { days: number; level: number; useful: boolean } };
+  needsRead: {
+    tier: 'unknown' | 'rough' | 'good' | 'sure';
+    level: number;
+    stale?: string;
+    since?: GameDate;
+    floor?: string;
+    study: { days: number; level: number; useful: boolean };
+    /** People who could tell you: the head coach, players you know there, rival scouts who work for them. */
+    asks: {
+      coach: { name: string; ok: boolean; reason?: string; chance: number; cost: USD };
+      players: { id: PlayerId; name: string; position: Position; ok: boolean; reason?: string }[];
+      rivals: { id: number; name: string; ok: boolean; reason?: string }[];
+    } | null;
+  };
   squad: PlayerRow[];
   coach: OfficialView;
   president?: PresidentView;

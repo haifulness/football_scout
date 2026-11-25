@@ -1,3 +1,4 @@
+import { REFUSAL_SIGNOFF, refusedUntil } from './club-asks';
 import { learnFromRefusal } from './club-read';
 import { onGraduate } from './academy';
 import { STYLE_SIGNOFF, styleFit } from './styles';
@@ -157,7 +158,8 @@ export function signOffProbability(state: GameState, o: ClubOfficial, p: Player,
       brief +
       reportBonus(state, p.id, pos) +
       specialtyBonus(state, p, pos) +
-      styleFit(state, p, club, pos) * STYLE_SIGNOFF +
+      styleFit(state, p, club, pos) * STYLE_SIGNOFF -
+      (refusedUntil(state, o.id) !== undefined ? REFUSAL_SIGNOFF : 0) +
       (state.deadline ? DEADLINE_SIGNOFF_BONUS : 0) -
       (remote ? REMOTE_PITCH_PENALTY : 0),
   );

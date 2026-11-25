@@ -68,6 +68,12 @@ export interface Scout {
   clientSince?: Record<ClubId, GameDate>;
   /** Clients that warned you at their last review: another thin year and they go. */
   clientWarned?: ClubId[];
+  /** Head coaches who refused to discuss their needs with you, and when. */
+  coachRefused?: Record<StaffId, GameDate>;
+  /** When you last asked each player about his club. */
+  playerTips?: Record<PlayerId, GameDate>;
+  /** When you last swapped reads with each rival. */
+  rivalSwaps?: Record<number, GameDate>;
 }
 
 /** Working under a big-name scout: his clients take your calls, he takes a share of what you earn. */

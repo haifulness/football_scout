@@ -686,7 +686,7 @@ const READ_CLASS = { unknown: 'text-alert-400', rough: 'text-flood-300', good: '
 
 /** How well you know what they need, why it may be out of date, and a way to learn more. */
 function NeedsRead({ club }: { club: ClubView }) {
-  const { studyClub, advancing } = useGame();
+  const { studyClub, askCoach, touch, advancing } = useGame();
   const [msg, setMsg] = useState<string>();
   const r = club.needsRead;
   const study = () =>
@@ -716,6 +716,51 @@ function NeedsRead({ club }: { club: ClubView }) {
         </button>
       )}
       {msg && <span className="w-full text-mist-300">{msg}</span>}
+      {r.asks && r.tier !== 'sure' && (
+        <div className="flex w-full flex-wrap items-center gap-1.5">
+          <span className="text-[11px] text-mist-400">Ask:</span>
+          <button
+            className="btn-ghost px-2.5 py-1 text-[11px]"
+            disabled={!r.asks.coach.ok || advancing}
+            title={r.asks.coach.reason ?? 'He may tell you exactly. If he says no, he remembers: a worse relationship, and warier of your pitches for a few months.'}
+            onClick={() => void askCoach(club.id).then((x) => setMsg(x.message), (e) => setMsg(e instanceof Error ? e.message : 'That did not work.'))}
+          >
+            The coach, {r.asks.coach.name} · {formatUSD(r.asks.coach.cost)} · {Math.round(r.asks.coach.chance * 100)}% he talks
+          </button>
+          {r.asks.players.map((p) => (
+            <button
+              key={p.id}
+              className="btn-ghost px-2.5 py-1 text-[11px]"
+              disabled={!p.ok || advancing}
+              title={p.reason ?? 'A phone call: he tells you how things stand in his part of the pitch.'}
+              onClick={() =>
+                void engine.askPlayer(p.id).then(
+                  (m) => (setMsg(m), void touch()),
+                  (e) => setMsg(e instanceof Error ? e.message : 'That did not work.'),
+                )
+              }
+            >
+              Call {p.name} ({p.position})
+            </button>
+          ))}
+          {r.asks.rivals.map((x) => (
+            <button
+              key={x.id}
+              className="btn-ghost px-2.5 py-1 text-[11px]"
+              disabled={!x.ok || advancing}
+              title={x.reason ?? 'An even trade, except that he then knows what you are after: he goes after your players more for three months.'}
+              onClick={() =>
+                void engine.swapWithRival(club.id, x.id).then(
+                  (m) => (setMsg(m), void touch()),
+                  (e) => setMsg(e instanceof Error ? e.message : 'That did not work.'),
+                )
+              }
+            >
+              Swap with rival {x.name}
+            </button>
+          ))}
+        </div>
+      )}
       {r.tier !== 'sure' && !r.floor && (
         <span className="w-full text-[11px] text-mist-500">
           Other ways to learn: watch one of their matches, pitch them a player (a coach who says no often tells you why), or read the Touchline&apos;s weekly

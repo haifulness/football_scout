@@ -32,4 +32,6 @@ export interface RivalScout {
   record: { signings: number; steals: number; failed: number };
   /** You left him early: he goes after your players. */
   grudge?: boolean;
+  /** You swapped reads with him: he knows what you're after until then. */
+  tippedUntil?: GameDate;
 }
