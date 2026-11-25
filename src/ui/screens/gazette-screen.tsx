@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { formatDate } from '../../engine/core/calendar';
 import { formatUSD } from '../../engine/core/money';
 import type { FrontPage, GazetteNeed, GazetteView, TouchlineSection } from '../../engine/views';
@@ -37,9 +37,19 @@ function needHeadline(n: GazetteNeed): string {
 
 type ClubId = GazetteNeed['club']['id'];
 
+type Section = 'front' | 'league' | 'market' | 'coaches' | 'wanted';
+const SECTIONS: { id: Section; label: string }[] = [
+  { id: 'front', label: 'Front page' },
+  { id: 'league', label: 'Results & table' },
+  { id: 'market', label: 'Transfers' },
+  { id: 'coaches', label: 'Coaches' },
+  { id: 'wanted', label: 'Wanted' },
+];
+
 /** The Touchline: a weekly paper written from what happened, with the needs pages at the back. */
 export function GazetteScreen() {
   const g = useEngineQuery(() => engine.getGazette(), []);
+  const [section, setSection] = useState<Section>('front');
   const { navigate, searchFor, openRecommend } = useGame();
   if (!g) return <Loading label="Printing this week's issue" />;
 
@@ -58,148 +68,138 @@ export function GazetteScreen() {
   const by = (s: TouchlineSection) => g.bylines[s];
   const wishList = g.front.need ? g.yourClubs.slice(1) : g.yourClubs;
 
+  const go = (x: Section) => {
+    setSection(x);
+    document.querySelector('main')?.scrollTo({ top: 0 });
+  };
+  const topResult = g.results.find((r) => r.note) ?? g.results[0];
+  const index: { id: Section; label: string; teaser: string }[] = [
+    {
+      id: 'league',
+      label: 'Results & table',
+      teaser: topResult
+        ? `${topResult.home.shortName} ${topResult.score[0]}–${topResult.score[1]} ${topResult.away.shortName}${topResult.note ? `: ${topResult.note === 'upset' ? 'a shock' : topResult.note === 'thrashing' ? 'a rout' : 'a thriller'}` : ''}`
+        : 'No league games this week',
+    },
+    {
+      id: 'market',
+      label: 'Transfers',
+      teaser:
+        g.transfers[0]?.title ??
+        (g.links.length + g.rumours.length ? `${g.links.length + g.rumours.length} rumours doing the rounds` : 'A quiet week on the market'),
+    },
+    {
+      id: 'coaches',
+      label: 'Coaches',
+      teaser: g.interview
+        ? `${g.interview.coach} speaks${g.pressure.length ? ` · ${g.pressure.length} under pressure` : ''}`
+        : g.pressure.length
+          ? `${g.pressure.length} coaches under pressure`
+          : 'Every board behind its coach',
+    },
+    {
+      id: 'wanted',
+      label: 'Wanted',
+      teaser: g.yourClubs.length ? `${g.yourClubs.length} needs at your clubs` : 'Who needs what, and who can pay',
+    },
+  ];
+
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6">
+    <div className="mx-auto flex w-full min-w-0 max-w-6xl flex-col gap-5">
       <Masthead g={g} />
+      <nav className="sticky top-0 z-10 -mt-2 flex min-w-0 max-w-full gap-1 overflow-x-auto border-y border-white/10 bg-night-950/90 py-1.5 backdrop-blur" aria-label="Sections">
+        {SECTIONS.map((x) => (
+          <button
+            key={x.id}
+            onClick={() => go(x.id)}
+            aria-current={section === x.id ? 'page' : undefined}
+            className={`shrink-0 rounded px-3 py-1 font-serif text-[13px] font-bold uppercase tracking-wide ${section === x.id ? 'bg-white/10 text-mist-50' : 'text-mist-400 hover:text-mist-100'}`}
+          >
+            {x.label}
+          </button>
+        ))}
+      </nav>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_300px]">
-        <FrontStory f={g.front} byline={by('front')} onClub={openClub} onPlayer={openPlayer} onSearch={searchNeed} />
-        <Column kicker={g.leagueName ?? 'Results'} title="This week's results" byline={by('results')}>
-          {g.results.length === 0 ? (
-            <Empty>No league games this week.</Empty>
-          ) : (
-            <ul className="divide-y divide-white/[0.05]">
-              {g.results.map((r) => (
-                <li key={`${r.home.id}:${r.away.id}`} className="flex items-center gap-2 py-1.5 text-[13px]">
-                  <button className="flex min-w-0 flex-1 items-center justify-end gap-1.5 text-right hover:text-grass-300" onClick={() => openClub(r.home.id)}>
-                    <span className="truncate">{r.home.shortName}</span>
-                    <Crest club={r.home} size={16} />
-                  </button>
-                  <span className="num w-12 shrink-0 text-center font-bold text-mist-50">
-                    {r.score[0]}–{r.score[1]}
-                  </span>
-                  <button className="flex min-w-0 flex-1 items-center gap-1.5 text-left hover:text-grass-300" onClick={() => openClub(r.away.id)}>
-                    <Crest club={r.away} size={16} />
-                    <span className="truncate">{r.away.shortName}</span>
-                  </button>
-                  <span className="w-14 shrink-0 text-right text-[10px] font-semibold uppercase tracking-wide text-flood-300">
-                    {r.note === 'upset' ? 'Shock' : r.note === 'thrashing' ? 'Rout' : r.note === 'goal-fest' ? 'Thriller' : ''}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Column>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 border-t border-white/10 pt-5 md:grid-cols-2 lg:grid-cols-3">
-        {/* Column 1: the market. */}
-        <div className="flex flex-col gap-6">
-          <Column kicker="Transfer desk" title="Done deals" byline={by('transfers')}>
-            {g.transfers.length === 0 ? (
-              <Empty>No signings worth printing this week.</Empty>
-            ) : (
-              <ul className="flex flex-col gap-3">
-                {g.transfers.map((t) => (
-                  <li key={t.id}>
-                    <div className="font-serif text-[15px] font-bold leading-snug text-mist-50">{t.title}</div>
-                    <p className="mt-0.5 text-[12.5px] leading-snug text-mist-300">{t.body}</p>
+      {section === 'front' && (
+        <>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_300px]">
+            <FrontStory f={g.front} byline={by('front')} onClub={openClub} onPlayer={openPlayer} onSearch={searchNeed} />
+            <Column kicker="Inside" title="In this issue" byline="">
+              <ul className="flex flex-col divide-y divide-white/[0.05]">
+                {index.map((x) => (
+                  <li key={x.id}>
+                    <button className="group w-full py-2 text-left" onClick={() => go(x.id)}>
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-grass-400">{x.label} ›</div>
+                      <div className="font-serif text-[15px] font-bold leading-snug text-mist-100 group-hover:text-grass-300">{x.teaser}</div>
+                    </button>
                   </li>
                 ))}
               </ul>
-            )}
-          </Column>
-          <Column kicker="Rumour mill" title="Heard on the grapevine" byline={by('rumours')}>
-            {g.links.length === 0 && g.rumours.length === 0 ? (
-              <Empty>No whispers this week.</Empty>
+            </Column>
+          </div>
+          <Column kicker="Your corner" title="How your signings are doing" byline={by('corner')} wide>
+            {g.corner.length === 0 ? (
+              <Empty>Once you place a player, we follow his season here.</Empty>
             ) : (
-              <ul className="flex flex-col gap-2.5 text-[13px] leading-snug text-mist-200">
-                {g.links.map((r) => (
-                  <li key={`${r.club.id}:${r.player.id}`} className="flex gap-2">
-                    <Crest club={r.club} size={18} />
-                    <span>
-                      {r.text}{' '}
-                      <button className="text-[11px] text-mist-400 underline decoration-white/20 underline-offset-2 hover:text-grass-300" onClick={() => openPlayer(r.player.id)}>
-                        {r.player.position}
-                        {r.player.clubName ? `, ${r.player.clubName}` : ''} →
-                      </button>
-                    </span>
-                  </li>
-                ))}
-                {g.rumours.map((r) => (
-                  <li key={`rival:${r.player.id}`} className="flex gap-2">
-                    <Crest club={r.club} size={18} />
-                    <span>
-                      Scout <b>{r.rival}</b> is {r.advanced ? 'close to landing' : 'said to be tracking'}{' '}
-                      <button className="font-semibold text-mist-50 underline decoration-white/20 underline-offset-2 hover:text-grass-300" onClick={() => openPlayer(r.player.id)}>
-                        {r.player.name}
-                      </button>{' '}
-                      for {r.club.name}.
-                      {r.yours && <span className="ml-1 rounded bg-alert-500/15 px-1 text-[11px] font-semibold text-alert-400">one of yours</span>}
+              <ul className="grid grid-cols-1 gap-x-6 sm:grid-cols-2 lg:grid-cols-3">
+                {g.corner.map((c) => (
+                  <li key={c.player.id} className="flex items-center gap-2.5 border-b border-white/[0.05] py-2">
+                    <Crest club={c.club} size={22} />
+                    <button className="min-w-0 flex-1 text-left" onClick={() => openPlayer(c.player.id)}>
+                      <div className="truncate text-[13px] font-semibold text-mist-100 hover:text-grass-300">
+                        {c.player.name}{' '}
+                        {c.starred && (
+                          <span className="ml-1 text-flood-300" title="Starred this week">
+                            ★
+                          </span>
+                        )}
+                      </div>
+                      <div className="truncate text-[11px] text-mist-400">
+                        {c.player.position} · {c.club.shortName} · {c.apps} apps · {c.goals} G · {c.assists} A
+                      </div>
+                    </button>
+                    <span className="num w-9 text-right text-[13px] font-bold" style={{ color: c.rating ? ratingColor(40 + (c.rating - 6) * 25) : undefined }}>
+                      {c.rating?.toFixed(1) ?? '–'}
                     </span>
                   </li>
                 ))}
               </ul>
             )}
-            <p className="mt-3 text-[11px] italic text-mist-500">Not every rumour is true. The ones with money behind them usually are.</p>
           </Column>
-        </div>
+        </>
+      )}
 
-        {/* Column 2: people. */}
-        <div className="flex flex-col gap-6">
-          <Column kicker="Interview" title={g.interview ? `${g.interview.coach} speaks` : 'No comment'} byline={by('interview')}>
-            {g.interview ? (
-              <div>
-                <button className="mb-2 flex items-center gap-2 text-[12px] text-mist-400 hover:text-grass-300" onClick={() => openClub(g.interview!.club.id)}>
-                  <Crest club={g.interview.club} size={22} /> Head Coach, {g.interview.club.name}
-                </button>
-                <blockquote className="border-l-4 border-grass-500/60 pl-3 font-serif text-[19px] italic leading-snug text-mist-50">“{g.interview.quote}”</blockquote>
-                <p className="mt-2 text-[12px] text-mist-400">
-                  Reading between the lines: a <b className="text-mist-200">{posName(g.interview.position)}</b>.{' '}
-                  {g.interview.briefPosted ? 'The club has since posted a brief.' : 'No brief yet; a scout with a name ready could get in first.'}
-                </p>
-              </div>
-            ) : (
-              <Empty>Every coach we called was happy with his squad.</Empty>
-            )}
-          </Column>
-          <Column kicker="Coach watch" title="Under pressure" byline={by('pressure')}>
-            {g.pressure.length === 0 ? (
-              <Empty>Every board is behind its coach, for now.</Empty>
+      {section === 'league' && (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <Column kicker={g.leagueName ?? 'Results'} title="This week's results" byline={by('results')}>
+            {g.results.length === 0 ? (
+              <Empty>No league games this week.</Empty>
             ) : (
               <ul className="divide-y divide-white/[0.05]">
-                {g.pressure.map((p) => (
-                  <li key={p.club.id} className="flex items-center gap-2.5 py-2">
-                    <button onClick={() => openClub(p.club.id)}>
-                      <Crest club={p.club} size={24} />
-                    </button>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-[13px] font-semibold text-mist-100">{p.coach}</div>
-                      <div className="truncate text-[11px] text-mist-400">
-                        {p.club.shortName} · {ordinal(p.tablePos)} · {p.recentPoints} pt{p.recentPoints === 1 ? '' : 's'} from 5
-                        {p.daysInJob !== undefined && p.daysInJob < 120 && ` · ${p.daysInJob} days in the job`}
-                      </div>
-                      {p.president && <div className="truncate text-[11px] text-mist-500">Board: {p.president} · {p.policy}</div>}
-                    </div>
-                    <span
-                      className="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide"
-                      style={{
-                        color: p.heat === 'boiling' ? 'var(--color-alert-500)' : p.heat === 'hot' ? 'var(--color-flood-500)' : 'var(--color-mist-400)',
-                        background: p.heat === 'boiling' ? 'rgba(239,68,68,.12)' : p.heat === 'hot' ? 'rgba(245,179,1,.12)' : 'rgba(255,255,255,.05)',
-                      }}
+                {g.results.map((r) => (
+                  <li key={`${r.home.id}:${r.away.id}`} className="flex items-center gap-2 py-1.5 text-[13px]">
+                    <button
+                      className="flex min-w-0 flex-1 items-center justify-end gap-1.5 text-right hover:text-grass-300"
+                      onClick={() => openClub(r.home.id)}
                     >
-                      {p.heat}
+                      <span className="truncate">{r.home.shortName}</span>
+                      <Crest club={r.home} size={16} />
+                    </button>
+                    <span className="num w-12 shrink-0 text-center font-bold text-mist-50">
+                      {r.score[0]}–{r.score[1]}
+                    </span>
+                    <button className="flex min-w-0 flex-1 items-center gap-1.5 text-left hover:text-grass-300" onClick={() => openClub(r.away.id)}>
+                      <Crest club={r.away} size={16} />
+                      <span className="truncate">{r.away.shortName}</span>
+                    </button>
+                    <span className="w-14 shrink-0 text-right text-[10px] font-semibold uppercase tracking-wide text-flood-300">
+                      {r.note === 'upset' ? 'Shock' : r.note === 'thrashing' ? 'Rout' : r.note === 'goal-fest' ? 'Thriller' : ''}
                     </span>
                   </li>
                 ))}
               </ul>
             )}
-            <p className="mt-2 text-[11px] italic text-mist-500">A new coach brings new ideas, and new needs.</p>
           </Column>
-        </div>
-
-        {/* Column 3: the league. */}
-        <div className="flex flex-col gap-6 md:col-span-2 md:grid md:grid-cols-2 lg:col-span-1 lg:flex">
           <Column kicker={g.leagueName ?? 'Table'} title="The table" byline="">
             {g.table.length === 0 ? (
               <Empty>The season hasn't started.</Empty>
@@ -238,7 +238,11 @@ export function GazetteScreen() {
             )}
           </Column>
           {g.pundit && (
-            <Column kicker={g.pundit.final ? 'How we did' : "Pundit's picks"} title={g.pundit.final ? 'Our predictions, graded' : 'We said it in August'} byline={by('pundit')}>
+            <Column
+              kicker={g.pundit.final ? 'How we did' : "Pundit's picks"}
+              title={g.pundit.final ? 'Our predictions, graded' : 'We said it in August'}
+              byline={by('pundit')}
+            >
               <dl className="flex flex-col gap-2.5 text-[13px]">
                 <Pick label="Champions">
                   <ClubPick club={g.pundit.title.club} onClub={openClub} />
@@ -269,40 +273,145 @@ export function GazetteScreen() {
             </Column>
           )}
         </div>
-      </div>
+      )}
 
-      <Column kicker="Your corner" title="How your signings are doing" byline={by('corner')} wide>
-        {g.corner.length === 0 ? (
-          <Empty>Once you place a player, we follow his season here.</Empty>
-        ) : (
-          <ul className="grid grid-cols-1 gap-x-6 sm:grid-cols-2 lg:grid-cols-3">
-            {g.corner.map((c) => (
-              <li key={c.player.id} className="flex items-center gap-2.5 border-b border-white/[0.05] py-2">
-                <Crest club={c.club} size={22} />
-                <button className="min-w-0 flex-1 text-left" onClick={() => openPlayer(c.player.id)}>
-                  <div className="truncate text-[13px] font-semibold text-mist-100 hover:text-grass-300">
-                    {c.player.name} {c.starred && <span className="ml-1 text-flood-300" title="Starred this week">★</span>}
-                  </div>
-                  <div className="truncate text-[11px] text-mist-400">
-                    {c.player.position} · {c.club.shortName} · {c.apps} apps · {c.goals} G · {c.assists} A
-                  </div>
+      {section === 'market' && (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <Column kicker="Transfer desk" title="Done deals" byline={by('transfers')}>
+            {g.transfers.length === 0 ? (
+              <Empty>No signings worth printing this week.</Empty>
+            ) : (
+              <ul className="flex flex-col gap-3">
+                {g.transfers.map((t) => (
+                  <li key={t.id}>
+                    <div className="font-serif text-[15px] font-bold leading-snug text-mist-50">{t.title}</div>
+                    <p className="mt-0.5 text-[12.5px] leading-snug text-mist-300">{t.body}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Column>
+          <Column kicker="Rumour mill" title="Heard on the grapevine" byline={by('rumours')}>
+            {g.links.length === 0 && g.rumours.length === 0 ? (
+              <Empty>No whispers this week.</Empty>
+            ) : (
+              <ul className="flex flex-col gap-2.5 text-[13px] leading-snug text-mist-200">
+                {g.links.map((r) => (
+                  <li key={`${r.club.id}:${r.player.id}`} className="flex gap-2">
+                    <Crest club={r.club} size={18} />
+                    <span>
+                      {r.text}{' '}
+                      <button
+                        className="text-[11px] text-mist-400 underline decoration-white/20 underline-offset-2 hover:text-grass-300"
+                        onClick={() => openPlayer(r.player.id)}
+                      >
+                        {r.player.position}
+                        {r.player.clubName ? `, ${r.player.clubName}` : ''} →
+                      </button>
+                    </span>
+                  </li>
+                ))}
+                {g.rumours.map((r) => (
+                  <li key={`rival:${r.player.id}`} className="flex gap-2">
+                    <Crest club={r.club} size={18} />
+                    <span>
+                      Scout <b>{r.rival}</b> is {r.advanced ? 'close to landing' : 'said to be tracking'}{' '}
+                      <button
+                        className="font-semibold text-mist-50 underline decoration-white/20 underline-offset-2 hover:text-grass-300"
+                        onClick={() => openPlayer(r.player.id)}
+                      >
+                        {r.player.name}
+                      </button>{' '}
+                      for {r.club.name}.
+                      {r.yours && <span className="ml-1 rounded bg-alert-500/15 px-1 text-[11px] font-semibold text-alert-400">one of yours</span>}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="mt-3 text-[11px] italic text-mist-500">Not every rumour is true. The ones with money behind them usually are.</p>
+          </Column>
+        </div>
+      )}
+
+      {section === 'coaches' && (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <Column kicker="Interview" title={g.interview ? `${g.interview.coach} speaks` : 'No comment'} byline={by('interview')}>
+            {g.interview ? (
+              <div>
+                <button className="mb-2 flex items-center gap-2 text-[12px] text-mist-400 hover:text-grass-300" onClick={() => openClub(g.interview!.club.id)}>
+                  <Crest club={g.interview.club} size={22} /> Head Coach, {g.interview.club.name}
                 </button>
-                <span className="num w-9 text-right text-[13px] font-bold" style={{ color: c.rating ? ratingColor(40 + (c.rating - 6) * 25) : undefined }}>
-                  {c.rating?.toFixed(1) ?? '–'}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Column>
+                <blockquote className="border-l-4 border-grass-500/60 pl-3 font-serif text-[19px] italic leading-snug text-mist-50">
+                  “{g.interview.quote}”
+                </blockquote>
+                <p className="mt-2 text-[12px] text-mist-400">
+                  Reading between the lines: a <b className="text-mist-200">{posName(g.interview.position)}</b>.{' '}
+                  {g.interview.briefPosted ? 'The club has since posted a brief.' : 'No brief yet; a scout with a name ready could get in first.'}
+                </p>
+              </div>
+            ) : (
+              <Empty>Every coach we called was happy with his squad.</Empty>
+            )}
+          </Column>
+          <Column kicker="Coach watch" title="Under pressure" byline={by('pressure')}>
+            {g.pressure.length === 0 ? (
+              <Empty>Every board is behind its coach, for now.</Empty>
+            ) : (
+              <ul className="divide-y divide-white/[0.05]">
+                {g.pressure.map((p) => (
+                  <li key={p.club.id} className="flex items-center gap-2.5 py-2">
+                    <button onClick={() => openClub(p.club.id)}>
+                      <Crest club={p.club} size={24} />
+                    </button>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[13px] font-semibold text-mist-100">{p.coach}</div>
+                      <div className="truncate text-[11px] text-mist-400">
+                        {p.club.shortName} · {ordinal(p.tablePos)} · {p.recentPoints} pt{p.recentPoints === 1 ? '' : 's'} from 5
+                        {p.daysInJob !== undefined && p.daysInJob < 120 && ` · ${p.daysInJob} days in the job`}
+                      </div>
+                      {p.president && (
+                        <div className="truncate text-[11px] text-mist-500">
+                          Board: {p.president} · {p.policy}
+                        </div>
+                      )}
+                    </div>
+                    <span
+                      className="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+                      style={{
+                        color: p.heat === 'boiling' ? 'var(--color-alert-500)' : p.heat === 'hot' ? 'var(--color-flood-500)' : 'var(--color-mist-400)',
+                        background: p.heat === 'boiling' ? 'rgba(239,68,68,.12)' : p.heat === 'hot' ? 'rgba(245,179,1,.12)' : 'rgba(255,255,255,.05)',
+                      }}
+                    >
+                      {p.heat}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="mt-2 text-[11px] italic text-mist-500">A new coach brings new ideas, and new needs.</p>
+          </Column>
+        </div>
+      )}
 
-      <Wanted g={g} wishList={wishList} byline={by('wanted')} onClub={openClub} onSearch={searchNeed} onPlayer={openPlayer} onRecommend={openRecommend} searchFor={searchFor} />
+      {section === 'wanted' && (
+        <Wanted
+          g={g}
+          wishList={wishList}
+          byline={by('wanted')}
+          onClub={openClub}
+          onSearch={searchNeed}
+          onPlayer={openPlayer}
+          onRecommend={openRecommend}
+          searchFor={searchFor}
+        />
+      )}
     </div>
   );
 }
 
 function ordinal(n: number) {
-  const s = n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th';
+  const s = n % 100 >= 11 && n % 100 <= 13 ? 'th' : (({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th');
   return `${n}${s}`;
 }
 
@@ -335,7 +444,16 @@ function FrontStory({
   onPlayer: (id: string) => void;
   onSearch: (n: GazetteNeed) => void;
 }) {
-  const accent = f.kind === 'yours' ? 'var(--color-flood-500)' : f.kind === 'sacking' ? 'var(--color-alert-500)' : f.kind === 'board' ? 'var(--color-flood-500)' : f.need ? severityColor(f.need.severity) : 'var(--color-good-400)';
+  const accent =
+    f.kind === 'yours'
+      ? 'var(--color-flood-500)'
+      : f.kind === 'sacking'
+        ? 'var(--color-alert-500)'
+        : f.kind === 'board'
+          ? 'var(--color-flood-500)'
+          : f.need
+            ? severityColor(f.need.severity)
+            : 'var(--color-good-400)';
   return (
     <article className="grid grid-cols-1 content-start gap-4 sm:grid-cols-[auto_1fr]">
       {f.club && (
@@ -508,7 +626,10 @@ function NeedLine({ n, onClub, onSearch, lead }: { n: GazetteNeed; onClub: (id: 
         <Crest club={n.club} size={26} />
       </button>
       <div className="min-w-0 flex-1">
-        <button className="block max-w-full text-left font-serif text-[15px] font-semibold leading-snug text-mist-50 hover:text-grass-300" onClick={() => onClub(n.club.id)}>
+        <button
+          className="block max-w-full text-left font-serif text-[15px] font-semibold leading-snug text-mist-50 hover:text-grass-300"
+          onClick={() => onClub(n.club.id)}
+        >
           {needHeadline(n)}
         </button>
         <div className="truncate text-[11px] text-mist-400">
@@ -522,7 +643,11 @@ function NeedLine({ n, onClub, onSearch, lead }: { n: GazetteNeed; onClub: (id: 
         </div>
       </div>
       <PosBadge pos={n.position} />
-      <button className="btn-ghost shrink-0 px-2 py-1 text-[11px]" onClick={() => onSearch(n)} title={`Search for a ${n.position} rated ${(n.average || 0) + 1}+`}>
+      <button
+        className="btn-ghost shrink-0 px-2 py-1 text-[11px]"
+        onClick={() => onSearch(n)}
+        title={`Search for a ${n.position} rated ${(n.average || 0) + 1}+`}
+      >
         ⌕
       </button>
     </li>
