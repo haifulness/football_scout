@@ -62,6 +62,8 @@ export interface Assistant {
   job?: AssistantJob;
   /** Working at one of your agency's bases (0 = headquarters) instead of field tasks. */
   officeId?: number;
+  /** Studying a club's needs for you, until then. */
+  analysis?: { clubId: import('../core/ids').ClubId; until: GameDate };
   /** Players reported over his time with you. */
   reports: number;
 }

@@ -231,6 +231,14 @@ export interface ClubView extends ClubBadge {
     since?: GameDate;
     floor?: string;
     study: { days: number; level: number; useful: boolean };
+    /** Paid and staff sources: an insider's tip, an assistant's analysis, the country's data service. */
+    paid: {
+      insider: { ok: boolean; reason?: string; cost: USD };
+      analysts: { id: number; name: string; skill: number; ok: boolean; reason?: string }[];
+      /** Assistants already studying this club. */
+      studying: { name: string; until: GameDate }[];
+      data: { countryId: CountryId; country: string; cost: USD; subscribed: boolean };
+    } | null;
     /** People who could tell you: the head coach, players you know there, rival scouts who work for them. */
     asks: {
       coach: { name: string; ok: boolean; reason?: string; chance: number; cost: USD };
@@ -1236,6 +1244,8 @@ export interface AssistantView {
   reports: number;
   /** Placed at an agency base instead of field tasks. */
   office?: { id: number; label: string };
+  /** Studying a club's needs for you. */
+  analysis?: { club: string; until: GameDate };
   task?: AssistantTaskView;
   /** A brief he is handling for you. */
   job?: {

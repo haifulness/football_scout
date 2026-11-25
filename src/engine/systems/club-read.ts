@@ -52,6 +52,8 @@ export function learnClub(state: GameState, clubId: ClubId, level: number, date:
   else r.level = Math.max(r.level, Math.round(level));
   r.date = date;
   r.stale = undefined;
+  // A solid read puts right whatever an insider got wrong.
+  if (r.misread && level >= 80 && (pos === undefined || pos === r.misread.pos)) r.misread = undefined;
 }
 
 /** Something changed at the club: what you knew is less true now. */
@@ -64,6 +66,7 @@ export function staleClub(state: GameState, clubId: ClubId, why: string, drop: n
   } else {
     r.level = Math.max(0, r.level - drop);
     r.pos = undefined;
+    r.misread = undefined;
   }
   r.stale = why;
 }
@@ -100,11 +103,15 @@ export function seenNeeds(state: GameState, club: Club, needs?: SlotNeed[]): See
   for (const n of all) {
     const tier = tierOf(readLevel(state, club.id, n.position));
     if (tier === 'unknown') continue;
-    if (tier === 'rough' && n.severity < 0.4) continue;
+    const fake = state.clubReads?.[club.id]?.misread;
+    if (tier === 'rough' && n.severity < 0.4 && !(fake?.pos === n.position && fake.severity >= 0.4)) continue;
     const blur = tier === 'sure' ? 0 : tier === 'good' ? 0.1 : 0.25;
+    // An insider's wrong line: you believe it until a better read puts it right.
+    const misread = tier !== 'sure' && state.clubReads?.[club.id]?.misread?.pos === n.position ? state.clubReads[club.id]!.misread!.severity : undefined;
+    if (tier === 'rough' && misread !== undefined && misread < 0.4) continue;
     out.push({
       position: n.position,
-      severity: clamp(n.severity + wobble(state, club.id, `sev:${n.position}`) * blur, 0, 1),
+      severity: misread ?? clamp(n.severity + wobble(state, club.id, `sev:${n.position}`) * blur, 0, 1),
       depth: tier === 'rough' ? undefined : n.depth,
       average: seenAverage(state, club, n.position, n.positionalAverage).range,
       tier,

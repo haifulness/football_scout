@@ -761,6 +761,60 @@ function NeedsRead({ club }: { club: ClubView }) {
           ))}
         </div>
       )}
+      {r.paid && (r.tier !== 'sure' || r.paid.data.subscribed) && (
+        <div className="flex w-full flex-wrap items-center gap-1.5">
+          <span className="text-[11px] text-mist-400">Pay:</span>
+          <button
+            className="btn-ghost px-2.5 py-1 text-[11px]"
+            disabled={!r.paid.insider.ok || advancing}
+            title={r.paid.insider.reason ?? 'Someone at the club tells you what he hears. Often one line is wrong, and if the club finds out it costs you there.'}
+            onClick={() =>
+              void engine.buyInsider(club.id).then(
+                (m) => (setMsg(m), void touch()),
+                (e) => setMsg(e instanceof Error ? e.message : 'That did not work.'),
+              )
+            }
+          >
+            A tip from inside · {formatUSD(r.paid.insider.cost)}
+          </button>
+          {r.paid.analysts
+            .filter((a) => a.ok)
+            .map((a) => (
+              <button
+                key={a.id}
+                className="btn-ghost px-2.5 py-1 text-[11px]"
+                disabled={advancing}
+                title="Two weeks studying them. The sharper his eye, the better the read."
+                onClick={() =>
+                  void engine.sendAnalyst(club.id, a.id).then(
+                    () => (setMsg(`${a.name} starts on ${club.name}: his report comes in two weeks.`), void touch()),
+                    (e) => setMsg(e instanceof Error ? e.message : 'That did not work.'),
+                  )
+                }
+              >
+                Send {a.name} (skill {a.skill}) · 2 weeks
+              </button>
+            ))}
+          {r.paid.studying.map((x) => (
+            <span key={x.name} className="text-[11px] text-mist-300">
+              {x.name} is on it until {formatDate(x.until)}.
+            </span>
+          ))}
+          <button
+            className="btn-ghost px-2.5 py-1 text-[11px]"
+            disabled={advancing}
+            title={r.paid.data.subscribed ? 'Cancel the data service.' : `A rough read on every club in ${r.paid.data.country}, refreshed monthly. Never better than rough.`}
+            onClick={() =>
+              void engine.setDataService(r.paid!.data.countryId, !r.paid!.data.subscribed).then(
+                () => (setMsg(r.paid!.data.subscribed ? `Data service for ${r.paid!.data.country} cancelled.` : `Subscribed: a rough read on every club in ${r.paid!.data.country}.`), void touch()),
+                (e) => setMsg(e instanceof Error ? e.message : 'That did not work.'),
+              )
+            }
+          >
+            {r.paid.data.subscribed ? `Cancel ${r.paid.data.country} data` : `${r.paid.data.country} data service · ${formatUSD(r.paid.data.cost)}/month`}
+          </button>
+        </div>
+      )}
       {r.tier !== 'sure' && !r.floor && (
         <span className="w-full text-[11px] text-mist-500">
           Other ways to learn: watch one of their matches, pitch them a player (a coach who says no often tells you why), or read the Touchline&apos;s weekly

@@ -1,3 +1,4 @@
+import { analysisWeek } from './club-asks';
 import { revealTrait } from './character';
 import { addDays, ageOn, toParts, type GameDate } from '../core/calendar';
 import type { PlayerId } from '../core/ids';
@@ -117,6 +118,7 @@ export function assignTask(state: GameState, id: number, brief: AssistantBrief, 
   if (!a) throw new ScoutingError('No such assistant.');
   if (a.officeId !== undefined) throw new ScoutingError(`${name(a)} works at your agency's office. Take him off office duty first.`);
   if (a.job) throw new ScoutingError(`${name(a)} is handling one of your briefs or sales. Take it back first.`);
+  if (a.analysis) throw new ScoutingError(`${name(a)} is studying a club for you.`);
   validateBrief(brief, weeks);
   a.task = {
     ...brief,
@@ -204,6 +206,7 @@ export function assistantTick(state: GameState, date: GameDate) {
       if (a.xp >= XP_PER_LEVEL) levelUp(state, a, date);
       continue;
     }
+    if (analysisWeek(state, a, date)) continue;
     if (!a.task) {
       // Office work builds an eye too, more slowly than the field.
       if (a.officeId !== undefined && rng.chance(0.5)) a.xp++;

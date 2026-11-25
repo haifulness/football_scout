@@ -30,7 +30,7 @@ import { aftercareCheck, isSettling, settleForecast, settlePenalty } from './sys
 import { taxDay, taxFor, weeklyLiving } from './systems/overheads';
 import { clientYear, nextReview } from './systems/client-review';
 import { ROUND_LABEL, groupTable } from './systems/tournaments';
-import { askCoach, askCoachCheck, askPlayer, askPlayerCheck, insidePlayers, swapCheck, swapRivals, swapWithRival } from './systems/club-asks';
+import { analysisCheck, askCoach, askCoachCheck, askPlayer, askPlayerCheck, buyInsider, dataCost, insiderCheck, insidePlayers, sendAnalyst, swapCheck, swapRivals, swapWithRival, toggleData } from './systems/club-asks';
 import { pressLeads, readLevel, seenAverage, seenNeeds, studyClub, studyDays, studyResult, tierOf } from './systems/club-read';
 import {
   CAPACITY,
@@ -1088,6 +1088,21 @@ export class Engine {
     return askPlayer(this.s, playerId);
   }
 
+  buyInsider(clubId: ClubId): string {
+    this.assertActive();
+    return buyInsider(this.s, clubId);
+  }
+
+  sendAnalyst(clubId: ClubId, assistantId: number): void {
+    this.assertActive();
+    sendAnalyst(this.s, clubId, assistantId);
+  }
+
+  setDataService(countryId: CountryId, on: boolean): void {
+    this.assertActive();
+    toggleData(this.s, countryId, on);
+  }
+
   /** Trade reads with a rival who works for the club. */
   swapWithRival(clubId: ClubId, rivalId: number): string {
     this.assertActive();
@@ -1802,6 +1817,7 @@ export class Engine {
           xp: a.xp,
           xpToLevel: 12,
           reports: a.reports,
+          analysis: a.analysis && { club: s.clubs[a.analysis.clubId]?.name ?? 'a club', until: a.analysis.until },
           office:
             a.officeId === undefined
               ? undefined
@@ -3197,7 +3213,7 @@ export class Engine {
       pendingOffers: s.offers.length,
       pendingMissions: s.missions.filter((m) => m.status === 'offered').length,
       pendingMandates: s.mandates.filter((m) => m.status === 'offered').length,
-      idleAssistants: s.assistants.filter((a) => !a.task && !a.job && a.officeId === undefined).length,
+      idleAssistants: s.assistants.filter((a) => !a.task && !a.job && !a.analysis && a.officeId === undefined).length,
       activeHunts: s.hunts.filter((h) => h.status === 'active').length,
       scenario: (() => {
         const sc = s.scenario;
@@ -3549,6 +3565,17 @@ export class Engine {
           since: r?.date,
           floor: works ? 'You work for them: they keep you informed.' : undefined,
           study: { days: studyDays(club), level: study, useful: study > level },
+          paid: s.scout
+            ? {
+                insider: insiderCheck(s, club.id),
+                analysts: s.assistants.map((a) => {
+                  const c = analysisCheck(s, a.id);
+                  return { id: a.id, name: `${a.firstName} ${a.lastName}`, skill: a.skill, ok: c.ok, reason: c.reason };
+                }),
+                studying: s.assistants.filter((a) => a.analysis?.clubId === club.id).map((a) => ({ name: `${a.firstName} ${a.lastName}`, until: a.analysis!.until })),
+                data: { countryId: club.countryId, country: s.countries[club.countryId]!.name, cost: dataCost(s, club.countryId), subscribed: !!s.scout.dataSubs?.includes(club.countryId) },
+              }
+            : null,
           asks: s.scout
             ? {
                 coach: (() => {

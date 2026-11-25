@@ -74,6 +74,10 @@ export interface Scout {
   playerTips?: Record<PlayerId, GameDate>;
   /** When you last swapped reads with each rival. */
   rivalSwaps?: Record<number, GameDate>;
+  /** When you last paid an insider at each club. */
+  insiderTips?: Record<ClubId, GameDate>;
+  /** Countries whose data service you subscribe to. */
+  dataSubs?: CountryId[];
 }
 
 /** Working under a big-name scout: his clients take your calls, he takes a share of what you earn. */

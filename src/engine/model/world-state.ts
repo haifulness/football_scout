@@ -98,7 +98,7 @@ export interface GameState {
   /** Your read on each club's needs (see systems/club-read.ts). */
   /** The needs the Touchline printed this week (each gives you a rough read on that position). */
   press?: { week: GameDate; items: { clubId: ClubId; pos: import('./player').Position }[] };
-  clubReads?: Record<ClubId, { level: number; date: GameDate; pos?: Partial<Record<import('./player').Position, number>>; stale?: string }>;
+  clubReads?: Record<ClubId, { level: number; date: GameDate; pos?: Partial<Record<import('./player').Position, number>>; stale?: string; misread?: { pos: import('./player').Position; severity: number } }>;
   /** Choices put to you (recent ones kept for the record). */
   dilemmas?: Dilemma[];
   /** Your season reviews, newest last (kept for the last 20 seasons). */

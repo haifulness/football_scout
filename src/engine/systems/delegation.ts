@@ -35,7 +35,7 @@ const OPEN_DEAL = new Set<Deal['stage']>(['negotiating', 'agreed']);
 
 function readyCheck(a: Assistant): { ok: boolean; reason?: string } {
   if (a.skill < DELEGATE_SKILL) return { ok: false, reason: `${name(a)} needs skill ${DELEGATE_SKILL} before you trust him with a client.` };
-  if (a.task || a.job || a.officeId !== undefined) return { ok: false, reason: `${name(a)} is busy.` };
+  if (a.task || a.job || a.analysis || a.officeId !== undefined) return { ok: false, reason: `${name(a)} is busy.` };
   return { ok: true };
 }
 

@@ -4,7 +4,9 @@ import type { CountryId } from '../../src/engine/core/ids';
 import { usd } from '../../src/engine/core/money';
 import { Engine } from '../../src/engine/index';
 import type { GameState } from '../../src/engine/model/world-state';
-import { askCoach, askCoachCheck, askPlayer, askPlayerCheck, insidePlayers, refusedUntil, swapCheck, swapRivals, swapWithRival } from '../../src/engine/systems/club-asks';
+import { DATA_READ, analysisWeek, askCoach, askCoachCheck, askPlayer, askPlayerCheck, buyInsider, dataTick, insiderCheck, insidePlayers, refusedUntil, sendAnalyst, swapCheck, swapRivals, swapWithRival, toggleData } from '../../src/engine/systems/club-asks';
+import { seenNeeds } from '../../src/engine/systems/club-read';
+import { makeDate } from '../../src/engine/core/calendar';
 import { readLevel, tierOf } from '../../src/engine/systems/club-read';
 import { signOffProbability } from '../../src/engine/systems/deals';
 
@@ -75,5 +77,57 @@ describe('asking people about a club’s needs', () => {
     expect(readLevel(s, target.id)).toBeGreaterThanOrEqual(80);
     expect(r.tippedUntil).toBeGreaterThan(s.date);
     expect(swapCheck(s, target.id, r.id).ok).toBe(false);
+  });
+});
+
+describe('paying to learn a club’s needs', () => {
+  it('an insider gives a decent read for money, once a month, and is sometimes wrong about one line', () => {
+    let wrong = 0;
+    for (let i = 0; i < 12; i++) {
+      const { s, club } = career();
+      s.date = (s.date + i) as typeof s.date;
+      s.scout!.money = usd(50_000);
+      const money = s.scout!.money;
+      buyInsider(s, club.id);
+      expect(s.scout!.money).toBeLessThan(money);
+      expect(tierOf(readLevel(s, club.id))).toBe('good');
+      expect(insiderCheck(s, club.id).ok).toBe(false);
+      if (s.clubReads![club.id]!.misread) {
+        wrong++;
+        const m = s.clubReads![club.id]!.misread!;
+        const shown = seenNeeds(s, club).find((n) => n.position === m.pos);
+        expect(shown?.severity ?? 0).toBe(m.severity);
+      }
+    }
+    expect(wrong).toBeGreaterThan(0);
+    expect(wrong).toBeLessThan(12);
+  });
+
+  it('an assistant studies a club for two weeks and reports by his skill', () => {
+    const { s, club } = career();
+    s.assistants.push({ id: 1, firstName: 'Al', lastName: 'Eye', nationality: eng, portraitSeed: 1, age: 30, skill: 15, speciality: eng, wage: usd(500), hiredOn: s.date, xp: 0, reports: 0 });
+    const a = s.assistants[0]!;
+    sendAnalyst(s, club.id, a.id);
+    expect(analysisWeek(s, a, (s.date + 7) as typeof s.date)).toBe(true);
+    expect(readLevel(s, club.id)).toBeLessThan(25);
+    analysisWeek(s, a, (s.date + 14) as typeof s.date);
+    expect(a.analysis).toBeUndefined();
+    expect(readLevel(s, club.id)).toBe(65);
+  });
+
+  it('a data service gives a rough read on every club in the country, every month, for a fee', () => {
+    const { s } = career();
+    s.scout!.money = usd(50_000);
+    toggleData(s, eng, true);
+    const english = Object.values(s.clubs).filter((c) => c.countryId === eng);
+    expect(english.every((c) => readLevel(s, c.id) >= DATA_READ)).toBe(true);
+    expect(english.every((c) => tierOf(readLevel(s, c.id)) !== 'good' || readLevel(s, c.id) > DATA_READ)).toBe(true);
+    const before = s.scout!.money;
+    dataTick(s, makeDate(2026, 8, 1));
+    expect(s.scout!.money).toBeLessThan(before);
+    toggleData(s, eng, false);
+    const after = s.scout!.money;
+    dataTick(s, makeDate(2026, 9, 1));
+    expect(s.scout!.money).toBe(after);
   });
 });

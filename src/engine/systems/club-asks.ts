@@ -1,3 +1,4 @@
+import { addNews } from './season';
 import type { GameDate } from '../core/calendar';
 import type { ClubId, PlayerId, StaffId } from '../core/ids';
 import { formatUSD, usd, type USD } from '../core/money';
@@ -141,4 +142,136 @@ export function swapWithRival(state: GameState, clubId: ClubId, rivalId: number)
   scout.rivalSwaps = { ...scout.rivalSwaps, [rivalId]: state.date };
   r.tippedUntil = (state.date + RIVAL_TIP_DAYS) as GameDate;
   return `${r.firstName} ${r.lastName} tells you what ${state.clubs[clubId]!.name} are after. In return you tell him about one of your clubs, and now he knows what you're chasing.`;
+}
+
+// ── Insiders ────────────────────────────────────────────────────────────
+
+/** What a tip costs, by club tier (scaled by the country's wealth). */
+const INSIDER_COST: Record<ClubTier, number> = { 1: 3_000, 2: 1_800, 3: 1_000, 4: 600, 5: 350 };
+const INSIDER_READ = 65;
+/** Share of tips that get one line wrong. */
+export const INSIDER_WRONG = 0.4;
+/** Chance a club finds out you paid one of its staff. */
+const INSIDER_CAUGHT = 0.15;
+
+export const insiderCost = (state: GameState, clubId: ClubId) => {
+  const club = state.clubs[clubId]!;
+  return usd(Math.round((INSIDER_COST[club.tier] * state.countries[club.countryId]!.wealthIndex) / 50) * 50);
+};
+
+export function insiderCheck(state: GameState, clubId: ClubId): { ok: boolean; reason?: string; cost: USD } {
+  const cost = insiderCost(state, clubId);
+  if (state.scout!.money < cost) return { ok: false, reason: `A tip costs ${formatUSD(cost)}.`, cost };
+  const last = state.scout!.insiderTips?.[clubId];
+  if (last !== undefined && state.date - last < 30) return { ok: false, reason: 'Your contact has nothing new yet.', cost };
+  return { ok: true, cost };
+}
+
+/**
+ * Pay someone at the club (a kit man, an analyst) for what he hears. No reputation needed, but it costs money, it
+ * often gets one line wrong, and if the club finds out it costs you there, and your name for straight dealing.
+ */
+export function buyInsider(state: GameState, clubId: ClubId): string {
+  const check = insiderCheck(state, clubId);
+  if (!check.ok) throw new ScoutingError(check.reason!);
+  const scout = state.scout!;
+  const club = state.clubs[clubId]!;
+  addLedger(state, { amount: usd(-check.cost), kind: 'meeting', label: `A tip from inside ${club.name}` });
+  scout.insiderTips = { ...scout.insiderTips, [clubId]: state.date };
+  learnClub(state, clubId, INSIDER_READ, state.date);
+  // Sometimes he has one line wrong: a need that isn't there, or one he missed.
+  if (roll(state, `insider-wrong:${clubId}`) < INSIDER_WRONG) {
+    const lines = formationPositions(club).filter((p) => p !== 'GK');
+    const pos = lines[Math.floor(roll(state, `insider-pos:${clubId}`) * lines.length)]!;
+    const r = state.clubReads![clubId]!;
+    r.misread = { pos, severity: roll(state, `insider-sev:${clubId}`) < 0.5 ? 0.7 : 0 };
+  }
+  if (roll(state, `insider-caught:${clubId}`) < INSIDER_CAUGHT) {
+    scout.integrity = clamp((scout.integrity ?? 50) - 4, 0, 100);
+    scout.relationships[club.headCoachId] = clamp((scout.relationships[club.headCoachId] ?? 0) - 6, 0, 100);
+    return `You get your tip, but ${club.name} find out who's been paying their staff. The coach is not pleased, and word gets around.`;
+  }
+  return `Your contact at ${club.name} tells you what he hears around the training ground. Usually he's right.`;
+}
+
+// ── Assistants ──────────────────────────────────────────────────────────
+
+const ANALYSIS_WEEKS = 2;
+const ANALYSIS_EXPENSES = 150;
+
+export function analysisCheck(state: GameState, assistantId: number): { ok: boolean; reason?: string } {
+  const a = state.assistants.find((x) => x.id === assistantId);
+  if (!a) return { ok: false, reason: 'No such assistant.' };
+  if (a.task || a.job || a.analysis || a.officeId !== undefined) return { ok: false, reason: `${a.firstName} ${a.lastName} is busy.` };
+  return { ok: true };
+}
+
+/** Send an assistant to study a club for two weeks: his eye decides how good the read is. */
+export function sendAnalyst(state: GameState, clubId: ClubId, assistantId: number) {
+  const check = analysisCheck(state, assistantId);
+  if (!check.ok) throw new ScoutingError(check.reason!);
+  const a = state.assistants.find((x) => x.id === assistantId)!;
+  a.analysis = { clubId, until: (state.date + ANALYSIS_WEEKS * 7) as GameDate };
+}
+
+/** Mondays (from the assistants' tick): expenses, and the report when it's done. Returns true when he's busy with one. */
+export function analysisWeek(state: GameState, a: GameState['assistants'][number], date: GameDate): boolean {
+  if (!a.analysis) return false;
+  const club = state.clubs[a.analysis.clubId];
+  addLedger(state, { amount: usd(-ANALYSIS_EXPENSES), kind: 'assistant-task', label: `Club analysis: ${a.firstName} ${a.lastName}` });
+  if (date >= a.analysis.until) {
+    a.analysis = undefined;
+    if (club) {
+      learnClub(state, club.id, clamp(35 + a.skill * 2, 35, 75), date);
+      a.xp++;
+      addNews(state, {
+        date,
+        kind: 'career',
+        title: `${a.firstName} ${a.lastName} reports on ${club.name}`,
+        body: `Two weeks with their games and their people: his read on what they need is on the club page. A sharper eye gives a sharper read.`,
+        clubIds: [club.id],
+      });
+      return true;
+    }
+  }
+  return true;
+}
+
+// ── Data subscription ───────────────────────────────────────────────────
+
+const DATA_BASE = 1_200;
+/** A data service gives a rough read on every club in the country, never better. */
+export const DATA_READ = 35;
+
+export const dataCost = (state: GameState, countryId: GameState['countries'][keyof GameState['countries']]['id']) =>
+  usd(Math.round((DATA_BASE * state.countries[countryId]!.wealthIndex) / 50) * 50);
+
+export function toggleData(state: GameState, countryId: GameState['countries'][keyof GameState['countries']]['id'], on: boolean) {
+  const scout = state.scout!;
+  const subs = new Set(scout.dataSubs ?? []);
+  if (on) {
+    const cost = dataCost(state, countryId);
+    if (scout.money < cost) throw new ScoutingError(`The first month costs ${formatUSD(cost)}.`);
+    if (!subs.has(countryId)) {
+      subs.add(countryId);
+      addLedger(state, { amount: usd(-cost), kind: 'search', label: `Data service: ${state.countries[countryId]!.name}` });
+      dataRefresh(state, countryId);
+    }
+  } else subs.delete(countryId);
+  scout.dataSubs = [...subs];
+}
+
+function dataRefresh(state: GameState, countryId: string) {
+  for (const c of Object.values(state.clubs)) if (c.countryId === countryId) learnClub(state, c.id, DATA_READ, state.date);
+}
+
+/** The 1st of each month: pay for the services you keep, and get their refreshed numbers. */
+export function dataTick(state: GameState, date: GameDate) {
+  const scout = state.scout;
+  if (!scout?.dataSubs?.length || new Date(date * 86_400_000).getUTCDate() !== 1) return;
+  for (const id of [...scout.dataSubs]) {
+    const cost = dataCost(state, id as never);
+    addLedger(state, { amount: usd(-cost), kind: 'search', label: `Data service: ${state.countries[id as never]!.name}` });
+    dataRefresh(state, id);
+  }
 }

@@ -159,9 +159,9 @@ function AssistantCard({ a, i, maxWeeks }: { a: AssistantView; i: number; maxWee
           </div>
         </div>
         <span
-          className={`rounded-md px-2 py-0.5 text-[11px] font-bold uppercase ${a.office || a.job ? 'bg-violet-500/15 text-violet-300' : t ? 'bg-grass-500/15 text-grass-300' : 'bg-flood-500/15 text-flood-300'}`}
+          className={`rounded-md px-2 py-0.5 text-[11px] font-bold uppercase ${a.office || a.job || a.analysis ? 'bg-violet-500/15 text-violet-300' : t ? 'bg-grass-500/15 text-grass-300' : 'bg-flood-500/15 text-flood-300'}`}
         >
-          {a.office ? `Office · ${a.office.label}` : a.job ? 'On a brief' : t ? 'On task' : 'Idle'}
+          {a.office ? `Office · ${a.office.label}` : a.analysis ? `Studying ${a.analysis.club}` : a.job ? 'On a brief' : t ? 'On task' : 'Idle'}
         </span>
       </div>
 
