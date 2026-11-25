@@ -1,3 +1,4 @@
+import { academyTick } from './systems/academy';
 import { tournamentTick } from './systems/tournaments';
 import { reviewClients } from './systems/client-review';
 import { overheadsTick, payTax } from './systems/overheads';
@@ -146,6 +147,7 @@ function playDay(state: GameState, date: GameDate, onMatch?: MatchListener): { m
     consultationTick(state, date);
     overheadsTick(state, date);
     tournamentTick(state, date);
+    academyTick(state, date, rolled);
     if (toParts(date).day === 1) placementTick(state, date);
     unlockTick(state, date);
     staleTick(state, date);

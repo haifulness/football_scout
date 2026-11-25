@@ -93,6 +93,8 @@ export interface GameState {
   consultations?: import('./consultation').Consultation[];
   /** This summer's international tournament and the last couple. */
   tournaments?: import('./tournament').Tournament[];
+  /** Academies: the ones you sponsor, and your own. */
+  academy?: import('./academy').AcademyState;
   /** Choices put to you (recent ones kept for the record). */
   dilemmas?: Dilemma[];
   /** Your season reviews, newest last (kept for the last 20 seasons). */

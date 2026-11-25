@@ -472,7 +472,7 @@ export interface ScoutView {
   /** Full-time: who you work for and your job title. */
   employer?: { club: ClubBadge; title: string };
   /** Which later systems are open (they unlock with reputation). */
-  unlocked: Record<'assistants' | 'mandates' | 'representation' | 'agency', boolean>;
+  unlocked: Record<'assistants' | 'mandates' | 'representation' | 'agency' | 'academy', boolean>;
   /** The next thing your reputation will open. */
   nextUnlock?: { label: string; reputation: number };
   pendingOffers: number;
@@ -1419,7 +1419,7 @@ export interface GazetteView {
 
 /** Where a Home item leads: a UI route by screen name (and id for club/player pages). */
 export interface HomeLink {
-  screen: 'calendar' | 'deals' | 'missions' | 'hunts' | 'events' | 'staff' | 'career' | 'rivals' | 'inbox' | 'finances' | 'gazette' | 'goals' | 'club' | 'player' | 'deadline';
+  screen: 'calendar' | 'academy' | 'deals' | 'missions' | 'hunts' | 'events' | 'staff' | 'career' | 'rivals' | 'inbox' | 'finances' | 'gazette' | 'goals' | 'club' | 'player' | 'deadline';
   id?: string;
 }
 
@@ -1555,4 +1555,37 @@ export interface TournamentView {
   /** Your players and pool players in the squads. */
   yours: TournamentPlayerView[];
   standouts: TournamentPlayerView[];
+}
+
+export interface AcademyKidView extends PlayerRow {
+  /** Old enough to place at a club. */
+  placeable: boolean;
+  traits: TraitView[];
+}
+
+export interface AcademyView {
+  unlocked: boolean;
+  unlockReputation: number;
+  hasAgency: boolean;
+  sponsorships: { club: ClubBadge; since: GameDate; fee: USD }[];
+  maxSponsorships: number;
+  /** Clubs you could sponsor (those you work with or know well), with the price and whether they'd say yes. */
+  candidates: { club: ClubBadge; fee: USD; trust: number; ok: boolean; reason?: string }[];
+  nextIntake: GameDate;
+  own?: {
+    name: string;
+    country: string;
+    city: string;
+    level: 1 | 2 | 3;
+    capacity: number;
+    upkeepWeekly: USD;
+    upgrade?: { level: 2 | 3; cost: USD };
+    earned: USD;
+    placeAge: number;
+    sellOnPct: number;
+    kids: AcademyKidView[];
+    graduates: { id: PlayerId; name: string; club?: ClubBadge; sellOnPaid: boolean }[];
+  };
+  /** Where you could build one (countries where your agency has a base). */
+  sites: { id: CountryId; name: string; cost: USD; ok: boolean; reason?: string }[];
 }

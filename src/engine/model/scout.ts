@@ -57,7 +57,7 @@ export interface Scout {
   /** How straight you deal, 0–100 (absent: 50). Hidden: honest clubs trust you faster, shady offers come less often. */
   integrity?: number;
   /** Systems you have unlocked (announced once; never closed again). */
-  unlocks?: ('assistants' | 'mandates' | 'representation' | 'agency')[];
+  unlocks?: ('assistants' | 'mandates' | 'representation' | 'agency' | 'academy')[];
   /** You work under an established scout (freelance only). */
   mentor?: Mentorship;
   /** An established scout offers to take you on. */
@@ -194,7 +194,10 @@ export type LedgerKind =
   | 'consultation'
   | 'campaign'
   | 'living'
-  | 'tax';
+  | 'tax'
+  | 'academy'
+  | 'training-fee'
+  | 'sell-on';
 
 export type Employment =
   | { mode: 'freelance'; clients: ClubId[] }

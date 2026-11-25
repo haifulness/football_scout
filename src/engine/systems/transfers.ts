@@ -1,3 +1,4 @@
+import { paySellOn } from './academy';
 import { startSettling } from './settling';
 import { hasTrait } from './character';
 import { ageOn, makeDate, toParts, type GameDate } from '../core/calendar';
@@ -100,6 +101,7 @@ export function canAfford(state: GameState, buyer: Club, fee: USD, wage: USD): {
 /** Moves a player between clubs: squads, budgets, contract, wage, captaincy. */
 export function executeTransfer(state: GameState, p: Player, buyer: Club, fee: USD, wage: USD, date: GameDate) {
   const seller = p.clubId ? state.clubs[p.clubId] : undefined;
+  paySellOn(state, p, seller?.id, fee);
   if (seller) {
     seller.squad = seller.squad.filter((id) => id !== p.id);
     if (seller.captainId === p.id) seller.captainId = pickCaptain(seller.squad.map((id) => state.players[id]!));
@@ -170,7 +172,7 @@ export function aiTransferWeek(state: GameState, date: GameDate, round?: MarketR
   // Index the market once: players by natural position with their level.
   const byPos = new Map<Position, { p: Player; ovr: number; tier: number }[]>(POSITIONS.map((pos) => [pos, []]));
   const userTargets = new Set(state.deals.filter((d) => d.stage === 'agreed').map((d) => d.playerId)); // agreed deals are binding
-  const represented = new Set(state.scout?.represented ?? []); // free agents you act for
+  const represented = new Set([...(state.scout?.represented ?? []), ...(state.academy?.own?.players ?? [])]); // free agents you act for, and your academy's kids
   for (const p of Object.values(state.players)) {
     if (userTargets.has(p.id) || represented.has(p.id)) continue;
     // Clubs don't sell a player they only just signed.

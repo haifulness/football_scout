@@ -38,6 +38,7 @@ import { WorldScreen } from './screens/world-screen';
 import { GazetteScreen } from './screens/gazette-screen';
 import { EventsScreen } from './screens/events-screen';
 import { CalendarScreen } from './screens/calendar-screen';
+import { AcademyScreen } from './screens/academy-screen';
 import { SaveIndicator } from './components/save-indicator';
 import { Badge, HUBS, HubTabs, hubBadge, hubOf, openTabs, type Hub } from './components/hub-tabs';
 import { useGame, type Route } from './store/game-store';
@@ -194,6 +195,8 @@ function ScreenBody({ route }: { route: Route }): ReactNode {
       return <EventsScreen />;
     case 'calendar':
       return <CalendarScreen />;
+    case 'academy':
+      return <AcademyScreen />;
     case 'goals':
       return <GoalsScreen />;
     case 'agency':

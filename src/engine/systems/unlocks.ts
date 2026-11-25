@@ -8,7 +8,7 @@ import { addNews } from './season';
  * Anything you already use stays open (older saves, scenario head starts), and an unlock never closes again.
  */
 
-export type UnlockKey = 'assistants' | 'mandates' | 'representation' | 'agency';
+export type UnlockKey = 'assistants' | 'mandates' | 'representation' | 'agency' | 'academy';
 
 export const UNLOCKS: { key: UnlockKey; reputation: number; label: string; body: string; link?: NewsLink }[] = [
   {
@@ -38,6 +38,13 @@ export const UNLOCKS: { key: UnlockKey; reputation: number; label: string; body:
     body: 'Your own agency is within reach: offices abroad, more clients, a staff of scouts. Agency › Agency shows what it takes.',
     link: 'agency',
   },
+  {
+    key: 'academy',
+    reputation: 45,
+    label: 'Academies',
+    body: "Clubs will take your money for their academy now: sponsor one and see its best kids first. With an agency you can open your own. See Agency › Academy.",
+    link: 'academy',
+  },
 ];
 
 const inUse = (state: GameState, key: UnlockKey): boolean => {
@@ -50,6 +57,8 @@ const inUse = (state: GameState, key: UnlockKey): boolean => {
       return (state.scout?.represented.length ?? 0) > 0;
     case 'agency':
       return !!state.agency;
+    case 'academy':
+      return !!state.academy && (state.academy.sponsorships.length > 0 || !!state.academy.own);
   }
 };
 

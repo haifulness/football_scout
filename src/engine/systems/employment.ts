@@ -1,3 +1,4 @@
+import { sponsorTrust } from './academy';
 import { FLOP_TRUST, HIT_TRUST } from './placement-stories';
 import { addDays, makeDate, toParts, type GameDate } from '../core/calendar';
 import { accuracyTrust } from './reports';
@@ -55,7 +56,7 @@ export function clubTrust(state: GameState, clubId: ClubId): number {
   const verdicts = Math.min(16, (r.hits ?? 0) * HIT_TRUST) - Math.min(20, (r.flops ?? 0) * FLOP_TRUST);
   // A reputation for straight dealing (integrity) moves trust up to ±8.
   const integrity = ((scout.integrity ?? 50) - 50) / 6.25;
-  const trust = Math.round(clamp(rel * 0.7 + Math.min(40, r.signings * 8) - Math.min(15, r.weakPitches * 3) + missions + verdicts + employer + accuracyTrust(state) + integrity, 0, 100));
+  const trust = Math.round(clamp(rel * 0.7 + Math.min(40, r.signings * 8) - Math.min(15, r.weakPitches * 3) + missions + verdicts + sponsorTrust(state, clubId) + employer + accuracyTrust(state) + integrity, 0, 100));
   // Your mentor's clubs know you through him.
   return isMentorClient(state, clubId) ? Math.max(trust, MENTOR_STANDING) : trust;
 }

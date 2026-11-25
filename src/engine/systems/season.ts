@@ -1,7 +1,8 @@
+import { intakeBoost, scoutSponsoredIntake } from './academy';
 import { ageOn, formatDate, makeDate, toParts, type GameDate } from '../core/calendar';
 import { seasonHonours, setSeasonObjectives } from './goals';
 import { snapshotReviewBaseline, writeSeasonReview } from './review';
-import type { ClubId, LeagueId } from '../core/ids';
+import type { ClubId, LeagueId, PlayerId } from '../core/ids';
 import { usd } from '../core/money';
 import { Rng, clamp } from '../core/rng';
 import { FORMATIONS, type FormationId } from '../data/formations';
@@ -314,8 +315,10 @@ export function rolloverSeason(state: GameState, date: GameDate) {
   for (const club of Object.values(state.clubs)) {
     const country = state.countries[club.countryId]!;
     const level = clubLevel(state, club, date);
-    const academyBoost = club.tier <= 2 ? 1.5 : 1;
-    const count = rng.int(2, 4);
+    const sponsored = intakeBoost(state, club.id);
+    const academyBoost = (club.tier <= 2 ? 1.5 : 1) * sponsored.prodigy;
+    const count = rng.int(2, 4) + sponsored.extra;
+    const kids: PlayerId[] = [];
     for (let i = 0; i < count; i++) {
       const nat = rng.chance(DOMESTIC_SHARE[club.tier]) ? country : foreignPick(country);
       const p = generatePlayer(rng, {
@@ -333,8 +336,10 @@ export function rolloverSeason(state: GameState, date: GameDate) {
       p.contractUntil = makeDate(oldYear + 4, 6, 30);
       state.players[p.id] = p;
       club.squad.push(p.id);
+      kids.push(p.id);
       youth++;
     }
+    scoutSponsoredIntake(state, club.id, kids, date);
   }
 
   // 6. Keep squads between MIN and MAX: trim deadwood, then sign free agents (or trialists).

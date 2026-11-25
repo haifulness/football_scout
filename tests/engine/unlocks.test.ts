@@ -21,7 +21,7 @@ describe('unlocks', () => {
   it('a new career starts with the later systems closed, and the next one named', () => {
     const { e, w } = career();
     const sc = e.getScout()!;
-    expect(sc.unlocked).toEqual({ assistants: false, mandates: false, representation: false, agency: false });
+    expect(sc.unlocked).toEqual({ assistants: false, mandates: false, representation: false, agency: false, academy: false });
     expect(sc.nextUnlock).toEqual({ label: UNLOCKS[0]!.label, reputation: UNLOCKS[0]!.reputation });
     refreshMarket(w, w.date);
     expect(() => hireAssistant(w, w.assistantMarket[0]!.id)).toThrow(/reputation 12/);

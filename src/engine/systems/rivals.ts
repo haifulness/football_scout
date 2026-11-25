@@ -329,6 +329,7 @@ export function rivalTick(state: GameState, date: GameDate) {
   const protectedIds = new Set<PlayerId>([
     ...state.deals.filter((d) => d.stage === 'agreed').map((d) => d.playerId),
     ...state.scout.represented,
+    ...(state.academy?.own?.players ?? []),
     ...shieldedPlayers(state, date),
   ]);
   const chased = new Set<PlayerId>(state.rivals.flatMap((r) => (r.pursuit ? [r.pursuit.playerId] : [])));

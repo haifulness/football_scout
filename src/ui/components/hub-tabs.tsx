@@ -47,6 +47,7 @@ export const HUBS: Record<'weekly' | 'work' | 'agency' | 'career', Hub> = {
     tabs: [
       { screen: 'staff', label: 'Assistants', requires: 'assistants', badge: (s) => count(s.idleAssistants, 'gold', 'Idle assistants') },
       { screen: 'agency', label: 'Agency', requires: 'agency' },
+      { screen: 'academy', label: 'Academy', requires: 'academy' },
     ],
   },
   career: {

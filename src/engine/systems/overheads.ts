@@ -15,8 +15,8 @@ export const TAX_RATE: Record<Difficulty, number> = { easy: 0.15, normal: 0.25, 
 const LIVING_SCALE: Record<Difficulty, number> = { easy: 0.7, normal: 1, hard: 1.3 };
 
 /** What counts as earnings, and which costs of the job are deductible. */
-const TAXABLE = new Set<LedgerKind>(['signing-bonus', 'match-bonus', 'salary', 'mission-reward', 'sale-commission', 'award', 'agency-cut', 'consultation', 'mentor-cut']);
-const DEDUCTIBLE = new Set<LedgerKind>(['search', 'video', 'travel', 'accommodation', 'ticket', 'meeting', 'assistant', 'assistant-task', 'agency', 'agency-setup', 'campaign']);
+const TAXABLE = new Set<LedgerKind>(['signing-bonus', 'match-bonus', 'salary', 'mission-reward', 'sale-commission', 'award', 'agency-cut', 'consultation', 'mentor-cut', 'training-fee', 'sell-on']);
+const DEDUCTIBLE = new Set<LedgerKind>(['search', 'video', 'travel', 'accommodation', 'ticket', 'meeting', 'assistant', 'assistant-task', 'agency', 'agency-setup', 'campaign', 'academy']);
 
 /** Weekly living costs at this reputation (before your home city's cost of living and difficulty). */
 export const livingBase = (reputation: number) => 35 + reputation * reputation * 0.35;

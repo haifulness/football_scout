@@ -32,7 +32,8 @@ function relevantAttribute(rng: Rng, p: Player): AttributeKey {
 export function developPlayer(p: Player, rng: Rng, date: GameDate) {
   const age = ageOn(p.birthDate, date);
   const ovr = ovrAt(p, p.naturalPosition);
-  const playing = p.clubId ? clamp(0.6 + p.stats.minutes / 1500, 0.6, 1.4) : 0.45;
+  // Academy kids train without first-team football: how fast depends on the academy.
+  const playing = p.clubId ? clamp(0.6 + p.stats.minutes / 1500, 0.6, 1.4) : (p.academyTraining ?? 0.45);
 
   const youthUntil = hasTrait(p, 'late-bloomer') ? 26 : 23;
   const work = hasTrait(p, 'professional') ? 1.1 : 1;

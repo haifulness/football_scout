@@ -115,6 +115,9 @@ export interface Placement {
   visitedOn?: GameDate;
   /** Six months in, then after his first season. */
   verdicts?: { date: GameDate; verdict: 'hit' | 'solid' | 'flop' }[];
+  /** An academy graduate: your share of his next transfer fee, and whether it has been paid. */
+  sellOnPct?: number;
+  sellOnPaid?: boolean;
 }
 
 export interface PlacementEarnings {
