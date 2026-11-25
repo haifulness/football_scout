@@ -1,3 +1,4 @@
+import { LIVE_READ, learnClub } from './club-read';
 import { visitPlacement } from './placement-stories';
 import { aftercare } from './settling';
 import type { CityId, PlayerId, StaffId } from '../core/ids';
@@ -85,6 +86,7 @@ export function completeLiveScouting(state: GameState, playerId: PlayerId, lines
   }
   scout.regionKnowledge[marketOf(state, p)] = clamp((scout.regionKnowledge[marketOf(state, p)] ?? 0) + 1, 0, 100);
   const trait = played ? revealTrait(state, p, 0.45, 'live', ON_THE_PITCH) : undefined;
+  if (p.clubId) learnClub(state, p.clubId, LIVE_READ, state.date);
   return { played, before, after: knowledgeLevel(state, p), others, trait };
 }
 

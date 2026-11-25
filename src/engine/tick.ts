@@ -1,4 +1,4 @@
-import { pressLeads } from './systems/club-read';
+import { clientMeetings, pressLeads } from './systems/club-read';
 import { staleClub } from './systems/club-read';
 import { academyTick } from './systems/academy';
 import { tournamentTick } from './systems/tournaments';
@@ -155,6 +155,7 @@ function playDay(state: GameState, date: GameDate, onMatch?: MatchListener): { m
     overheadsTick(state, date);
     tournamentTick(state, date);
     if (toParts(date).weekday === 1) pressLeads(state);
+    clientMeetings(state, date);
     academyTick(state, date, rolled);
     if (toParts(date).day === 1) placementTick(state, date);
     unlockTick(state, date);

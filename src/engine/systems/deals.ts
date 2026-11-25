@@ -1,3 +1,4 @@
+import { learnFromRefusal } from './club-read';
 import { onGraduate } from './academy';
 import { STYLE_SIGNOFF, styleFit } from './styles';
 import { characterOf, hasTrait } from './character';
@@ -361,6 +362,9 @@ export function pitch(state: GameState, args: PitchArgs): Deal {
     scout.relationships[officialId] = clamp((scout.relationships[officialId] ?? 0) - 3, 0, 100);
     recordWeakPitch(state, club.id);
     log(deal, state.date, `Rejected: "${gate.reason}"`, 'bad');
+    // At least now you know what they have there, and he may say where he'd rather spend.
+    const tip = learnFromRefusal(state, club, args.position, gate.reason?.includes("isn't better") ?? false, 0.6);
+    if (tip) log(deal, state.date, tip, 'neutral');
     return deal;
   }
   deal.prospect = gate.prospect;
@@ -415,6 +419,8 @@ export function pitch(state: GameState, args: PitchArgs): Deal {
     deal.rejectedBy = officialId;
     deal.reason = `The ${roleName(args.to)} wasn't convinced.`;
     log(deal, state.date, `The ${roleName(args.to)} turned it down.`, 'bad');
+    const tip = learnFromRefusal(state, club, args.position, false, 0.35);
+    if (tip) log(deal, state.date, tip, 'neutral');
   }
   return deal;
 }

@@ -1,3 +1,4 @@
+import { learnFromMatch } from './club-read';
 import type { PlayerId } from '../core/ids';
 import { ON_THE_PITCH, revealTrait, type TraitId } from './character';
 import { Rng, clamp } from '../core/rng';
@@ -331,6 +332,7 @@ export function writeAttendedMatch(state: GameState, fixture: Fixture, lines: Pl
     learn(state, state.players[l.playerId]!, 6, 70, state.date);
     others++;
   }
+  learnFromMatch(state, [fixture.homeId, fixture.awayId], eye);
   const first = state.players[focus[0]!];
   if (first) scout.regionKnowledge[marketOf(state, first)] = clamp((scout.regionKnowledge[marketOf(state, first)] ?? 0) + 1, 0, 100);
   return { fixtureId: fixture.id, homeGoals: result.homeGoals, awayGoals: result.awayGoals, events, focus: focusOut, others };

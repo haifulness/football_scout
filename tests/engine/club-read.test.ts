@@ -3,7 +3,8 @@ import type { CountryId } from '../../src/engine/core/ids';
 import { usd } from '../../src/engine/core/money';
 import { Engine } from '../../src/engine/index';
 import type { GameState } from '../../src/engine/model/world-state';
-import { learnClub, readLevel, seenAverage, seenNeeds, staleClub, studyResult, tierOf } from '../../src/engine/systems/club-read';
+import { MATCH_READ, MEETING_READ, REFUSAL_READ, clientMeetings, learnClub, learnFromMatch, learnFromRefusal, readLevel, seenAverage, seenNeeds, staleClub, studyResult, tierOf } from '../../src/engine/systems/club-read';
+import { makeDate } from '../../src/engine/core/calendar';
 import { clubPositionalAverage } from '../../src/engine/systems/deals';
 import { learn } from '../../src/engine/systems/knowledge';
 import { executeTransfer } from '../../src/engine/systems/transfers';
@@ -80,5 +81,36 @@ describe('your read on a club’s needs', () => {
     expect(s.clubReads![club.id]!.stale).toMatch(/signed/);
     staleClub(s, club.id, 'A new coach', 30);
     expect(readLevel(s, club.id)).toBeLessThan(50);
+  });
+});
+
+describe('learning a club’s needs (free sources)', () => {
+  it('watching a match teaches you about both sides', () => {
+    const { s, club } = career();
+    const other = Object.values(s.clubs).find((c) => c.leagueId === club.leagueId && c.id !== club.id)!;
+    learnFromMatch(s, [club.id, other.id], 10);
+    expect(readLevel(s, club.id)).toBeGreaterThanOrEqual(MATCH_READ);
+    expect(readLevel(s, other.id)).toBeGreaterThanOrEqual(MATCH_READ);
+    expect(readLevel(s, club.id)).toBeLessThan(80);
+  });
+
+  it('a coach who says "not better than what we have" shows you the bar at that position', () => {
+    const { s, club } = career();
+    learnFromRefusal(s, club, 'CM', true, 0);
+    expect(readLevel(s, club.id, 'CM')).toBe(REFUSAL_READ);
+    expect(readLevel(s, club.id)).toBeLessThan(25);
+    // With certainty he names another position he'd spend on (when he has a real need elsewhere).
+    const tip = learnFromRefusal(s, club, 'GK', false, 1);
+    if (tip) expect(tip).toMatch(/Bring me a/);
+  });
+
+  it('clients go through their needs with you each quarter', () => {
+    const { s, club } = career();
+    if (s.scout!.employment.mode === 'freelance') s.scout!.employment.clients.push(club.id);
+    clientMeetings(s, makeDate(2026, 8, 1));
+    expect(readLevel(s, club.id)).toBeLessThan(MEETING_READ);
+    clientMeetings(s, makeDate(2026, 10, 1));
+    expect(readLevel(s, club.id)).toBe(MEETING_READ);
+    expect(tierOf(readLevel(s, club.id))).toBe('sure');
   });
 });

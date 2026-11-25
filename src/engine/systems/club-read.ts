@@ -1,3 +1,4 @@
+import { addNews } from './season';
 import { ScoutingError } from './scouting';
 import type { GameDate } from '../core/calendar';
 import type { ClubId } from '../core/ids';
@@ -121,6 +122,62 @@ export function studyClub(state: GameState, clubId: ClubId): { before: number; a
   if (level <= before) throw new ScoutingError('A study would tell you nothing new: you already know their needs this well. Get to know their players better first.');
   learnClub(state, clubId, level, state.date);
   return { before, after: readLevel(state, clubId), days: studyDays(club) };
+}
+
+/** Watching a club play: the XI the coach really picks, and who struggles. */
+export const MATCH_READ = 50;
+/** Watching one of its players: a glimpse of the team around him. */
+export const LIVE_READ = 35;
+/** A coach who turns your player down at the club gate tells you what he has there. */
+export const REFUSAL_READ = 80;
+/** A client's needs meeting each quarter. */
+export const MEETING_READ = 88;
+
+/** You watched a match in person: you learn how both sides play and where they are thin. */
+export function learnFromMatch(state: GameState, clubIds: ClubId[], eye: number) {
+  for (const id of clubIds) learnClub(state, id, clamp(MATCH_READ + eye * 0.5, 0, 65), state.date);
+}
+
+/**
+ * The coach said no because your man isn't better than what he has: now you know that line exactly, and he often
+ * lets slip where he would spend instead. Returns what he said about it, for the deal log.
+ */
+export function learnFromRefusal(state: GameState, club: Club, pos: Position, gate: boolean, chance: number): string | undefined {
+  if (gate) learnClub(state, club.id, REFUSAL_READ, state.date, pos);
+  if (hashString(`${state.seed}:refusal:${club.id}:${pos}:${state.date}`) / 4294967296 >= chance) return undefined;
+  const top = squadNeeds(club.formation, club.squad.map((id) => state.players[id]!).filter(Boolean)).find((n) => n.position !== pos && n.severity >= 0.3);
+  if (!top) return undefined;
+  learnClub(state, club.id, 60, state.date, top.position);
+  return `"${pos} isn't where we're short. Bring me a ${top.position} and we'll talk."`;
+}
+
+/**
+ * The 1st of January, April, July and October: every club you work for sits down with you to go through its needs.
+ * Your read on them is near-exact until the squad changes again.
+ */
+export function clientMeetings(state: GameState, date: GameDate) {
+  const e = state.scout?.employment;
+  if (!e) return;
+  const d = new Date(date * 86_400_000);
+  if (d.getUTCDate() !== 1 || d.getUTCMonth() % 3 !== 0) return;
+  const clubs = e.mode === 'fulltime' ? [e.clubId] : e.clients;
+  for (const id of clubs) {
+    const club = state.clubs[id];
+    if (!club) continue;
+    learnClub(state, id, MEETING_READ, date);
+    const top = squadNeeds(club.formation, club.squad.map((pid) => state.players[pid]!).filter(Boolean))
+      .filter((n) => n.severity >= 0.2)
+      .slice(0, 2);
+    addNews(state, {
+      date,
+      kind: 'career',
+      title: `Needs meeting at ${club.name}`,
+      body: top.length
+        ? `The coach goes through the squad with you: they want a ${top.map((n) => n.position).join(' and a ')}. Your read on their needs is up to date.`
+        : 'The coach goes through the squad with you: no gaps worth filling right now. Your read on their needs is up to date.',
+      clubIds: [club.id],
+    });
+  }
 }
 
 /** What reading the Touchline gives you about a need it prints. */

@@ -716,6 +716,12 @@ function NeedsRead({ club }: { club: ClubView }) {
         </button>
       )}
       {msg && <span className="w-full text-mist-300">{msg}</span>}
+      {r.tier !== 'sure' && !r.floor && (
+        <span className="w-full text-[11px] text-mist-500">
+          Other ways to learn: watch one of their matches, pitch them a player (a coach who says no often tells you why), or read the Touchline&apos;s weekly
+          leads. Clients brief you every quarter.
+        </span>
+      )}
     </div>
   );
 }
