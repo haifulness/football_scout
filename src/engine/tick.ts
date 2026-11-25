@@ -1,3 +1,5 @@
+import { pressLeads } from './systems/club-read';
+import { staleClub } from './systems/club-read';
 import { academyTick } from './systems/academy';
 import { tournamentTick } from './systems/tournaments';
 import { reviewClients } from './systems/client-review';
@@ -117,7 +119,12 @@ function playDay(state: GameState, date: GameDate, onMatch?: MatchListener): { m
           });
         }
       }
-      for (const { playerId, injury } of sim.injuries) state.players[playerId]!.injury = injury;
+      for (const { playerId, injury } of sim.injuries) {
+        const hurt = state.players[playerId]!;
+        hurt.injury = injury;
+        // A long injury opens a hole you may not know about.
+        if (injury.until - date >= 40 && hurt.clubId) staleClub(state, hurt.clubId, `${hurt.firstName} ${hurt.lastName} is out for months`, 20, hurt.naturalPosition);
+      }
       payMatchBonuses(state, sim.lines, f, date);
       trackPlacements(state, sim.lines, f);
       onMatch?.(sim.lines, date);
@@ -147,6 +154,7 @@ function playDay(state: GameState, date: GameDate, onMatch?: MatchListener): { m
     consultationTick(state, date);
     overheadsTick(state, date);
     tournamentTick(state, date);
+    if (toParts(date).weekday === 1) pressLeads(state);
     academyTick(state, date, rolled);
     if (toParts(date).day === 1) placementTick(state, date);
     unlockTick(state, date);

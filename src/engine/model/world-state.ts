@@ -95,6 +95,10 @@ export interface GameState {
   tournaments?: import('./tournament').Tournament[];
   /** Academies: the ones you sponsor, and your own. */
   academy?: import('./academy').AcademyState;
+  /** Your read on each club's needs (see systems/club-read.ts). */
+  /** The needs the Touchline printed this week (each gives you a rough read on that position). */
+  press?: { week: GameDate; items: { clubId: ClubId; pos: import('./player').Position }[] };
+  clubReads?: Record<ClubId, { level: number; date: GameDate; pos?: Partial<Record<import('./player').Position, number>>; stale?: string }>;
   /** Choices put to you (recent ones kept for the record). */
   dilemmas?: Dilemma[];
   /** Your season reviews, newest last (kept for the last 20 seasons). */

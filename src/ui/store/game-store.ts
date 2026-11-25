@@ -162,6 +162,7 @@ export interface GameStore {
   trophies: TrophyView[];
   dismissTrophy: () => void;
   scoutLive: (playerId: PlayerId) => Promise<LiveResult>;
+  studyClub: (clubId: ClubId) => Promise<{ before: number; after: number; days: number }>;
   meet: (target: MeetTarget) => Promise<MeetingResult>;
   /** Attend a player's next match in person, watching up to three players closely. */
   attendMatch: (playerId: PlayerId, focus: PlayerId[]) => Promise<AttendedMatchView>;
@@ -420,6 +421,14 @@ export const useGame = create<GameStore>((set, get) => {
         (x) => x.advance,
       );
       return r.result;
+    },
+
+    async studyClub(clubId) {
+      const r = await timed(
+        () => engine.studyClub(clubId),
+        (x) => x.advance,
+      );
+      return r;
     },
 
     async meet(target) {

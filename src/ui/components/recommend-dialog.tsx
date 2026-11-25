@@ -477,15 +477,17 @@ function PitchView({
                   ))}
                 </span>
               </div>
-              <BarCompare avg={preview.positionalAverage} est={preview.estimate} />
+              <BarCompare range={preview.averageRange} est={preview.estimate} />
               <div
                 className={`mt-2 text-sm ${preview.clearsBar === 'yes' ? 'text-good-300' : preview.clearsBar === 'no' ? 'text-alert-400' : 'text-flood-300'}`}
               >
-                {preview.clearsBar === 'yes'
-                  ? 'Even your cautious estimate beats their average.'
-                  : preview.clearsBar === 'no'
-                    ? "By your estimate he isn't better than what they have."
-                    : 'Too close to call with what you know. Scout him more, or take the gamble.'}
+                {preview.clearsBar === 'unknown'
+                  ? "You don't know what they have at this position: study their squad (club page) to see the bar."
+                  : preview.clearsBar === 'yes'
+                    ? 'Even your cautious estimate beats their average.'
+                    : preview.clearsBar === 'no'
+                      ? "By your estimate he isn't better than what they have."
+                      : 'Too close to call with what you know. Scout him more, or take the gamble.'}
               </div>
               {preview.clearsBar !== 'yes' && (
                 <div className="mt-1 text-[12px] text-mist-400">
@@ -630,8 +632,8 @@ function PitchView({
             <div
               className={`rounded-lg border px-3 py-2 text-[12px] ${preview.settling.label === 'slow' || preview.settling.label === 'very slow' ? 'border-flood-400/30 text-flood-300' : 'border-white/[0.06] text-mist-300'}`}
             >
-              Settling in: {preview.settling.label}, about {preview.settling.months} month{preview.settling.months > 1 ? 's' : ''} ({preview.settling.reasons.join(', ')}). He plays below himself
-              until he settles.
+              Settling in: {preview.settling.label}, about {preview.settling.months} month{preview.settling.months > 1 ? 's' : ''} (
+              {preview.settling.reasons.join(', ')}). He plays below himself until he settles.
               {preview.settling.unknownCharacter && <span className="text-mist-400"> You don't know all of his character yet, so it could go either way.</span>}
             </div>
           )}
@@ -759,7 +761,9 @@ function Verdict({ preview, wageOffer, deal }: { preview: Preview; wageOffer: nu
   const briefNo = !brief && preview.missions.some((m) => m.checks.some((c) => c.status === 'no'));
   const chips: { text: string; tone: 'good' | 'bad' | 'warn' }[] = [
     {
-      text: `${preview.position}: you ${preview.estimate[0]}–${preview.estimate[1]} vs their avg ${preview.positionalAverage}`,
+      text: preview.averageRange
+        ? `${preview.position}: you ${preview.estimate[0]}–${preview.estimate[1]} vs their avg ${preview.averageRange[0] === preview.averageRange[1] ? preview.averageRange[0] : `${preview.averageRange[0]}–${preview.averageRange[1]}`}`
+        : `${preview.position}: their average unknown`,
       tone: preview.clearsBar === 'yes' ? 'good' : preview.clearsBar === 'no' ? 'bad' : 'warn',
     },
     {
@@ -790,7 +794,10 @@ function Verdict({ preview, wageOffer, deal }: { preview: Preview; wageOffer: nu
     chips.push({ text: `${preview.rivalInterest.length} rival${preview.rivalInterest.length > 1 ? 's' : ''} after him`, tone: 'warn' });
   if (preview.rights === 'open') chips.push({ text: 'Open pitch: half bonus', tone: 'warn' });
   if (preview.style.fit !== 'neutral')
-    chips.push({ text: preview.style.fit === 'fits' ? `Suits their ${preview.style.label.toLowerCase()}` : `Wrong type for their ${preview.style.label.toLowerCase()}`, tone: preview.style.fit === 'fits' ? 'good' : 'bad' });
+    chips.push({
+      text: preview.style.fit === 'fits' ? `Suits their ${preview.style.label.toLowerCase()}` : `Wrong type for their ${preview.style.label.toLowerCase()}`,
+      tone: preview.style.fit === 'fits' ? 'good' : 'bad',
+    });
   if (preview.settling && (preview.settling.label === 'slow' || preview.settling.label === 'very slow'))
     chips.push({ text: `Settling: ${preview.settling.label} (~${preview.settling.months} mo)`, tone: 'warn' });
   const chipColor = { good: 'border-good-400/25 text-good-200', bad: 'border-alert-500/40 text-alert-400', warn: 'border-flood-400/30 text-flood-300' };
@@ -804,12 +811,14 @@ function Verdict({ preview, wageOffer, deal }: { preview: Preview; wageOffer: nu
       {preview.board && !deal && (
         <div className="mt-1.5 text-[12px] text-mist-400">
           President {preview.board.president}:{' '}
-          {preview.board.reasons.length ? preview.board.reasons.map((r, i) => (
-            <span key={r.text} className={r.good ? 'text-good-300' : 'text-alert-400'}>
-              {i > 0 && ', '}
-              {r.text}
-            </span>
-          )) : 'nothing for or against'}
+          {preview.board.reasons.length
+            ? preview.board.reasons.map((r, i) => (
+                <span key={r.text} className={r.good ? 'text-good-300' : 'text-alert-400'}>
+                  {i > 0 && ', '}
+                  {r.text}
+                </span>
+              ))
+            : 'nothing for or against'}
           .
         </div>
       )}
@@ -831,10 +840,11 @@ const Row = ({ label, value, warn }: { label: string; value: string; warn?: bool
   </div>
 );
 
-/** Your estimate (range) against the club's positional average (line). */
-function BarCompare({ avg, est }: { avg: number; est: [number, number] }) {
-  const lo = Math.min(est[0], avg) - 8;
-  const hi = Math.max(est[1], avg) + 8;
+/** Your estimate (range) against the club's positional average: a line when you know it, a band when you only roughly do. */
+function BarCompare({ range, est }: { range?: [number, number]; est: [number, number] }) {
+  const avg = range ? Math.round((range[0] + range[1]) / 2) : Math.round((est[0] + est[1]) / 2);
+  const lo = Math.min(est[0], range?.[0] ?? avg) - 8;
+  const hi = Math.max(est[1], range?.[1] ?? avg) + 8;
   const x = (v: number) => `${((v - lo) / (hi - lo)) * 100}%`;
   const c = ratingColor((est[0] + est[1]) / 2);
   return (
@@ -847,9 +857,12 @@ function BarCompare({ avg, est }: { avg: number; est: [number, number] }) {
         animate={{ left: x(est[0]), width: `calc(${x(est[1])} - ${x(est[0])})` }}
         transition={{ duration: 0.6 }}
       />
-      <div className="absolute top-1 h-10 w-0.5 bg-flood-400" style={{ left: x(avg) }} />
+      {range && range[1] > range[0] && (
+        <div className="absolute top-1 h-10 rounded-sm bg-flood-400/15" style={{ left: x(range[0]), width: `calc(${x(range[1])} - ${x(range[0])})` }} />
+      )}
+      {range && <div className="absolute top-1 h-10 w-0.5 bg-flood-400" style={{ left: x(avg) }} />}
       <div className="num absolute -top-1 -translate-x-1/2 text-[11px] font-bold text-flood-300" style={{ left: x(avg) }}>
-        avg {avg}
+        {range ? (range[0] === range[1] ? `avg ${avg}` : `avg ${range[0]}–${range[1]}`) : 'their avg: ?'}
       </div>
       <div className="num absolute top-9 -translate-x-1/2 text-[11px] text-mist-300" style={{ left: `calc((${x(est[0])} + ${x(est[1])}) / 2)` }}>
         you: {est[0]}–{est[1]}
@@ -1007,9 +1020,7 @@ function AgreementBox({
         )
       ) : (
         <div className="mt-3 flex flex-wrap gap-2">
-          <span className="w-full text-[12px] text-mist-400">
-            Ask the Head Coach in person (one day). He needs to know you a little first: standing 8+.
-          </span>
+          <span className="w-full text-[12px] text-mist-400">Ask the Head Coach in person (one day). He needs to know you a little first: standing 8+.</span>
           <button className={`${optional ? 'btn-ghost' : 'btn-primary'} text-xs`} disabled={advancing} onClick={() => void propose()}>
             Propose a scouting agreement
           </button>

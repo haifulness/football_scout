@@ -30,6 +30,7 @@ import { aftercareCheck, isSettling, settleForecast, settlePenalty } from './sys
 import { taxDay, taxFor, weeklyLiving } from './systems/overheads';
 import { clientYear, nextReview } from './systems/client-review';
 import { ROUND_LABEL, groupTable } from './systems/tournaments';
+import { pressLeads, readLevel, seenAverage, seenNeeds, studyClub, studyDays, studyResult, tierOf } from './systems/club-read';
 import {
   CAPACITY,
   PLACE_AGE,
@@ -113,7 +114,7 @@ import type { Mission } from './model/mission';
 import type { Position } from './model/player';
 import { BACKGROUNDS, checkIn, checkInCheck, completeSearch, createCareer, estimateSearch, startSearch, videoCost, videoGain, watchVideo, ScoutingError } from './systems/scouting';
 import { leagueTable } from './systems/season';
-import { bestXI, squadNeeds } from './systems/squad-needs';
+import { bestXI, squadNeeds, type SlotNeed } from './systems/squad-needs';
 import { promotionSpots } from './systems/standings';
 import { advanceDays, advanceToNextMatchday, advanceUntilEvent, nextMatchDate, type AdvanceResult } from './tick';
 import {
@@ -1070,6 +1071,14 @@ export class Engine {
   checkIn(playerId: PlayerId): { cost: number } {
     this.assertActive();
     return checkIn(this.s, playerId);
+  }
+
+  /** Study a club's squad from afar: a few days of work, free, as good as what you know of their players. */
+  studyClub(clubId: ClubId): { before: number; after: number; days: number; advance: AdvanceSummary } {
+    this.assertActive();
+    this.assertNoDeadline();
+    const r = studyClub(this.s, clubId);
+    return { ...r, advance: this.summarize(advanceDays(this.s, r.days)) };
   }
 
   watchVideo(playerId: PlayerId): { cost: number; before: number; after: number; advance: AdvanceSummary } {
@@ -2087,6 +2096,18 @@ export class Engine {
     };
   }
 
+  /** A club's needs as you know them, in the shape the screens use (unknown positions left out). */
+  private knownNeeds(club: Club): (SlotNeed & { avgRange?: [number, number] })[] {
+    return seenNeeds(this.s, club, squadNeeds(club.formation, this.squadOf(club))).map((n) => ({
+      position: n.position,
+      severity: n.severity,
+      positionalAverage: n.average ? Math.round((n.average[0] + n.average[1]) / 2) : 0,
+      avgRange: n.average,
+      depth: n.depth ?? 0,
+      starterOvr: 0,
+    }));
+  }
+
   getHome(): HomeView {
     const s = this.s;
     const sc = s.scout!;
@@ -2434,7 +2455,7 @@ export class Engine {
     const mine: ClubId[] = e.mode === 'fulltime' ? [e.clubId] : e.clients;
     const mineSet = new Set(mine);
     const openMissions = s.missions.filter((m) => m.status === 'offered' || m.status === 'active');
-    const needsOf = (club: Club) => squadNeeds(club.formation, this.squadOf(club));
+    const needsOf = (club: Club) => this.knownNeeds(club);
     const row = (club: Club, n: ReturnType<typeof squadNeeds>[number]): GazetteNeed => {
       const m = openMissions.find((x) => x.clubId === club.id && x.position === n.position);
       return {
@@ -2458,19 +2479,16 @@ export class Engine {
       .sort((a, b) => Number(!!b.mission) - Number(!!a.mission) || b.severity - a.severity)
       .slice(0, 8);
 
-    // Home clubs outside your book: urgent needs only, and they must have money.
+    // Home clubs outside your book: what the paper prints this week (urgent, with money, one per club).
     const home = Object.values(s.clubs).filter((c) => c.countryId === sc.homeCountry && !mineSet.has(c.id));
     const homeNeeds = home.map((club) => ({ club, needs: needsOf(club) }));
-    const leads = homeNeeds
-      .flatMap(({ club, needs }) =>
-        club.transferBudget > 0
-          ? needs.filter((n) => n.severity >= 0.45).map((n) => ({ ...row(club, n), coach: clubTrust(s, club.id) }))
-          : [],
-      )
-      .sort((a, b) => b.severity * Math.log10(10 + b.transferBudget) - a.severity * Math.log10(10 + a.transferBudget))
-      // One line per club: the most pressing.
-      .filter((n, i, all) => all.findIndex((x) => x.club.id === n.club.id) === i)
-      .slice(0, 6);
+    const leads = pressLeads(s)
+      .filter((i) => !mineSet.has(i.clubId))
+      .flatMap((i) => {
+        const club = s.clubs[i.clubId]!;
+        const n = needsOf(club).find((x) => x.position === i.pos);
+        return n ? [{ ...row(club, n), coach: clubTrust(s, club.id) }] : [];
+      });
 
     const allNeeds = [...mine.map((id) => ({ club: s.clubs[id]!, needs: needsOf(s.clubs[id]!) })), ...homeNeeds];
     const byPos = new Map<Position, { clubs: number; urgent: number; lowestBar: number; topBudget: USD }>();
@@ -2758,7 +2776,8 @@ export class Engine {
     const positions = formationPositions(club);
     const pos = position && positions.includes(position) ? position : defaultPitchPosition(p, club);
     const f = fog(s, p);
-    const avg = clubPositionalAverage(s, club, pos);
+    const seen = seenAverage(s, club, pos, clubPositionalAverage(s, club, pos));
+    const avg = seen.range ? Math.round((seen.range[0] + seen.range[1]) / 2) : undefined;
     const est = f.positions[pos];
     const rights = pitchRights(s, p, club);
     const fee = pitchFee(s, p, rights.mandate?.askingFee);
@@ -2809,9 +2828,11 @@ export class Engine {
       positions,
       position: pos,
       positionalAverage: avg,
+      averageRange: seen.range,
+      readTier: seen.tier,
       estimate: est,
-      clearsBar: est[0] > avg ? 'yes' : est[1] <= avg ? 'no' : 'maybe',
-      prospectRoute: age <= 21 && policyOk && (!f.potential || f.potential[1] > avg),
+      clearsBar: !seen.range ? 'unknown' : est[0] > seen.range[1] ? 'yes' : est[1] <= seen.range[0] ? 'no' : 'maybe',
+      prospectRoute: age <= 21 && policyOk && (!f.potential || avg === undefined || f.potential[1] > avg),
       fee,
       wage,
       wageSaving: usd(Math.max(0, fullWage - wage)),
@@ -2889,7 +2910,7 @@ export class Engine {
       board: (() => {
         if (!s.scout || !needsBoard(s, club, fee, wage)) return undefined;
         const pres = presidentOf(s, club)!;
-        const odds = boardOdds(s, p, club, fee, est[0] <= avg);
+        const odds = boardOdds(s, p, club, fee, est[0] <= (avg ?? est[1]));
         return {
           president: `${pres.firstName} ${pres.lastName}`,
           policyLabel: presidentView(s, club)!.policyLabel,
@@ -3046,7 +3067,7 @@ export class Engine {
     const fee = sale ? sale.askingFee : transferFee(s, p);
     const openToAll = !!sale || (!p.clubId && !!s.scout?.represented.includes(p.id));
     const here = s.scout ? s.cities[s.scout.location]!.countryId : p.nationality;
-    const scored: { club: Club; score: number; reason: string; avg: number }[] = [];
+    const scored: { club: Club; score: number; reason: string; avg?: number }[] = [];
     for (const club of Object.values(s.clubs)) {
       if (club.id === p.clubId) continue;
       const job = s.scout?.employment;
@@ -3059,14 +3080,12 @@ export class Engine {
       if (!isClient && !inCity && !known && club.countryId !== here) continue;
       // Budgets are public: don't suggest clubs that obviously can't pay.
       if (!isClient && !canAfford(s, club, fee, brokeredWage(s, p, club)).ok) continue;
-      const avg = clubPositionalAverage(s, club, pos);
-      const need =
-        squadNeeds(
-          club.formation,
-          club.squad.map((id) => s.players[id]!),
-        ).find((n) => n.position === pos)?.severity ?? 0;
-      const margin = est - avg;
-      if (margin < -3 && !isClient && !inCity && !known) continue;
+      // What you can see: your read on their average and needs (nothing when you don't know the club).
+      const seen = seenAverage(s, club, pos, clubPositionalAverage(s, club, pos));
+      const avg = seen.range ? Math.round((seen.range[0] + seen.range[1]) / 2) : undefined;
+      const need = this.knownNeeds(club).find((n) => n.position === pos)?.severity ?? 0;
+      const margin = avg === undefined ? 0 : est - avg;
+      if (avg !== undefined && margin < -3 && !isClient && !inCity && !known) continue;
       const score = margin * 0.6 + need * 10 + (inCity ? 6 : 0) + known / 10 + (isClient ? 25 : 0) + (openToAll && margin >= 0 ? 4 : 0);
       const reason =
         openToAll && !isClient && margin >= 0 && need >= 0.2
@@ -3081,7 +3100,9 @@ export class Engine {
                 ? 'You know people there'
                 : need >= 0.45
                   ? `Urgent need at ${pos}`
-                  : `Average ${avg} at ${pos}`;
+                  : avg !== undefined
+                    ? `Average ${avg} at ${pos}`
+                    : 'Their needs: unknown';
       scored.push({ club, score, reason, avg });
     }
     return scored
@@ -3493,7 +3514,22 @@ export class Engine {
       style: styleView(styleOf(s, club)),
       acceptsProspects: club.acceptsProspects,
       lineup,
-      needs: squadNeeds(club.formation, squad),
+      needs: this.knownNeeds(club),
+      needsRead: (() => {
+        const level = readLevel(s, club.id);
+        const r = s.clubReads?.[club.id];
+        const e = s.scout?.employment;
+        const works = !!e && (e.mode === 'fulltime' ? e.clubId === club.id : e.clients.includes(club.id));
+        const study = studyResult(s, club);
+        return {
+          tier: tierOf(level),
+          level,
+          stale: r?.stale,
+          since: r?.date,
+          floor: works ? 'You work for them: they keep you informed.' : undefined,
+          study: { days: studyDays(club), level: study, useful: study > level },
+        };
+      })(),
       squad: squad.map((p) => this.playerRow(p, club)).sort((a, b) => POSITIONS.indexOf(a.position) - POSITIONS.indexOf(b.position) || b.ovr - a.ovr),
       coach: this.official(s.officials[club.headCoachId]!),
       president: presidentView(s, club),

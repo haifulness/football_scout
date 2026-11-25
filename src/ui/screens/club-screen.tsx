@@ -98,6 +98,12 @@ export function ClubScreen({ id }: { id: ClubId }) {
               </span>
             }
           >
+            <NeedsRead club={club} />
+            {club.needs.length === 0 && club.needsRead.tier !== 'unknown' && (
+              <div className="px-4 pt-3 text-[12px] text-mist-400">
+                {club.needsRead.tier === 'rough' ? 'Nothing looks pressing from the outside. A closer read would show the smaller gaps.' : 'No gaps worth filling right now.'}
+              </div>
+            )}
             <div className="grid grid-cols-1 gap-x-6 gap-y-2 p-4 md:grid-cols-2">
               {club.needs.map((n, i) => (
                 <motion.div
@@ -140,12 +146,13 @@ export function ClubScreen({ id }: { id: ClubId }) {
                     </div>
                     <div className="mt-1 flex justify-between text-[11px] text-mist-400">
                       <span>
-                        {n.severity >= 0.45 ? 'Urgent' : n.severity >= 0.2 ? 'Could improve' : 'Covered'} · depth {n.depth}
+                        {n.severity >= 0.45 ? 'Urgent' : n.severity >= 0.2 ? 'Could improve' : 'Covered'}
+                        {n.depth ? ` · depth ${n.depth}` : ''}
                       </span>
                       <span>
                         avg{' '}
-                        <b className="num text-[13px]" style={{ color: ratingColor(n.positionalAverage) }}>
-                          {n.positionalAverage || '–'}
+                        <b className="num text-[13px]" style={{ color: n.positionalAverage ? ratingColor(n.positionalAverage) : undefined }}>
+                          {!n.avgRange ? '?' : n.avgRange[0] === n.avgRange[1] ? n.avgRange[0] : `${n.avgRange[0]}–${n.avgRange[1]}`}
                         </b>
                       </span>
                     </div>
@@ -671,5 +678,44 @@ function PresidentCard({ club }: { club: ClubView }) {
         </div>
       )}
     </Panel>
+  );
+}
+
+const READ_LABEL = { unknown: 'Unknown', rough: 'Rough', good: 'Good', sure: 'Sure' } as const;
+const READ_CLASS = { unknown: 'text-alert-400', rough: 'text-flood-300', good: 'text-grass-300', sure: 'text-good-300' } as const;
+
+/** How well you know what they need, why it may be out of date, and a way to learn more. */
+function NeedsRead({ club }: { club: ClubView }) {
+  const { studyClub, advancing } = useGame();
+  const [msg, setMsg] = useState<string>();
+  const r = club.needsRead;
+  const study = () =>
+    studyClub(club.id).then(
+      (x) => setMsg(`${x.days} days with their games and players: your read goes from ${x.before} to ${x.after}.`),
+      (e) => setMsg(e instanceof Error ? e.message : 'That did not work.'),
+    );
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-white/[0.05] px-4 py-2.5 text-[12px]">
+      <span className="text-mist-400">
+        Your read on their needs: <b className={READ_CLASS[r.tier]}>{READ_LABEL[r.tier]}</b>
+      </span>
+      <span className="min-w-[200px] flex-1 text-mist-400">
+        {r.floor ??
+          (r.tier === 'unknown'
+            ? 'You have no idea what they need yet.'
+            : r.tier === 'rough'
+              ? 'You know where they are thin, roughly.'
+              : r.tier === 'good'
+                ? 'You know their needs, give or take.'
+                : 'You know exactly what they need.')}
+        {r.stale && <span className="text-flood-300"> Out of date: {r.stale}.</span>}
+      </span>
+      {r.study.useful && (
+        <button className="btn-ghost px-2.5 py-1 text-[11px]" disabled={advancing} onClick={() => void study()} title="Go through their games and players. Only as good as what you know of their squad.">
+          Study their squad · {r.study.days} days
+        </button>
+      )}
+      {msg && <span className="w-full text-mist-300">{msg}</span>}
+    </div>
   );
 }

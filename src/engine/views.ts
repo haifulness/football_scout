@@ -221,7 +221,10 @@ export interface ClubView extends ClubBadge {
   style: StyleView;
   acceptsProspects: Club['acceptsProspects'];
   lineup: (LineupSlot & { name?: string; portraitSeed?: number; ovrRange?: Range })[];
-  needs: SlotNeed[];
+  /** Their needs as far as you know them (see needsRead): none when unknown, the pressing ones when rough. */
+  needs: (SlotNeed & { avgRange?: Range })[];
+  /** How well you know their needs, why it may be out of date, and what studying their squad would give you. */
+  needsRead: { tier: 'unknown' | 'rough' | 'good' | 'sure'; level: number; stale?: string; since?: GameDate; floor?: string; study: { days: number; level: number; useful: boolean } };
   squad: PlayerRow[];
   coach: OfficialView;
   president?: PresidentView;
@@ -814,12 +817,16 @@ export interface PitchPreview {
   };
   positions: Position[];
   position: Position;
-  /** The club's average at this position (they share it with you). */
-  positionalAverage: number;
+  /** The club's average at this position as far as you know it (the middle of your range; absent when unknown). */
+  positionalAverage?: number;
+  /** Your range for it: exact when you know the club well, wide when you don't. */
+  averageRange?: Range;
+  /** How well you know what they need at this position. */
+  readTier: 'unknown' | 'rough' | 'good' | 'sure';
   /** Your estimate of him at this position. */
   estimate: Range;
-  /** How your estimate compares with the bar. */
-  clearsBar: 'yes' | 'maybe' | 'no';
+  /** How your estimate compares with the bar (unknown when you don't know their average). */
+  clearsBar: 'yes' | 'maybe' | 'no' | 'unknown';
   /** He could still get in as a prospect (young, club open to it, potential looks high enough). */
   prospectRoute: boolean;
   fee: USD;
@@ -869,7 +876,8 @@ export interface PitchPreview {
 export interface ClubSuggestion {
   club: ClubBadge & { cityName: string; countryName: string; leagueName: string };
   reason: string;
-  positionalAverage: number;
+  /** As far as you know it (absent when you don't know the club's needs). */
+  positionalAverage?: number;
 }
 
 export interface PayoutView {

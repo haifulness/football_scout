@@ -1,3 +1,4 @@
+import { staleClub } from './club-read';
 import { paySellOn } from './academy';
 import { startSettling } from './settling';
 import { hasTrait } from './character';
@@ -112,6 +113,9 @@ export function executeTransfer(state: GameState, p: Player, buyer: Club, fee: U
   }
   buyer.transferBudget = usd(Math.max(0, buyer.transferBudget - fee));
   startSettling(state, p, buyer, date);
+  // Both squads changed: your read on what each needs is less true now.
+  staleClub(state, buyer.id, `They signed a ${p.naturalPosition}`, 25, p.naturalPosition);
+  if (seller) staleClub(state, seller.id, `They sold a ${p.naturalPosition}`, 25, p.naturalPosition);
   buyer.squad.push(p.id);
   p.clubId = buyer.id;
   p.wage = wage;

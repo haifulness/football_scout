@@ -1,3 +1,4 @@
+import { staleClub } from './club-read';
 import { STYLE_INFO, adoptCoachStyle, styleOf, type ClubStyle } from './styles';
 import { addDays, toParts, type GameDate } from '../core/calendar';
 import type { ClubId, StaffId } from '../core/ids';
@@ -79,6 +80,7 @@ export function replaceCoach(state: GameState, club: Club, rng: Rng, date: GameD
   // He brings his own ideas more often than not.
   if (coach.formation && rng.chance(0.6)) club.formation = coach.formation;
   else if (!coach.formation && rng.chance(0.4)) club.formation = rng.pick(FORMATION_IDS);
+  staleClub(state, club.id, 'A new coach, with his own ideas', 30);
   const styleBefore = styleOf(state, club);
   adoptCoachStyle(state, club, coach);
   return { club, old, coach, rehired, previousClubId, formationBefore, styleBefore, reason };
