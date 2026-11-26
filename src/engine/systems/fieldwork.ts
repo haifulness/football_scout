@@ -1,3 +1,4 @@
+import { clearSmear } from './nemesis';
 import { LIVE_READ, learnClub } from './club-read';
 import { visitPlacement } from './placement-stories';
 import { aftercare } from './settling';
@@ -215,6 +216,8 @@ export interface MeetingResult {
   settled?: number;
   /** Meeting a coach: he lets slip something about one of his players you're tracking. */
   heard?: { playerId: PlayerId; trait: TraitId };
+  /** Meeting a coach: you cleared a rival's rumour about you at his club. */
+  cleared?: true;
 }
 
 /** A one-day meeting over coffee or dinner. Diminishing returns as you get closer. */
@@ -260,6 +263,7 @@ export function meet(state: GameState, target: MeetTarget): MeetingResult {
   let heard: MeetingResult['heard'];
   let settled: number | undefined;
   let cheered: MeetingResult['cheered'];
+  let cleared: true | undefined;
   if (target.kind === 'player') {
     scout.rapport[target.id] = after;
     // Talking to him tells you about his character and ambitions.
@@ -269,6 +273,8 @@ export function meet(state: GameState, target: MeetTarget): MeetingResult {
     cheered = visitPlacement(state, state.players[target.id]!);
   } else {
     scout.relationships[target.id] = after;
+    // A rumour about you there: now's the time to set the record straight.
+    if (clearSmear(state, state.officials[target.id]!.clubId)) cleared = true;
     // Coaches talk about their players: your network decides how often something useful slips out.
     const club = state.clubs[state.officials[target.id]!.clubId]!;
     for (const id of club.squad.filter((id) => state.pool[id])) {
@@ -289,7 +295,7 @@ export function meet(state: GameState, target: MeetTarget): MeetingResult {
     }
   }
   scout.lastMet[target.id] = state.date;
-  return { before: info.level, after, cost: info.cost, trait, heard, settled, cheered };
+  return { before: info.level, after, cost: info.cost, trait, heard, settled, cheered, cleared };
 }
 
 export function relationshipLabel(level: number): string {

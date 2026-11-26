@@ -30,6 +30,7 @@ import { aftercareCheck, isSettling, settleForecast, settlePenalty } from './sys
 import { taxDay, taxFor, weeklyLiving } from './systems/overheads';
 import { clientYear, nextReview } from './systems/client-review';
 import { clientRace } from './systems/client-race';
+import { activeSmear, headToHead, isNemesis, nemesisOf } from './systems/nemesis';
 import { ROUND_LABEL, groupTable } from './systems/tournaments';
 import { analysisCheck, askCoach, askCoachCheck, askPlayer, askPlayerCheck, buyInsider, dataCost, insiderCheck, insidePlayers, sendAnalyst, swapCheck, swapRivals, swapWithRival, toggleData } from './systems/club-asks';
 import { pressLeads, readLevel, seenAverage, seenNeeds, studyClub, studyDays, studyResult, tierOf } from './systems/club-read';
@@ -2008,11 +2009,39 @@ export class Engine {
           local: homeClubs.some((id) => s.clubs[id]?.countryId === sc.homeCountry) || r.nationality === sc.homeCountry,
           style: r.styleKnown ? RIVAL_STYLE_INFO[rivalStyle(s, r)] : undefined,
           atYourClients: (r.signed ?? []).filter((x) => myClients.has(x.clubId) && x.date >= s.date - 365).length,
+          nemesis: isNemesis(s, r),
         };
       });
     return {
       you: { name: sc.name, reputation: Math.round(sc.reputation), rank: 1 + s.rivals.filter((r) => r.reputation > sc.reputation).length },
       rivals,
+      nemesis: (() => {
+        const r = nemesisOf(s);
+        const n = sc.nemesis;
+        const h = headToHead(s);
+        if (!r || !n || !h) return undefined;
+        const who = (id: number) => {
+          const x = s.rivals.find((y) => y.id === id);
+          return x ? `${x.firstName} ${x.lastName}` : 'A rival';
+        };
+        return {
+          id: r.id,
+          name: `${r.firstName} ${r.lastName}`,
+          portraitSeed: r.portraitSeed,
+          nationalityId: r.nationality,
+          reputation: Math.round(r.reputation),
+          style: RIVAL_STYLE_INFO[rivalStyle(s, r)],
+          since: n.since,
+          season: { label: seasonLabel(s.season.year), you: h.you, him: h.him, steals: h.steals, clientsTaken: h.clientsTaken, yourRep: h.yourRep, hisRep: h.hisRep },
+          won: n.won,
+          lost: n.lost,
+          history: n.history,
+          smears: (Object.keys(sc.smears ?? {}) as ClubId[]).flatMap((id) => {
+            const m = activeSmear(s, id);
+            return m ? [{ club: badge(s.clubs[id]!), by: who(m.rivalId), amount: m.amount, cleared: !!m.cleared, until: m.until }] : [];
+          }),
+        };
+      })(),
       threats: rivals.filter((r) => r.chase?.yours).length,
     };
   }
@@ -3624,6 +3653,12 @@ export class Engine {
       acceptsProspects: club.acceptsProspects,
       lineup,
       needs: this.knownNeeds(club),
+      smear: (() => {
+        const m = s.scout ? activeSmear(s, club.id) : undefined;
+        if (!m) return undefined;
+        const r = s.rivals.find((x) => x.id === m.rivalId);
+        return { by: r ? `${r.firstName} ${r.lastName}` : 'A rival', amount: m.amount, cleared: !!m.cleared, until: m.until };
+      })(),
       pitchRecord: (() => {
         if (!s.scout) return undefined;
         const coach = s.officials[club.headCoachId];

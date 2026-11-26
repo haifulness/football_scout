@@ -7,6 +7,7 @@ import { clubPositionalAverage } from './deals';
 import { dropClient } from './employment';
 import { ovrAt } from './ratings';
 import { rivalName } from './rivals';
+import { nemesisScored } from './nemesis';
 import { addNews } from './season';
 
 /**
@@ -105,6 +106,7 @@ export function compareWithRivals(state: GameState, date: GameDate) {
       dropClient(state, clubId);
       const r = state.rivals.find((x) => x.id === race.rival!.id);
       if (r && r.employment.mode === 'freelance' && !r.employment.clients.includes(clubId)) r.employment.clients.push(clubId);
+      if (r) nemesisScored(state, r, 'client');
       addNews(state, {
         date,
         kind: 'career',

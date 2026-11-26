@@ -5,6 +5,7 @@ import { academyTick } from './systems/academy';
 import { tournamentTick } from './systems/tournaments';
 import { reviewClients } from './systems/client-review';
 import { compareWithRivals } from './systems/client-race';
+import { nemesisSeason, nemesisTick } from './systems/nemesis';
 import { overheadsTick, payTax } from './systems/overheads';
 import { placementTick, trackPlacements } from './systems/placement-stories';
 import { addDays, isTransferWindow, makeDate, toParts, type GameDate } from './core/calendar';
@@ -74,6 +75,7 @@ function playDay(state: GameState, date: GameDate, onMatch?: MatchListener): { m
     rolled = true;
     payTax(state, state.season.year - 1, date);
     reviewClients(state, date);
+    nemesisSeason(state, date);
   }
   if (day === 1) {
     monthlyUpdate(state, date);
@@ -162,6 +164,7 @@ function playDay(state: GameState, date: GameDate, onMatch?: MatchListener): { m
     }
     clientMeetings(state, date);
     compareWithRivals(state, date);
+    nemesisTick(state, date);
     dataTick(state, date);
     academyTick(state, date, rolled);
     if (toParts(date).day === 1) placementTick(state, date);

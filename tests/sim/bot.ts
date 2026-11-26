@@ -203,6 +203,12 @@ export function runBot(opts: { seed: number; seasons: number; difficulty: Diffic
         );
         // A club that trusts you takes the pitch by phone: no trip needed.
         const byPhone = remotePitchCheck(s, club.id).ok;
+        // A rival's rumour about you there: go and set the record straight.
+        const smear = s.scout!.smears?.[club.id];
+        if (smear && !smear.cleared && s.date - smear.date < 180) {
+          goTo(club);
+          safe(() => e.meet({ kind: 'official' as const, id: club.headCoachId }), 'meet');
+        }
         // Get to know the coach before asking him to sign anyone.
         if (found.length && !byPhone) {
           goTo(club);

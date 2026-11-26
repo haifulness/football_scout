@@ -224,6 +224,8 @@ export interface ClubView extends ClubBadge {
   /** Their needs as far as you know them (see needsRead): none when unknown, the pressing ones when rough. */
   needs: (SlotNeed & { avgRange?: Range })[];
   /** How well you know their needs, why it may be out of date, and what studying their squad would give you. */
+  /** A rival's rumour about you here, costing you standing until it fades or you meet the coach. */
+  smear?: { by: string; amount: number; cleared: boolean; until: GameDate };
   /** How your pitches have gone here lately. */
   pitchRecord?: {
     noes: number;
@@ -1245,10 +1247,30 @@ export interface RivalRow {
   style?: { label: string; blurb: string };
   /** He has signed players for your clients in the last year. */
   atYourClients: number;
+  /** Your nemesis. */
+  nemesis: boolean;
+}
+
+export interface NemesisView {
+  id: number;
+  name: string;
+  portraitSeed: number;
+  nationalityId: CountryId;
+  reputation: number;
+  style: { label: string; blurb: string };
+  since: GameDate;
+  season: { label: string; you: number; him: number; steals: number; clientsTaken: number; yourRep: number; hisRep: number };
+  won: number;
+  lost: number;
+  history: { year: number; you: number; him: number; won: boolean }[];
+  /** Rumours he (or anyone) is spreading about you at clubs right now. */
+  smears: { club: ClubBadge; by: string; amount: number; cleared: boolean; until: GameDate }[];
 }
 
 export interface RivalsView {
   you: { name: string; reputation: number; rank: number };
+  /** The rival who made it personal (once he has noticed you). */
+  nemesis?: NemesisView;
   rivals: RivalRow[];
   /** Rumoured chases on players you are working on (deals or pool). */
   threats: number;

@@ -70,6 +70,20 @@ export interface Scout {
   clientSince?: Record<ClubId, GameDate>;
   /** Clients that warned you at their last review: another thin year and they go. */
   clientWarned?: ClubId[];
+  /** The rival who has made it personal: he rises with you and goes after your clubs and players. */
+  nemesis?: {
+    rivalId: number;
+    since: GameDate;
+    /** This season so far: deals he took off you, clients he took from you. */
+    steals: number;
+    clientsTaken: number;
+    /** Seasons won and lost against him. */
+    won: number;
+    lost: number;
+    history: { year: number; you: number; him: number; won: boolean }[];
+  };
+  /** Rumours a rival spread about you at a club: standing lost there until it fades (or you clear it). */
+  smears?: Record<ClubId, { rivalId: number; date: GameDate; amount: number; cleared?: boolean }>;
   /** Clients who warned you last quarter that a rival's signings are doing better (when). */
   raceWarned?: Record<ClubId, GameDate>;
   /** Head coaches who refused to discuss their needs with you, and when. */

@@ -1,6 +1,7 @@
 import { motion } from 'motion/react';
 import { Fragment, useState } from 'react';
-import type { RivalRow } from '../../engine/views';
+import type { NemesisView, RivalRow } from '../../engine/views';
+import { formatDate } from '../../engine/core/calendar';
 import { Loading, Panel, useCultureLookup } from '../components/ui';
 import { Crest } from '../visuals/crest';
 import { ClubLink } from '../components/club-link';
@@ -41,6 +42,8 @@ export function RivalsScreen() {
           </div>
         </motion.div>
       </header>
+
+      {view.nemesis && <Nemesis n={view.nemesis} you={view.you.name} />}
 
       <Panel
         title={`Known chases (${chases.length})`}
@@ -169,7 +172,8 @@ function ScoutRow({ r, rank }: { r: RivalRow; rank: number }) {
           <Portrait seed={r.portraitSeed} culture={cultureOf(r.nationalityId)} size={26} age={45} className="rounded" />
           <span className="min-w-0">
             <span className="flex items-center gap-1.5">
-              <span className="font-medium">{r.name}</span>
+              <span className={`font-medium ${r.nemesis ? 'text-alert-300' : ''}`}>{r.name}</span>
+              {r.nemesis && <span className="chip border-alert-500/40 px-1.5 py-0 text-[9px] text-alert-400">Nemesis</span>}
               {r.chase && <span className="text-[11px] text-violet-300">👁</span>}
             </span>
             <span className="flex flex-wrap gap-1">
@@ -208,5 +212,83 @@ function ScoutRow({ r, rank }: { r: RivalRow; rank: number }) {
       <td className="num py-2 text-right">{r.signings}</td>
       <td className={`num px-4 py-2 text-right ${r.steals ? 'font-bold text-alert-400' : 'text-mist-400'}`}>{r.steals}</td>
     </tr>
+  );
+}
+
+/** Your nemesis: who he is, this season's head-to-head, your record against him, and the rumours he's spreading. */
+function Nemesis({ n, you }: { n: NemesisView; you: string }) {
+  const cultureOf = useCultureLookup();
+  const ahead = n.season.you > n.season.him || (n.season.you === n.season.him && n.season.yourRep >= n.season.hisRep);
+  const row = (label: string, a: number | string, b: number | string, good?: boolean) => (
+    <tr className="border-t border-white/[0.05]">
+      <td className="py-1.5 text-mist-400">{label}</td>
+      <td className={`num py-1.5 text-right font-semibold ${good === true ? 'text-good-300' : good === false ? 'text-alert-400' : ''}`}>{a}</td>
+      <td className="num py-1.5 text-right font-semibold">{b}</td>
+    </tr>
+  );
+  return (
+    <Panel
+      title="Your nemesis"
+      right={
+        <span className="text-[11px] text-mist-400">
+          Since {formatDate(n.since)} · seasons {n.won}–{n.lost}
+        </span>
+      }
+    >
+      <div className="grid gap-4 p-4 md:grid-cols-[1fr_1.2fr]">
+        <div className="flex items-start gap-3">
+          <Portrait seed={n.portraitSeed} culture={cultureOf(n.nationalityId)} size={56} age={42} className="rounded-lg" />
+          <div className="min-w-0">
+            <div className="font-display text-2xl font-bold uppercase leading-none text-alert-300">{n.name}</div>
+            <div className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-flood-300">{n.style.label}</div>
+            <div className="mt-1 text-[12px] text-mist-400">{n.style.blurb}</div>
+            <div className="mt-1 text-[12px] text-mist-400">He goes after your clubs, your players and your clients, and keeps a step ahead of your reputation.</div>
+          </div>
+        </div>
+        <div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-[10px] uppercase tracking-wider text-mist-400">
+                <th className="py-1 text-left font-normal">{n.season.label} so far</th>
+                <th className="py-1 text-right font-normal" title={you}>
+                  You
+                </th>
+                <th className="py-1 text-right font-normal">{n.name.split(' ').slice(-1)[0]}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {row('Signings', n.season.you, n.season.him, n.season.you > n.season.him ? true : n.season.you < n.season.him ? false : undefined)}
+              {row('Reputation', n.season.yourRep, n.season.hisRep)}
+              {row('Deals he took off you', '–', n.season.steals)}
+              {row('Clients he took from you', '–', n.season.clientsTaken)}
+            </tbody>
+          </table>
+          <div className={`mt-2 text-[12px] ${ahead ? 'text-good-300' : 'text-alert-400'}`}>
+            {ahead ? 'You lead this season: win it on 1 July for +3 reputation.' : 'He leads this season: lose it and you drop 2 reputation.'}
+          </div>
+          {n.history.length > 0 && (
+            <div className="mt-1 text-[11px] text-mist-400">
+              Past seasons: {n.history.map((h) => `${h.year}/${String(h.year + 1).slice(2)} ${h.won ? 'W' : 'L'} ${h.you}–${h.him}`).join(' · ')}
+            </div>
+          )}
+        </div>
+      </div>
+      {n.smears.length > 0 && (
+        <div className="border-t border-white/[0.05] px-4 py-2.5 text-[12px]">
+          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-alert-400">Rumours about you</div>
+          <ul className="flex flex-col gap-1">
+            {n.smears.map((m) => (
+              <li key={m.club.id} className="flex flex-wrap items-center gap-1.5 text-mist-300">
+                <Crest club={m.club} size={16} />
+                <ClubLink club={m.club} />
+                <span className="text-mist-400">
+                  · from {m.by} · −{m.amount} standing{m.cleared ? ' (you set it straight)' : ' · meet the coach to clear it'} · fades {formatDate(m.until)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </Panel>
   );
 }

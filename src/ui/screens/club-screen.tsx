@@ -830,8 +830,18 @@ function NeedsRead({ club }: { club: ClubView }) {
 /** How your pitches have gone here: noes this month, a coach who stopped listening, your hit rate. */
 function PitchRecord({ club }: { club: ClubView }) {
   const r = club.pitchRecord;
-  if (!r || (!r.noes && !r.coldUntil && !r.hit)) return null;
+  const m = club.smear;
+  if (!m && (!r || (!r.noes && !r.coldUntil && !r.hit))) return null;
   return (
+    <>
+    {m && (
+      <div className="border-b border-white/[0.05] bg-alert-500/[0.05] px-4 py-2 text-[12px] text-alert-300">
+        {m.cleared
+          ? `You set the record straight about ${m.by}'s rumour: it still costs you ${m.amount} standing here until ${formatDate(m.until)}.`
+          : `${m.by} has been telling people here that you pushed a flop on them: −${m.amount} standing. Meet the coach to set the record straight (it fades on ${formatDate(m.until)}).`}
+      </div>
+    )}
+    {r && (r.noes > 0 || r.coldUntil !== undefined || r.hit) && (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-white/[0.05] px-4 py-2 text-[12px] text-mist-400">
       <span>Your pitches here:</span>
       {r.coldUntil !== undefined ? (
@@ -850,5 +860,7 @@ function PitchRecord({ club }: { club: ClubView }) {
         </span>
       )}
     </div>
+    )}
+    </>
   );
 }
