@@ -279,7 +279,8 @@ export function repitchCheck(state: GameState, deal: Deal): RepitchCheck {
       if (now >= target) met.push(`your read on him is up to ${now}`);
       else conditions.push(`your read on him reaches ${target}`);
     }
-    if (state.missions.some((m) => m.clubId === club.id && m.position === deal.position && (m.status === 'offered' || m.status === 'active')))
+    // Only a brief posted after the no gives a reason to ask again (not the one he was turned down for).
+    if (state.missions.some((m) => m.clubId === club.id && m.position === deal.position && m.postedOn > deal.openedOn && (m.status === 'offered' || m.status === 'active')))
       met.push(`they posted a ${deal.position} brief`);
     else conditions.push(`they post a ${deal.position} brief`);
   }

@@ -3301,6 +3301,31 @@ export class Engine {
       }));
   }
 
+  /**
+   * Players you can't pitch to this club right now: he plays there, you already have a deal going there,
+   * or the club turned him down and nothing has changed yet. Keyed by player id.
+   */
+  getPitchBlocks(clubId: ClubId): Record<string, { why: 'here' | 'open' | 'rejected'; text: string }> {
+    const s = this.s;
+    const out: Record<string, { why: 'here' | 'open' | 'rejected'; text: string }> = {};
+    const club = s.clubs[clubId];
+    if (!club) return out;
+    for (const id of club.squad) out[id] = { why: 'here', text: `Plays for ${club.name}` };
+    // Newest deal per player decides (deals are kept newest first).
+    const seen = new Set<string>();
+    for (const d of s.deals) {
+      if (d.clubId !== clubId || seen.has(d.playerId)) continue;
+      seen.add(d.playerId);
+      if (out[d.playerId]) continue;
+      if (d.stage === 'negotiating' || d.stage === 'agreed') out[d.playerId] = { why: 'open', text: d.stage === 'agreed' ? 'Terms agreed' : 'Under negotiation' };
+      else if (d.stage === 'rejected') {
+        const again = repitchCheck(s, d);
+        if (!again.ok) out[d.playerId] = { why: 'rejected', text: repitchMessage(d, again) };
+      }
+    }
+    return out;
+  }
+
   /** Who you can put forward: your pool, plus players you are selling for a client or representing (pool or not). */
   getRecommendCandidates(): (PlayerRow & { addedOn: number; starred: boolean; tag?: 'sale' | 'represented'; saleFor?: string; fee: USD })[] {
     const s = this.s;

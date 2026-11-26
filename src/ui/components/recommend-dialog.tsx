@@ -69,7 +69,7 @@ export function RecommendDialog() {
               </button>
             </header>
             {!playerId ? (
-              <PlayerPicker onPick={setPlayerId} brief={recommend.brief} />
+              <PlayerPicker onPick={setPlayerId} brief={recommend.brief} clubId={recommend.clubId} />
             ) : !clubId ? (
               <ClubPicker playerId={playerId} onPick={pickClub} browse={browse} onBrowse={setBrowse} lastClubId={lastClubId} />
             ) : (
@@ -103,8 +103,11 @@ const POOL_SORTS: { key: PoolSort; label: string }[] = [
 ];
 
 /** Pick from your pool: search by name or club, filter by position, sort. */
-function PlayerPicker({ onPick, brief }: { onPick: (id: PlayerId) => void; brief?: RecommendBrief }) {
+function PlayerPicker({ onPick, brief, clubId }: { onPick: (id: PlayerId) => void; brief?: RecommendBrief; clubId?: ClubId }) {
   const pool = useEngineQuery(() => engine.getRecommendCandidates(), []);
+  // For a set club: hide players who play there, are already in a deal there, or were turned down there.
+  const blocks = useEngineQuery(() => (clubId ? engine.getPitchBlocks(clubId) : Promise.resolve({} as Record<string, { why: string; text: string }>)), [clubId]);
+  const [showBlocked, setShowBlocked] = useState(false);
   const [useBrief, setUseBrief] = useState(!!brief);
   const cultureOf = useCultureLookup();
   const [query, setQuery] = useState('');
@@ -128,11 +131,15 @@ function PlayerPicker({ onPick, brief }: { onPick: (id: PlayerId) => void; brief
     return p.ovrRange[0] >= brief.minOvr ? 'yes' : p.ovrRange[1] >= brief.minOvr ? 'maybe' : 'no';
   };
   // From a mission, players already under negotiation are out: you're working on them.
-  const negotiating = brief ? pool.filter((p) => p.openDeal).length : 0;
-  const briefMatches = brief ? pool.filter((p) => !p.openDeal && briefFit(p) !== 'no').length : 0;
+  const blocked = (p: (typeof pool)[number]) => blocks?.[p.id];
+  const negotiating = brief ? pool.filter((p) => p.openDeal && (showBlocked || !blocked(p))).length : 0;
+  const hidden = pool.filter((p) => blocked(p)).length;
+  const total = pool.length - negotiating - (showBlocked ? 0 : hidden);
+  const briefMatches = brief ? pool.filter((p) => !p.openDeal && !blocked(p) && briefFit(p) !== 'no').length : 0;
   const shown = pool
     .filter(
       (p) =>
+        (showBlocked || !blocked(p)) &&
         (!brief || !p.openDeal) &&
         (!useBrief || briefFit(p) !== 'no') &&
         (!q || p.name.toLowerCase().includes(q) || (p.club?.name ?? 'free agent').toLowerCase().includes(q)) &&
@@ -217,9 +224,17 @@ function PlayerPicker({ onPick, brief }: { onPick: (id: PlayerId) => void; brief
           </label>
         )}
         <span className="ml-auto text-[11px] text-mist-400">
-          {shown.length === pool.length - negotiating ? `${shown.length} players` : `${shown.length} of ${pool.length - negotiating}`}
+          {shown.length === total ? `${shown.length} players` : `${shown.length} of ${total}`}
         </span>
       </div>
+      {hidden > 0 && (
+        <div className="flex items-center gap-2 border-b border-white/[0.06] px-5 py-2 text-[11px] text-mist-400">
+          {hidden} hidden: already at the club, in a deal there, or turned down there
+          <button className="btn-ghost ml-auto px-2.5 py-1 text-[11px]" onClick={() => setShowBlocked(!showBlocked)}>
+            {showBlocked ? 'Hide them' : 'Show them'}
+          </button>
+        </div>
+      )}
       <ul className="max-h-[55vh] overflow-y-auto">
         {shown.map((p) => (
           <li key={p.id}>
@@ -242,6 +257,7 @@ function PlayerPicker({ onPick, brief }: { onPick: (id: PlayerId) => void; brief
                     <span className="ml-2 rounded bg-flood-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-flood-300">Your client</span>
                   )}
                 </span>
+                {blocked(p) && <span className="block truncate text-[11px] text-alert-400">{blocked(p)!.text}</span>}
                 <span className="block truncate text-[11px] text-mist-400">
                   {p.age} · {p.club?.name ?? 'Free agent'} ·{' '}
                   <span className={brief?.maxFee !== undefined && p.fee > brief.maxFee ? 'text-alert-400' : ''} title={`Market value ${formatUSD(p.value)}`}>

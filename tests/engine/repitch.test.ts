@@ -77,7 +77,10 @@ describe('pitching a rejected player again', () => {
     expect(repitchCheck(b.w, b.no).ok).toBe(true);
 
     const c = setup();
-    c.w.missions.push({ id: 999, clubId: c.club.id, position: c.position, status: 'offered' } as never);
+    // The brief he was turned down for doesn't count: only a newer one does.
+    c.w.missions.push({ id: 998, clubId: c.club.id, position: c.position, status: 'active', postedOn: c.no.openedOn - 1 } as never);
+    expect(repitchCheck(c.w, c.no).ok).toBe(false);
+    c.w.missions.push({ id: 999, clubId: c.club.id, position: c.position, status: 'offered', postedOn: c.no.openedOn + 1 } as never);
     expect(repitchCheck(c.w, c.no)).toMatchObject({ ok: true, because: `they posted a ${c.position} brief` });
   });
 

@@ -19,6 +19,7 @@ export function ClubScreen({ id }: { id: ClubId }) {
   const navigate = useGame((s) => s.navigate);
   const searchFor = useGame((s) => s.searchFor);
   const pool = useEngineQuery(() => engine.getPool(), []);
+  const blocks = useEngineQuery(() => engine.getPitchBlocks(id), [id]);
   const [browse, setBrowse] = useState<Position>();
   if (!club) return <Loading label="Entering the stadium" />;
   // Turn needs into a search: the position(s), a rating that beats the average, what the club can pay, in its country.
@@ -35,8 +36,8 @@ export function ClubScreen({ id }: { id: ClubId }) {
     });
   const topNeeds = club.needs.filter((n) => n.severity >= 0.2).slice(0, 3);
   const openPlayer = (pid: string) => navigate({ screen: 'player', id: pid as PlayerRow['id'] });
-  // Your pool by position, minus players already at this club.
-  const poolAt = (pos: Position) => (pool ?? []).filter((p) => p.position === pos && p.club?.id !== club.id);
+  // Your pool by position, minus players at this club, in a deal with it, or turned down by it.
+  const poolAt = (pos: Position) => (pool ?? []).filter((p) => p.position === pos && p.club?.id !== club.id && !blocks?.[p.id]);
   const browseNeed = club.needs.find((n) => n.position === browse);
 
   return (
