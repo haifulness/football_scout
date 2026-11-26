@@ -100,6 +100,7 @@ export function ClubScreen({ id }: { id: ClubId }) {
             }
           >
             <NeedsRead club={club} />
+            <PitchRecord club={club} />
             {club.needs.length === 0 && club.needsRead.tier !== 'unknown' && (
               <div className="px-4 pt-3 text-[12px] text-mist-400">
                 {club.needsRead.tier === 'rough' ? 'Nothing looks pressing from the outside. A closer read would show the smaller gaps.' : 'No gaps worth filling right now.'}
@@ -820,6 +821,32 @@ function NeedsRead({ club }: { club: ClubView }) {
         <span className="w-full text-[11px] text-mist-500">
           Other ways to learn: watch one of their matches, pitch them a player (a coach who says no often tells you why), or read the Touchline&apos;s weekly
           leads. Clients brief you every quarter.
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** How your pitches have gone here: noes this month, a coach who stopped listening, your hit rate. */
+function PitchRecord({ club }: { club: ClubView }) {
+  const r = club.pitchRecord;
+  if (!r || (!r.noes && !r.coldUntil && !r.hit)) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-white/[0.05] px-4 py-2 text-[12px] text-mist-400">
+      <span>Your pitches here:</span>
+      {r.coldUntil !== undefined ? (
+        <b className="text-alert-400">the coach won't take them until {formatDate(r.coldUntil)}</b>
+      ) : (
+        r.noes > 0 && (
+          <span className={r.noes >= r.maxNoes - 1 ? 'text-alert-400' : ''}>
+            {r.noes}/{r.maxNoes} noes this month
+          </span>
+        )
+      )}
+      {r.hit && (
+        <span className={r.hit.label === 'wall' ? 'text-alert-400' : r.hit.label === 'trusted' ? 'text-good-300' : ''}>
+          {Math.round(r.hit.rate * 100)}% of your last {r.hit.pitches} signed off
+          {r.hit.label === 'wall' ? ' · names thrown at the wall' : r.hit.label === 'trusted' ? ' · their trusted eye' : ''}
         </span>
       )}
     </div>

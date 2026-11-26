@@ -1,6 +1,6 @@
 # Challenge and harsh rivals
 
-Status: planned 2026-11-26, not started
+Status: phase 1 done 2026-11-26
 
 Feedback: still too easy. The loop is: read a club's need in the Touchline's Wanted section, then pitch every
 player you have at that position until one sticks. Within a few weeks of a new career that gives $100k and 10

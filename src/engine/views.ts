@@ -224,6 +224,14 @@ export interface ClubView extends ClubBadge {
   /** Their needs as far as you know them (see needsRead): none when unknown, the pressing ones when rough. */
   needs: (SlotNeed & { avgRange?: Range })[];
   /** How well you know their needs, why it may be out of date, and what studying their squad would give you. */
+  /** How your pitches have gone here lately. */
+  pitchRecord?: {
+    noes: number;
+    maxNoes: number;
+    /** The coach won't take your pitches until then. */
+    coldUntil?: GameDate;
+    hit?: { rate: number; pitches: number; label: 'wall' | 'trusted' | 'fair' };
+  };
   needsRead: {
     tier: 'unknown' | 'rough' | 'good' | 'sure';
     level: number;
@@ -871,6 +879,15 @@ export interface PitchPreview {
   wageSaving: USD;
   /** Most the club will pay him (a discussed brief's wage ceiling, else 1.5× his ask). */
   wageCeiling: USD;
+  /** What weighs on this pitch: noes this month, a coach who stopped listening, tiredness at the position, your hit rate. */
+  pressure?: {
+    noes: number;
+    maxNoes: number;
+    coldUntil?: GameDate;
+    fatigueNoes: number;
+    fatigueCut: number;
+    hit?: { rate: number; pitches: number; label: 'wall' | 'trusted' | 'fair' };
+  };
   /** Rough chance he accepts once the club is on board, at his ask and at the ceiling. */
   acceptance: { atAsk: number; atCeiling: number };
   /** Your open report on him backs this pitch. */

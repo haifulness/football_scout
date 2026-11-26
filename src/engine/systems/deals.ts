@@ -1,5 +1,6 @@
 import { REFUSAL_SIGNOFF, refusedUntil } from './club-asks';
 import { learnFromRefusal } from './club-read';
+import { afterNo, coldUntil, hitFactor, positionFatigue } from './pitch-pressure';
 import { onGraduate } from './academy';
 import { STYLE_SIGNOFF, styleFit } from './styles';
 import { characterOf, hasTrait } from './character';
@@ -149,7 +150,9 @@ export function signOffProbability(state: GameState, o: ClubOfficial, p: Player,
   const trust = clubTrust(state, club.id);
   // Pitching exactly what the club described in a discussed brief helps.
   const brief = preferenceBonus(state, p, club, pos);
-  return sigmoid(
+  // A coach tired of names at this position, and a club that knows your record, weigh on the answer.
+  const pressure = (1 - positionFatigue(state, club.id, pos).cut) * hitFactor(state, club.id);
+  return pressure * sigmoid(
     (match - 0.5) * 6 +
       (relationship - 25) / 22 +
       (trust - 25) / 40 +
@@ -303,6 +306,8 @@ export function pitch(state: GameState, args: PitchArgs): Deal {
   const rights = pitchRights(state, p, club);
   if (!rights.ok) throw new ScoutingError(rights.reason);
   if (!formationPositions(club).includes(args.position)) throw new ScoutingError(`${club.name} don't use a ${args.position} in their ${club.formation}.`);
+  const cold = coldUntil(state, club.headCoachId);
+  if (cold !== undefined) throw new ScoutingError(`The coach at ${club.name} has stopped taking your pitches after too many noes. Try again from ${formatDate(cold)}.`);
 
   const existing = state.deals.find((d) => d.playerId === p.id && d.clubId === club.id && (OPEN_STAGES.has(d.stage) || d.stage === 'rejected'));
   if (existing && OPEN_STAGES.has(existing.stage)) throw new ScoutingError('You already have a deal in progress for him with this club.');
@@ -365,6 +370,7 @@ export function pitch(state: GameState, args: PitchArgs): Deal {
     scout.relationships[officialId] = clamp((scout.relationships[officialId] ?? 0) - 3, 0, 100);
     recordWeakPitch(state, club.id);
     log(deal, state.date, `Rejected: "${gate.reason}"`, 'bad');
+    coldAfterNo(state, deal, club, officialId);
     // At least now you know what they have there, and he may say where he'd rather spend.
     const tip = learnFromRefusal(state, club, args.position, gate.reason?.includes("isn't better") ?? false, 0.6);
     if (tip) log(deal, state.date, tip, 'neutral');
@@ -422,10 +428,28 @@ export function pitch(state: GameState, args: PitchArgs): Deal {
     deal.rejectedBy = officialId;
     deal.reason = `The ${roleName(args.to)} wasn't convinced.`;
     log(deal, state.date, `The ${roleName(args.to)} turned it down.`, 'bad');
+    // Every name he turns down wears on him a little (more over the phone).
+    scout.relationships[officialId] = clamp((scout.relationships[officialId] ?? 0) - (remote ? 2 : 1), 0, 100);
+    coldAfterNo(state, deal, club, officialId);
     const tip = learnFromRefusal(state, club, args.position, false, 0.35);
     if (tip) log(deal, state.date, tip, 'neutral');
   }
   return deal;
+}
+
+/** Too many noes in a month: the coach stops taking your pitches for a while. */
+function coldAfterNo(state: GameState, deal: Deal, club: Club, officialId: ClubOfficial['id']) {
+  const until = afterNo(state, club.id, officialId);
+  if (until === undefined) return;
+  log(deal, state.date, `That's one name too many: the coach at ${club.name} stops taking your pitches until ${formatDate(until)}.`, 'bad');
+  addNews(state, {
+    date: state.date,
+    kind: 'career',
+    forYou: true,
+    title: `The coach at ${club.name} stops returning your calls`,
+    body: `Too many names he didn't want in a month. He won't take your pitches until ${formatDate(until)}. Next time, bring fewer, better players.`,
+    clubIds: [club.id],
+  });
 }
 
 const EVENT_TITLE: Record<DealEvent['kind'], string> = {

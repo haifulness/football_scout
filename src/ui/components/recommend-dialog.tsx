@@ -5,7 +5,8 @@ import type { ClubId, CountryId, LeagueId, PlayerId, StaffId } from '../../engin
 import { formatUSD, usd } from '../../engine/core/money';
 import type { Official } from '../../engine/model/deal';
 import type { Position } from '../../engine/model/player';
-import type { DealView, OfficialPitchView } from '../../engine/views';
+import type { DealView, OfficialPitchView, PitchPreview } from '../../engine/views';
+import { formatDate } from '../../engine/core/calendar';
 import { Crest } from '../visuals/crest';
 import { Portrait } from '../visuals/portrait';
 import { engine } from '../store/engine-client';
@@ -620,6 +621,8 @@ function PitchView({
             </div>
           )}
 
+          <PressureNote p={preview.pressure} position={preview.position} />
+
           <div
             className={`rounded-lg border px-3 py-2 text-[12px] ${preview.report ? 'border-violet-400/30 text-violet-300' : 'border-white/[0.06] text-mist-400'}`}
           >
@@ -814,6 +817,13 @@ function Verdict({ preview, wageOffer, deal }: { preview: Preview; wageOffer: nu
       text: preview.style.fit === 'fits' ? `Suits their ${preview.style.label.toLowerCase()}` : `Wrong type for their ${preview.style.label.toLowerCase()}`,
       tone: preview.style.fit === 'fits' ? 'good' : 'bad',
     });
+  const pr = preview.pressure;
+  if (pr?.coldUntil !== undefined) chips.push({ text: `Coach not taking your pitches until ${formatDate(pr.coldUntil)}`, tone: 'bad' });
+  else if (pr && pr.noes > 0) chips.push({ text: `${pr.noes}/${pr.maxNoes} noes this month`, tone: pr.noes >= pr.maxNoes - 1 ? 'bad' : 'warn' });
+  if (pr && pr.fatigueNoes > 0)
+    chips.push({ text: `${ORDINAL[Math.min(pr.fatigueNoes, 5)]} ${preview.position} this month: −${Math.round(pr.fatigueCut * 100)}%`, tone: 'bad' });
+  if (pr?.hit && pr.hit.label !== 'fair')
+    chips.push({ text: pr.hit.label === 'wall' ? `Hit rate ${Math.round(pr.hit.rate * 100)}%: −10%` : `Trusted eye here: +5%`, tone: pr.hit.label === 'wall' ? 'bad' : 'good' });
   if (preview.settling && (preview.settling.label === 'slow' || preview.settling.label === 'very slow'))
     chips.push({ text: `Settling: ${preview.settling.label} (~${preview.settling.months} mo)`, tone: 'warn' });
   const chipColor = { good: 'border-good-400/25 text-good-200', bad: 'border-alert-500/40 text-alert-400', warn: 'border-flood-400/30 text-flood-300' };
@@ -1043,6 +1053,44 @@ function AgreementBox({
         </div>
       )}
       {error && <div className="mt-2 text-[12px] text-alert-400">{error}</div>}
+    </div>
+  );
+}
+
+const ORDINAL = ['1st', '2nd', '3rd', '4th', '5th', '6th'];
+
+/** What weighs on this pitch: a coach who stopped listening, noes this month, tiredness at the position, your record here. */
+function PressureNote({ p, position }: { p: PitchPreview['pressure']; position: string }) {
+  if (!p) return null;
+  const lines: { text: string; bad: boolean }[] = [];
+  if (p.coldUntil !== undefined) lines.push({ text: `The coach has stopped taking your pitches until ${formatDate(p.coldUntil)}: too many noes.`, bad: true });
+  else if (p.noes > 0)
+    lines.push({
+      text:
+        p.noes >= p.maxNoes - 1
+          ? `${p.noes} noes here this month: one more and the coach stops listening for three weeks.`
+          : `${p.noes} no${p.noes > 1 ? 'es' : ''} here this month (${p.maxNoes} and the coach stops listening).`,
+      bad: p.noes >= p.maxNoes - 1,
+    });
+  if (p.fatigueNoes > 0)
+    lines.push({ text: `${ORDINAL[Math.min(p.fatigueNoes, 5)]} ${position} he'd hear this month: −${Math.round(p.fatigueCut * 100)}% on his yes.`, bad: true });
+  if (p.hit)
+    lines.push({
+      text:
+        p.hit.label === 'wall'
+          ? `Only ${Math.round(p.hit.rate * 100)}% of your last ${p.hit.pitches} names here were signed off: they think you throw names at the wall (−10%).`
+          : p.hit.label === 'trusted'
+            ? `${Math.round(p.hit.rate * 100)}% of your last ${p.hit.pitches} names here were signed off: their trusted eye (+5%).`
+            : `${Math.round(p.hit.rate * 100)}% of your last ${p.hit.pitches} names here were signed off.`,
+      bad: p.hit.label === 'wall',
+    });
+  if (!lines.length) return null;
+  const bad = lines.some((l) => l.bad);
+  return (
+    <div className={`rounded-lg border px-3 py-2 text-[12px] ${bad ? 'border-alert-500/30 text-alert-300' : 'border-white/[0.06] text-mist-300'}`}>
+      {lines.map((l) => (
+        <div key={l.text}>{l.text}</div>
+      ))}
     </div>
   );
 }

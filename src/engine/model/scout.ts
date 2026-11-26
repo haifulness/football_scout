@@ -54,6 +54,8 @@ export interface Scout {
   startReputation?: number;
   /** When you last met someone (staff or player id), to damp repeat meetings. */
   lastMet: Record<string, GameDate>;
+  /** Coaches who have stopped taking your pitches, until then. */
+  coldUntil?: Record<string, GameDate>;
   /** How straight you deal, 0–100 (absent: 50). Hidden: honest clubs trust you faster, shady offers come less often. */
   integrity?: number;
   /** Systems you have unlocked (announced once; never closed again). */

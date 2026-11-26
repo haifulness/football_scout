@@ -1,3 +1,4 @@
+import { hitBriefFactor } from './pitch-pressure';
 import { styleAttrs, styleOf } from './styles';
 import { addDays, ageOn, formatDate, toParts, type GameDate } from '../core/calendar';
 import { CAMPAIGN_BOOST, SPOTLIGHT, inSpotlight } from './campaigns';
@@ -500,7 +501,8 @@ export function missionTick(state: GameState, date: GameDate) {
     // Briefs from your mentor's clubs come through him, and only the ones he can't take.
     const passed = scout.employment.mode === 'freelance' && !scout.employment.clients.includes(clubId);
     const boost = inSpotlight(state) ? CAMPAIGN_BOOST : 1;
-    if (!rng.chance(clamp(((fulltime ? 0.5 : 0.3) + quietDays / 150) * boost, 0, 1) * (passed ? 0.5 : 1))) continue;
+    // A club that likes your names asks more often; one tired of them, less.
+    if (!rng.chance(clamp(((fulltime ? 0.5 : 0.3) + quietDays / 150) * boost * hitBriefFactor(state, clubId), 0, 1) * (passed ? 0.5 : 1))) continue;
     // A club at its wage limit can't take on a new player, so it doesn't ask for one.
     if (!hasWageRoomForSigning(state, club)) continue;
     const m = makeMission(state, club, rng);

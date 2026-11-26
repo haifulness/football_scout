@@ -157,6 +157,7 @@ import { huntAction, huntOptions, huntPlace, type HuntMethod } from './systems/h
 import { dilemmaText, resolveDilemma } from './systems/dilemmas';
 import { isUnlocked, nextUnlock } from './systems/unlocks';
 import { buildTouchline, ensurePredictions } from './systems/newspaper';
+import { PATIENCE_NOES, coachNoes, coldUntil, hitRate, pitchPressure } from './systems/pitch-pressure';
 import { DELEGATE_SKILL, MAX_DELEGATE_PITCHES, MAX_LEADS, STAFF_CUT, delegateCheck, delegateMandate, delegateMission, delegateSaleCheck, recallJob } from './systems/delegation';
 import { answerBoardAsk, boardOdds, ensurePresidents, needsBoard, presidentOf, presidentView } from './systems/board';
 import { attendCheck, attendEvent, ensureSeasonEvents, eventEnd, eventLabel, eventStatus } from './systems/events';
@@ -2928,6 +2929,7 @@ export class Engine {
         const r = openReport(s, p.id);
         return r ? { role: r.role, rating: r.rating, sameRole: r.role === pos } : undefined;
       })(),
+      pressure: s.scout ? pitchPressure(s, club.id, pos) : undefined,
       specialties: matchingSpecialties(s, p, pos).map((sp) => sp.label),
       style: { ...styleView(styleOf(s, club), pos), fit: fitLabel(
           styleFit(
@@ -3607,6 +3609,16 @@ export class Engine {
       acceptsProspects: club.acceptsProspects,
       lineup,
       needs: this.knownNeeds(club),
+      pitchRecord: (() => {
+        if (!s.scout) return undefined;
+        const coach = s.officials[club.headCoachId];
+        return {
+          noes: coachNoes(s, club.id),
+          maxNoes: PATIENCE_NOES,
+          coldUntil: coach ? coldUntil(s, coach.id) : undefined,
+          hit: hitRate(s, club.id),
+        };
+      })(),
       needsRead: (() => {
         const level = readLevel(s, club.id);
         const r = s.clubReads?.[club.id];
