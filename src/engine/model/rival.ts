@@ -13,6 +13,8 @@ export interface RivalPursuit {
   rumoured: boolean;
   /** Chasing a need he read about in the paper (the club isn't his client): the position. */
   lead?: import('./player').Position;
+  /** The club is one of yours: he's pitching to your client. */
+  poach?: boolean;
 }
 
 export type RivalEmployment = { mode: 'fulltime'; clubId: ClubId } | { mode: 'freelance'; clients: ClubId[] };
@@ -36,4 +38,8 @@ export interface RivalScout {
   grudge?: boolean;
   /** You swapped reads with him: he knows what you're after until then. */
   tippedUntil?: GameDate;
+  /** You've seen enough of him (a rumour, a steal, a trade) to know how he works. */
+  styleKnown?: true;
+  /** Players he has signed for clubs lately, newest first (capped): what your clients compare you with. */
+  signed?: { playerId: PlayerId; clubId: ClubId; date: GameDate }[];
 }

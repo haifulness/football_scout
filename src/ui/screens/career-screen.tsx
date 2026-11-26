@@ -353,6 +353,7 @@ function EmploymentPanel({ c }: { c: CareerView }) {
                 <span className="block truncate font-semibold">{cl.name}</span>
                 <span className="block text-[11px] text-mist-400">{cl.cityName}</span>
               </button>
+              <RaceChip r={cl.race} />
               <ReviewChip r={cl.review} />
               <TrustBar value={cl.trust} />
               {confirm === cl.id ? (
@@ -487,6 +488,20 @@ function ReviewChip({ r }: { r: Extract<CareerView['employment'], { mode: 'freel
   return (
     <span className={`chip shrink-0 text-[11px] ${o.cls}`} title={tally}>
       {o.label}
+    </span>
+  );
+}
+
+/** Their quarterly comparison with the best rival who has brought them players. */
+function RaceChip({ r }: { r: Extract<CareerView['employment'], { mode: 'freelance' }>['clients'][number]['race'] }) {
+  if (!r.rival) return null;
+  const tip = `Last year: ${r.rival.name} brought them ${r.rival.signings} player${r.rival.signings === 1 ? '' : 's'} (worth ${r.rival.score} to them now) vs your ${r.yours}. They compare again on ${formatDate(r.nextOn)}.${r.warned ? ' They already warned you once: another quarter behind and they take him on.' : ''}`;
+  return (
+    <span
+      className={`chip hidden shrink-0 text-[11px] sm:inline-flex ${r.behind ? (r.warned ? 'border-alert-400/40 text-alert-400' : 'border-flood-400/35 text-flood-300') : 'border-white/15 text-mist-300'}`}
+      title={tip}
+    >
+      {r.behind ? `Behind ${r.rival.name.split(' ').slice(-1)[0]}` : `Ahead of ${r.rival.name.split(' ').slice(-1)[0]}`}
     </span>
   );
 }

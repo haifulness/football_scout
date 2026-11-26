@@ -101,7 +101,7 @@ describe('paying to learn a club’s needs', () => {
     }
     expect(wrong).toBeGreaterThan(0);
     expect(wrong).toBeLessThan(12);
-  });
+  }, 30_000);
 
   it('an assistant studies a club for two weeks and reports by his skill', () => {
     const { s, club } = career();

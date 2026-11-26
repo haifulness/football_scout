@@ -4,6 +4,7 @@ import { staleClub } from './systems/club-read';
 import { academyTick } from './systems/academy';
 import { tournamentTick } from './systems/tournaments';
 import { reviewClients } from './systems/client-review';
+import { compareWithRivals } from './systems/client-race';
 import { overheadsTick, payTax } from './systems/overheads';
 import { placementTick, trackPlacements } from './systems/placement-stories';
 import { addDays, isTransferWindow, makeDate, toParts, type GameDate } from './core/calendar';
@@ -160,6 +161,7 @@ function playDay(state: GameState, date: GameDate, onMatch?: MatchListener): { m
       rivalsReadPaper(state);
     }
     clientMeetings(state, date);
+    compareWithRivals(state, date);
     dataTick(state, date);
     academyTick(state, date, rolled);
     if (toParts(date).day === 1) placementTick(state, date);

@@ -167,8 +167,28 @@ function ScoutRow({ r, rank }: { r: RivalRow; rank: number }) {
       <td className="py-2">
         <span className="flex items-center gap-2">
           <Portrait seed={r.portraitSeed} culture={cultureOf(r.nationalityId)} size={26} age={45} className="rounded" />
-          <span className="font-medium">{r.name}</span>
-          {r.chase && <span className="text-[11px] text-violet-300">👁</span>}
+          <span className="min-w-0">
+            <span className="flex items-center gap-1.5">
+              <span className="font-medium">{r.name}</span>
+              {r.chase && <span className="text-[11px] text-violet-300">👁</span>}
+            </span>
+            <span className="flex flex-wrap gap-1">
+              {r.style ? (
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-flood-300" title={r.style.blurb}>
+                  {r.style.label}
+                </span>
+              ) : (
+                <span className="text-[10px] text-mist-500" title="Cross paths with him (a rumour, a steal, a trade) to learn how he works">
+                  Style unknown
+                </span>
+              )}
+              {r.atYourClients > 0 && (
+                <span className="text-[10px] font-semibold text-alert-400" title="Players he signed for your clients in the last year">
+                  · {r.atYourClients} at your clients
+                </span>
+              )}
+            </span>
+          </span>
         </span>
       </td>
       <td className="py-2">

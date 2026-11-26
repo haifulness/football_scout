@@ -141,6 +141,7 @@ export function swapWithRival(state: GameState, clubId: ClubId, rivalId: number)
   learnClub(state, clubId, RIVAL_READ, state.date);
   scout.rivalSwaps = { ...scout.rivalSwaps, [rivalId]: state.date };
   r.tippedUntil = (state.date + RIVAL_TIP_DAYS) as GameDate;
+  r.styleKnown = true; // trading with him, you see how he works
   return `${r.firstName} ${r.lastName} tells you what ${state.clubs[clubId]!.name} are after. In return you tell him about one of your clubs, and now he knows what you're chasing.`;
 }
 

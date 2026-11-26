@@ -1,7 +1,7 @@
 import { addDays, ageOn, isTransferWindow, toParts, type GameDate } from '../core/calendar';
 import type { ClubId, PlayerId } from '../core/ids';
 import { formatUSD } from '../core/money';
-import { Rng, clamp } from '../core/rng';
+import { Rng, clamp, hashString } from '../core/rng';
 import { culture } from '../data/names';
 import type { Club } from '../model/club';
 import type { Player } from '../model/player';
@@ -39,6 +39,27 @@ function daysToWindow(date: GameDate): number {
 }
 
 export const rivalName = (r: RivalScout) => `${r.firstName} ${r.lastName}`;
+
+// ── Styles ──────────────────────────────────────────────────────────────
+
+export type RivalStyle = 'shark' | 'insider' | 'grinder' | 'spotter';
+export const RIVAL_STYLES: RivalStyle[] = ['shark', 'insider', 'grinder', 'spotter'];
+export const STYLE_INFO: Record<RivalStyle, { label: string; blurb: string }> = {
+  shark: { label: 'The Shark', blurb: 'Goes after deals you are negotiating, and offers the player more to close them.' },
+  insider: { label: 'The Insider', blurb: 'Close to coaches: his names get signed more easily, and he hears about needs early.' },
+  grinder: { label: 'The Grinder', blurb: 'First to every lead in the paper and quick to close, but his players are rarely the best.' },
+  spotter: { label: 'The Talent spotter', blurb: 'Hunts young players and prodigies, starting with the ones in your pool.' },
+};
+
+/** How a rival works (fixed for his career, from the world seed). */
+export function rivalStyle(state: GameState, r: RivalScout): RivalStyle {
+  return RIVAL_STYLES[hashString(`${state.seed}:rival-style:${r.id}`) % RIVAL_STYLES.length]!;
+}
+
+const isStyle = (state: GameState, r: RivalScout, style: RivalStyle) => rivalStyle(state, r) === style;
+
+/** Most recent signings kept per rival. */
+const KEEP_SIGNED = 30;
 
 /** "Northgate's scout Tom Hale" / "freelance scout Tom Hale". */
 export function rivalLabel(state: GameState, r: RivalScout): string {
@@ -139,10 +160,20 @@ function chaseYours(state: GameState, r: RivalScout, clubs: Club[], rng: Rng, ch
   // One you walked out on goes looking for your players.
   // One you traded reads with knows what you're after.
   const tipped = r.tippedUntil !== undefined && date < r.tippedUntil;
-  if (!rng.chance(0.1 + r.skill * 0.015 + (r.grudge ? 0.35 : 0) + (tipped ? 0.3 : 0))) return false;
+  const style = rivalStyle(state, r);
+  const keen = style === 'shark' ? 0.15 : style === 'spotter' ? 0.1 : 0;
+  if (!rng.chance(0.1 + r.skill * 0.015 + keen + (r.grudge ? 0.35 : 0) + (tipped ? 0.3 : 0))) return false;
   const deals = state.deals.filter((d) => OPEN_USER.has(d.stage)).map((d) => d.playerId);
-  const pool = (Object.keys(state.pool) as PlayerId[]).filter((id) => !deals.includes(id));
-  for (const id of [...rng.shuffle(deals), ...rng.shuffle(pool).slice(0, 12)]) {
+  let pool = rng.shuffle((Object.keys(state.pool) as PlayerId[]).filter((id) => !deals.includes(id)));
+  // The talent spotter looks at your youngsters and prodigies first.
+  if (style === 'spotter') {
+    const young = (id: PlayerId) => {
+      const p = state.players[id];
+      return p ? (p.isProdigy ? 2 : ageOn(p.birthDate, date) <= 21 ? 1 : 0) : 0;
+    };
+    pool = pool.sort((a, b) => young(b) - young(a));
+  }
+  for (const id of [...rng.shuffle(deals), ...pool.slice(0, 12)]) {
     const p = state.players[id];
     if (!p || chased.has(id) || protectedIds.has(id)) continue;
     const home = p.clubId ? state.clubs[p.clubId]!.countryId : p.nationality;
@@ -163,6 +194,7 @@ function startPursuit(state: GameState, r: RivalScout, rng: Rng, chased: Set<Pla
     .filter((c): c is Club => !!c);
   if (!clubs.length) return;
   if (chaseYours(state, r, clubs, rng, chased, protectedIds, date)) return;
+  if (poachClient(state, r, rng, chased, protectedIds, yours, date)) return;
   const club = rng.pick(clubs);
   const squad = club.squad.map((id) => state.players[id]!);
   const need = squadNeeds(club.formation, squad).find((n) => n.severity >= 0.2 && (n.position !== 'GK' || rng.chance(0.4)));
@@ -189,10 +221,45 @@ function pickTarget(state: GameState, r: RivalScout, club: Club, pos: Player['na
     if (!p || p.naturalPosition !== pos || chased.has(id) || protectedIds.has(id)) continue;
     const margin = fitsClub(state, r, p, club, pos, rng, date);
     if (margin === undefined) continue;
-    const score = margin + (yours.has(id) ? 2 + r.skill / 5 : 0) + rng.float(0, 2);
+    const style = rivalStyle(state, r);
+    const age = ageOn(p.birthDate, date);
+    const score =
+      // The grinder takes the first one who'll do; the others want the best margin.
+      (style === 'grinder' ? rng.float(0, 4) : margin) +
+      (yours.has(id) ? 2 + r.skill / 5 : 0) +
+      (style === 'spotter' ? (p.isProdigy ? 6 : age <= 21 ? 4 : 0) : 0) +
+      rng.float(0, 2);
     if (!best || score > best.score) best = { p, score };
   }
   return best?.p;
+}
+
+// ── Your clients ────────────────────────────────────────────────────────
+
+/** Chance a free freelancer goes after a need at one of your clients instead of his own. */
+export const POACH_CHANCE = 0.12;
+
+/** Clubs you work for freelance, in countries this rival works in. */
+function clientsInReach(state: GameState, r: RivalScout): Club[] {
+  const e = state.scout?.employment;
+  if (!e || e.mode !== 'freelance' || r.employment.mode !== 'freelance') return [];
+  const countries = new Set([r.nationality, ...r.employment.clients.map((id) => state.clubs[id]?.countryId)]);
+  return e.clients.map((id) => state.clubs[id]).filter((c): c is Club => !!c && countries.has(c.countryId) && !rivalClubs(r).includes(c.id));
+}
+
+/** Rival freelancers pitch to your clients too: a need there, with a player of his. Your client then compares. */
+function poachClient(state: GameState, r: RivalScout, rng: Rng, chased: Set<PlayerId>, protectedIds: Set<PlayerId>, yours: Set<PlayerId>, date: GameDate): boolean {
+  if (r.id === state.scout?.mentor?.rivalId) return false;
+  const targets = clientsInReach(state, r);
+  if (!targets.length || !rng.chance(POACH_CHANCE + (r.grudge ? 0.2 : 0))) return false;
+  const club = rng.pick(targets);
+  const need = squadNeeds(club.formation, club.squad.map((id) => state.players[id]!)).find((n) => n.severity >= 0.2 && n.position !== 'GK');
+  if (!need) return false;
+  const target = pickTarget(state, r, club, need.position, rng, chased, protectedIds, yours, date);
+  if (!target) return false;
+  r.pursuit = { playerId: target.id, clubId: club.id, startedOn: date, progress: 0, rumoured: false, lead: need.position, poach: true };
+  chased.add(target.id);
+  return true;
 }
 
 // ── The paper's Wanted column ───────────────────────────────────────────
@@ -229,15 +296,18 @@ export function rivalsReadPaper(state: GameState) {
     const [min, max] = LEAD_RIVALS[club.tier] ?? [1, 2];
     const want = clamp(rng.int(min, max) + lo, 1, max + hi);
     // Local scouts first; when they're all busy, freelancers from abroad come looking too.
+    // Local scouts before ones from abroad, but grinders (from anywhere) get there first.
     const local = rng.shuffle(state.rivals.filter((r) => canChaseLead(state, r, club)));
     const abroad = rng.shuffle(state.rivals.filter((r) => !r.pursuit && r.employment.mode === 'freelance' && r.id !== state.scout?.mentor?.rivalId && !local.includes(r)));
-    const pool = [...local, ...abroad];
+    const all = [...local, ...abroad];
+    const pool = [...all.filter((r) => isStyle(state, r, 'grinder')), ...all.filter((r) => !isStyle(state, r, 'grinder'))];
     for (const r of pool) {
       if (item.rivals.length >= want) break;
       item.rivals.push(r.id);
       const target = pickTarget(state, r, club, item.pos, rng, chased, protectedIds, yours, state.date);
       if (!target) continue; // he looked, and found nobody (often: the rumour was wrong)
-      r.pursuit = { playerId: target.id, clubId: club.id, startedOn: state.date, progress: LEAD_HEAD_START, rumoured: false, lead: item.pos };
+      const head = LEAD_HEAD_START + (isStyle(state, r, 'grinder') ? 0.2 : isStyle(state, r, 'insider') ? 0.15 : 0);
+      r.pursuit = { playerId: target.id, clubId: club.id, startedOn: state.date, progress: head, rumoured: false, lead: item.pos };
       chased.add(target.id);
     }
   }
@@ -251,6 +321,7 @@ export function circlingRivals(state: GameState, clubId: ClubId, pos: Player['na
 // ── Pursuit ─────────────────────────────────────────────────────────────
 
 function publishRumour(state: GameState, r: RivalScout, p: Player, buyer: Club, yours: boolean, date: GameDate) {
+  r.styleKnown = true;
   const where = p.clubId
     ? `at ${state.clubs[p.clubId]!.name}'s match, watching ${p.firstName} ${p.lastName}`
     : `meeting free agent ${p.firstName} ${p.lastName}`;
@@ -274,6 +345,20 @@ function needFilled(state: GameState, club: Club, pos: Player['naturalPosition']
   });
 }
 
+function publishPoach(state: GameState, r: RivalScout, p: Player, client: Club, date: GameDate) {
+  r.styleKnown = true;
+  addNews(state, {
+    date,
+    kind: 'rumour',
+    forYou: true,
+    title: `Rival at your client: ${rivalName(r)} pitching to ${client.name}`,
+    body: `${rivalLabel(state, r)} has been putting ${p.firstName} ${p.lastName} in front of ${client.name}'s coach. Clients compare: if his signings there do better than yours, they'll start asking why they need you.`,
+    countryId: client.countryId,
+    clubIds: [client.id],
+    playerIds: [p.id],
+  });
+}
+
 function endPursuit(r: RivalScout, date: GameDate, restDays: number, failed: boolean) {
   r.pursuit = undefined;
   r.restUntil = addDays(date, restDays);
@@ -287,9 +372,12 @@ function close(state: GameState, r: RivalScout, p: Player, buyer: Club, date: Ga
   const fee = transferFee(state, p);
   const wage = offeredWage(state, p, buyer);
   if (!canAfford(state, buyer, fee, wage).ok) return endPursuit(r, date, 14, true);
-  if (!rng.chance(0.5 + r.skill * 0.02)) return endPursuit(r, date, 14, true);
   const from = p.clubId ? state.clubs[p.clubId] : undefined;
   const stolen = state.deals.filter((d) => OPEN_USER.has(d.stage) && d.playerId === p.id);
+  // The shark pays the player more to beat your deal; the insider's coaches say yes more easily.
+  const style = rivalStyle(state, r);
+  const edge = (style === 'shark' && stolen.length ? 0.2 : 0) + (style === 'insider' ? 0.1 : 0);
+  if (!rng.chance(0.5 + r.skill * 0.02 + edge)) return endPursuit(r, date, 14, true);
   // On a need from the paper, the club has its man: your deal for that position at that club is off too.
   const beaten = r.pursuit?.lead
     ? state.deals.filter((d) => OPEN_USER.has(d.stage) && d.clubId === buyer.id && d.position === r.pursuit!.lead && d.playerId !== p.id)
@@ -298,7 +386,9 @@ function close(state: GameState, r: RivalScout, p: Player, buyer: Club, date: Ga
   for (const deal of stolen) hijackDeal(state, deal, `${buyer.name} signed him first, through ${rivalLabel(state, r)}.`);
   for (const deal of beaten) hijackDeal(state, deal, `${buyer.name} filled the position first: they signed ${p.firstName} ${p.lastName}, found by ${rivalLabel(state, r)}.`);
   r.record.signings++;
+  r.signed = [{ playerId: p.id, clubId: buyer.id, date }, ...(r.signed ?? [])].slice(0, KEEP_SIGNED);
   if (stolen.length) r.record.steals++;
+  if (stolen.length || beaten.length) r.styleKnown = true;
   r.reputation = clamp(r.reputation + 3 + (stolen.length ? 2 : 0), 0, 100);
   endPursuit(r, date, rng.int(14, 35), false);
   if (beaten.length) r.record.steals++;
@@ -329,14 +419,15 @@ function pursue(state: GameState, r: RivalScout, rng: Rng, yours: Set<PlayerId>,
     protectedIds.has(p.id)
   )
     return endPursuit(r, date, 7, true);
-  const speed = (0.08 + r.skill * 0.012) * SETUP[state.scout!.difficulty].speed;
+  const speed = (0.08 + r.skill * 0.012) * SETUP[state.scout!.difficulty].speed * (isStyle(state, r, 'grinder') ? 1.3 : 1);
   chase.progress = Math.min(1, chase.progress + speed * rng.float(0.7, 1.3));
   const isYours = yours.has(p.id);
   // Only rumours that matter to you, or about notable players, reach you (and only then do you know about the chase).
-  const notable = isYours || p.isProdigy || p.value >= 3_000_000;
-  if (!chase.rumoured && notable && chase.progress >= 0.3 && rng.chance(isYours ? 0.6 : 0.2)) {
+  const notable = isYours || chase.poach || p.isProdigy || p.value >= 3_000_000;
+  if (!chase.rumoured && notable && chase.progress >= 0.3 && rng.chance(isYours || chase.poach ? 0.6 : 0.2)) {
     chase.rumoured = true;
-    publishRumour(state, r, p, buyer, isYours, date);
+    if (chase.poach) publishPoach(state, r, p, buyer, date);
+    else publishRumour(state, r, p, buyer, isYours, date);
   }
   if (chase.progress >= 1 && isTransferWindow(date)) close(state, r, p, buyer, date, rng);
   // Out of a window, a finished chase waits; very old chases are abandoned.

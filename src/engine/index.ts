@@ -29,6 +29,7 @@ import { TRAIT_INFO, characterOf, characterView, knownTraits } from './systems/c
 import { aftercareCheck, isSettling, settleForecast, settlePenalty } from './systems/settling';
 import { taxDay, taxFor, weeklyLiving } from './systems/overheads';
 import { clientYear, nextReview } from './systems/client-review';
+import { clientRace } from './systems/client-race';
 import { ROUND_LABEL, groupTable } from './systems/tournaments';
 import { analysisCheck, askCoach, askCoachCheck, askPlayer, askPlayerCheck, buyInsider, dataCost, insiderCheck, insidePlayers, sendAnalyst, swapCheck, swapRivals, swapWithRival, toggleData } from './systems/club-asks';
 import { pressLeads, readLevel, seenAverage, seenNeeds, studyClub, studyDays, studyResult, tierOf } from './systems/club-read';
@@ -78,7 +79,7 @@ import {
   negotiationOptions,
 } from './systems/missions';
 import type { NegotiationKey } from './model/mission';
-import { knownInterest, rivalName } from './systems/rivals';
+import { STYLE_INFO as RIVAL_STYLE_INFO, knownInterest, rivalName, rivalStyle } from './systems/rivals';
 import {
   MAX_TASK_WEEKS,
   refreshMarket,
@@ -1370,6 +1371,10 @@ export class Engine {
                     hits: y.hits,
                     flops: y.flops,
                   },
+                  race: (() => {
+                    const r = clientRace(s, id);
+                    return { yours: r.yours, rival: r.rival && { name: r.rival.name, score: r.rival.score, signings: r.rival.signings }, behind: r.behind, warned: r.warned, nextOn: r.nextOn };
+                  })(),
                 };
               }),
             }
@@ -1974,6 +1979,7 @@ export class Engine {
     const s = this.s;
     const sc = s.scout!;
     const yours = new Set<PlayerId>([...s.deals.filter((d) => d.stage === 'negotiating').map((d) => d.playerId), ...(Object.keys(s.pool) as PlayerId[])]);
+    const myClients = new Set<ClubId>(sc.employment.mode === 'freelance' ? sc.employment.clients : [sc.employment.clubId]);
     const rivals = [...s.rivals]
       .sort((a, b) => b.reputation - a.reputation)
       .map((r) => {
@@ -2000,6 +2006,8 @@ export class Engine {
                 }
               : undefined,
           local: homeClubs.some((id) => s.clubs[id]?.countryId === sc.homeCountry) || r.nationality === sc.homeCountry,
+          style: r.styleKnown ? RIVAL_STYLE_INFO[rivalStyle(s, r)] : undefined,
+          atYourClients: (r.signed ?? []).filter((x) => myClients.has(x.clubId) && x.date >= s.date - 365).length,
         };
       });
     return {

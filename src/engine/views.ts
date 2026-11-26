@@ -1032,6 +1032,8 @@ export interface CareerView {
           trust: number;
           /** How their July review is shaping up. */
           review: { outlook: 'delighted' | 'satisfied' | 'at-risk' | 'leaving'; score: number; bar: number; warned: boolean; grace: boolean; reviewOn: GameDate; deals: number; briefs: number; failed: number; hits: number; flops: number };
+          /** Their quarterly comparison with the best rival who has brought them players. */
+          race: { yours: number; rival?: { name: string; score: number; signings: number }; behind: boolean; warned: boolean; nextOn: GameDate };
         })[];
       }
     | {
@@ -1239,6 +1241,10 @@ export interface RivalRow {
   chase?: { player: { id: PlayerId; name: string }; club: ClubBadge; advanced: boolean; yours: boolean };
   /** Works in your home country. */
   local: boolean;
+  /** How he works, once you've seen enough of him. */
+  style?: { label: string; blurb: string };
+  /** He has signed players for your clients in the last year. */
+  atYourClients: number;
 }
 
 export interface RivalsView {
