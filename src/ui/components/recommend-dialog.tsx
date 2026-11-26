@@ -817,6 +817,11 @@ function Verdict({ preview, wageOffer, deal }: { preview: Preview; wageOffer: nu
       text: preview.style.fit === 'fits' ? `Suits their ${preview.style.label.toLowerCase()}` : `Wrong type for their ${preview.style.label.toLowerCase()}`,
       tone: preview.style.fit === 'fits' ? 'good' : 'bad',
     });
+  if (preview.competition > 0)
+    chips.push({
+      text: `${preview.competition} rival scout${preview.competition > 1 ? 's' : ''} after this ${preview.position} spot: bar +${preview.competition}`,
+      tone: 'warn',
+    });
   const pr = preview.pressure;
   if (pr?.coldUntil !== undefined) chips.push({ text: `Coach not taking your pitches until ${formatDate(pr.coldUntil)}`, tone: 'bad' });
   else if (pr && pr.noes > 0) chips.push({ text: `${pr.noes}/${pr.maxNoes} noes this month`, tone: pr.noes >= pr.maxNoes - 1 ? 'bad' : 'warn' });

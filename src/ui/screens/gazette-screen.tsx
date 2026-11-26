@@ -633,11 +633,24 @@ function NeedLine({ n, onClub, onSearch, lead }: { n: GazetteNeed; onClub: (id: 
           {needHeadline(n)}
         </button>
         <div className="truncate text-[11px] text-mist-400">
+          {lead && (
+            <span
+              className={`mr-1.5 rounded px-1 py-px text-[9px] font-bold uppercase tracking-wider ${n.rumour ? 'bg-flood-500/15 text-flood-300' : 'bg-grass-500/15 text-grass-300'}`}
+              title={n.rumour ? 'Gossip: it may be wrong. Check the club before you pitch.' : 'The paper has it from the club.'}
+            >
+              {n.rumour ? 'Rumour' : 'Confirmed'}
+            </span>
+          )}
+          {lead && !!n.circling && (
+            <span className="mr-1.5 text-flood-300" title="Rival scouts said to be working on it: the club will want someone clearly better">
+              {n.circling} rival{n.circling > 1 ? 's' : ''} on it ·{' '}
+            </span>
+          )}
           <span style={{ color: severityColor(n.severity) }}>●</span> avg{' '}
           <b className="num" style={{ color: ratingColor(n.average) }}>
             {n.average || '–'}
           </b>{' '}
-          · depth {n.depth} · {n.transferBudget > 0 ? formatUSD(n.transferBudget, { compact: true }) : 'no budget'}
+          · depth {n.depth || '?'} · {n.transferBudget > 0 ? formatUSD(n.transferBudget, { compact: true }) : 'no budget'}
           {lead && ` · ${n.coach ? `standing ${n.coach}` : 'coach never met'}`}
           {n.mission && ` · brief ${formatUSD(n.mission.reward, { compact: true })}`}
         </div>

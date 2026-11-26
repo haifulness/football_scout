@@ -18,7 +18,7 @@ import { resolveDeals } from './systems/deals';
 import { employmentTick } from './systems/employment';
 import { missionTick } from './systems/missions';
 import { marketTick } from './systems/market';
-import { rivalTick } from './systems/rivals';
+import { rivalTick, rivalsReadPaper } from './systems/rivals';
 import { assistantTick } from './systems/assistants';
 import { checkSolvency, payMatchBonuses, settleSigningBonuses, updatePlacements } from './systems/payouts';
 import { seasonWindow } from './systems/fixtures';
@@ -155,7 +155,10 @@ function playDay(state: GameState, date: GameDate, onMatch?: MatchListener): { m
     consultationTick(state, date);
     overheadsTick(state, date);
     tournamentTick(state, date);
-    if (toParts(date).weekday === 1) pressLeads(state);
+    if (toParts(date).weekday === 1) {
+      pressLeads(state);
+      rivalsReadPaper(state);
+    }
     clientMeetings(state, date);
     dataTick(state, date);
     academyTick(state, date, rolled);

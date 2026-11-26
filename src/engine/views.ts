@@ -879,6 +879,8 @@ export interface PitchPreview {
   wageSaving: USD;
   /** Most the club will pay him (a discussed brief's wage ceiling, else 1.5× his ask). */
   wageCeiling: USD;
+  /** Rival scouts chasing this need after reading about it: each raises the bar by a point. */
+  competition: number;
   /** What weighs on this pitch: noes this month, a coach who stopped listening, tiredness at the position, your hit rate. */
   pressure?: {
     noes: number;
@@ -1361,6 +1363,10 @@ export interface GazetteNeed {
   mission?: { id: number; status: 'offered' | 'active'; reward: USD };
   /** Your standing with the club (leads only). */
   coach?: number;
+  /** Leads only: gossip rather than confirmed (and sometimes wrong). */
+  rumour?: boolean;
+  /** Leads only: rival scouts said to be working on it. */
+  circling?: number;
 }
 
 export interface GazettePoolFit {

@@ -108,7 +108,7 @@ import {
   proposeAgreement,
   resign,
 } from './systems/employment';
-import { REMOTE_PITCH_TRUST, clubPositionalAverage, defaultPitchPosition, formationPositions, pitch, pitchFee, remotePitchCheck, repitchCheck, repitchMessage, signOffProbability, type PitchArgs, playerChance, wageCeiling } from './systems/deals';
+import { REMOTE_PITCH_TRUST, clubPositionalAverage, competition, defaultPitchPosition, formationPositions, pitch, pitchFee, remotePitchCheck, repitchCheck, repitchMessage, signOffProbability, type PitchArgs, playerChance, wageCeiling } from './systems/deals';
 import { canAfford, wageRoom, freeAgentWage, offeredWage, transferFee, brokeredWage } from './systems/transfers';
 import type { Deal, Official, Placement } from './model/deal';
 import type { Mission } from './model/mission';
@@ -2554,8 +2554,9 @@ export class Engine {
       .filter((i) => !mineSet.has(i.clubId))
       .flatMap((i) => {
         const club = s.clubs[i.clubId]!;
-        const n = needsOf(club).find((x) => x.position === i.pos);
-        return n ? [{ ...row(club, n), coach: clubTrust(s, club.id) }] : [];
+        // What you know of the need, if you know it; otherwise only what the paper says.
+        const n = needsOf(club).find((x) => x.position === i.pos) ?? { position: i.pos, severity: 0.5, positionalAverage: 0, depth: 0 };
+        return [{ ...row(club, n as ReturnType<typeof squadNeeds>[number]), coach: clubTrust(s, club.id), rumour: i.rumour, circling: i.rivals?.length ?? 0 }];
       });
 
     const allNeeds = [...mine.map((id) => ({ club: s.clubs[id]!, needs: needsOf(s.clubs[id]!) })), ...homeNeeds];
@@ -2899,7 +2900,12 @@ export class Engine {
       averageRange: seen.range,
       readTier: seen.tier,
       estimate: est,
-      clearsBar: !seen.range ? 'unknown' : est[0] > seen.range[1] ? 'yes' : est[1] <= seen.range[0] ? 'no' : 'maybe',
+      clearsBar: (() => {
+        if (!seen.range) return 'unknown' as const;
+        // Rivals chasing this need raise the bar a point each.
+        const c = competition(s, club.id, pos);
+        return est[0] > seen.range[1] + c ? ('yes' as const) : est[1] <= seen.range[0] + c ? ('no' as const) : ('maybe' as const);
+      })(),
       prospectRoute: age <= 21 && policyOk && (!f.potential || avg === undefined || f.potential[1] > avg),
       fee,
       wage,
@@ -2930,6 +2936,7 @@ export class Engine {
         return r ? { role: r.role, rating: r.rating, sameRole: r.role === pos } : undefined;
       })(),
       pressure: s.scout ? pitchPressure(s, club.id, pos) : undefined,
+      competition: competition(s, club.id, pos),
       specialties: matchingSpecialties(s, p, pos).map((sp) => sp.label),
       style: { ...styleView(styleOf(s, club), pos), fit: fitLabel(
           styleFit(

@@ -153,7 +153,10 @@ describe('full-time employment', () => {
     hire(w, club);
     w.scout!.relationships[club.headCoachId] = 90; // trusted: they want you to stay
     const e = w.scout!.employment as Extract<NonNullable<GameState['scout']>['employment'], { mode: 'fulltime' }>;
-    advanceDays(w, e.until - w.date + 1);
+    // Whoever coaches them by then (coaches get sacked) trusts you.
+    advanceDays(w, e.until - w.date - 1);
+    w.scout!.relationships[w.clubs[club.id]!.headCoachId] = 90;
+    advanceDays(w, 2);
     expect(w.offers.filter((o) => o.renewal)).toHaveLength(1);
     // Let it expire: no second offer, the contract runs out.
     advanceDays(w, 40);
@@ -167,7 +170,9 @@ describe('full-time employment', () => {
     hire(w, club);
     w.scout!.relationships[club.headCoachId] = 90;
     const e = w.scout!.employment as Extract<NonNullable<GameState['scout']>['employment'], { mode: 'fulltime' }>;
-    advanceDays(w, e.until - w.date + 1);
+    advanceDays(w, e.until - w.date - 1);
+    w.scout!.relationships[w.clubs[club.id]!.headCoachId] = 90;
+    advanceDays(w, 2);
     const offer = w.offers.find((o) => o.renewal)!;
     declineOffer(w, offer.id);
     expect(w.scout!.employment).toEqual({ mode: 'freelance', clients: [] });

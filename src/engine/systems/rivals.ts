@@ -28,6 +28,8 @@ const SETUP: Record<Difficulty, { count: number; skill: number; speed: number }>
   hard: { count: 110, skill: 2, speed: 1.25 },
 };
 const OPEN_USER = new Set(['negotiating']);
+/** Extra rivals per Wanted item by difficulty: [added to the roll, added to the cap]. */
+const SETUP_LEADS: Record<Difficulty, [number, number]> = { easy: [-1, -1], normal: [0, 0], hard: [1, 1] };
 const RECENT_SIGNING_DAYS = 300;
 const WINDOW_LEAD_DAYS = 70;
 
@@ -165,8 +167,14 @@ function startPursuit(state: GameState, r: RivalScout, rng: Rng, chased: Set<Pla
   const squad = club.squad.map((id) => state.players[id]!);
   const need = squadNeeds(club.formation, squad).find((n) => n.severity >= 0.2 && (n.position !== 'GK' || rng.chance(0.4)));
   if (!need) return;
-  const pos = need.position;
+  const best = pickTarget(state, r, club, need.position, rng, chased, protectedIds, yours, date);
+  if (!best) return;
+  r.pursuit = { playerId: best.id, clubId: club.id, startedOn: date, progress: 0, rumoured: false };
+  chased.add(best.id);
+}
 
+/** The player this rival would put forward for a club's need at a position (best margin, with a nose for yours). */
+function pickTarget(state: GameState, r: RivalScout, club: Club, pos: Player['naturalPosition'], rng: Rng, chased: Set<PlayerId>, protectedIds: Set<PlayerId>, yours: Set<PlayerId>, date: GameDate): Player | undefined {
   // Candidates: some clubs in his patch, plus anyone you're working on who plays there.
   const patch = rng.shuffle(Object.values(state.clubs).filter((c) => c.countryId === club.countryId && c.tier >= club.tier && c.id !== club.id)).slice(0, 10);
   const ids = new Set<PlayerId>(patch.flatMap((c) => c.squad));
@@ -184,9 +192,60 @@ function startPursuit(state: GameState, r: RivalScout, rng: Rng, chased: Set<Pla
     const score = margin + (yours.has(id) ? 2 + r.skill / 5 : 0) + rng.float(0, 2);
     if (!best || score > best.score) best = { p, score };
   }
-  if (!best) return;
-  r.pursuit = { playerId: best.p.id, clubId: club.id, startedOn: date, progress: 0, rumoured: false };
-  chased.add(best.p.id);
+  return best?.p;
+}
+
+// ── The paper's Wanted column ───────────────────────────────────────────
+
+/** Most rival scouts a Wanted item draws, by the club's tier (bigger clubs, more interest). */
+const LEAD_RIVALS: Record<number, [number, number]> = { 1: [2, 3], 2: [2, 3], 3: [1, 3], 4: [1, 2], 5: [1, 2] };
+/** They read it on Monday and are already looking: lead chases start part-way. */
+const LEAD_HEAD_START = 0.3;
+
+/** Can this rival take on a club that isn't his? Freelancers in that country (and the club's own scout) can. */
+function canChaseLead(state: GameState, r: RivalScout, club: Club): boolean {
+  if (r.pursuit || r.id === state.scout?.mentor?.rivalId) return false;
+  if (r.employment.mode === 'fulltime') return r.employment.clubId === club.id;
+  return r.nationality === club.countryId || r.employment.clients.some((id) => state.clubs[id]?.countryId === club.countryId);
+}
+
+/**
+ * Rivals read the paper too. Each week's Wanted items draw a few rival scouts; each goes after the need with a
+ * player of his own. Wrong rumours draw them as well, but there's rarely anyone to chase for a need that isn't there.
+ */
+export function rivalsReadPaper(state: GameState) {
+  const press = state.press;
+  if (!press || !state.scout || state.careerOver) return;
+  const rng = Rng.derive(state.seed, `rivals:paper:${press.week}`);
+  const yours = userPlayers(state);
+  const protectedIds = new Set<PlayerId>([...state.deals.filter((d) => d.stage === 'agreed').map((d) => d.playerId), ...state.scout.represented]);
+  const chased = new Set<PlayerId>(state.rivals.flatMap((r) => (r.pursuit ? [r.pursuit.playerId] : [])));
+  const [lo, hi] = SETUP_LEADS[state.scout.difficulty];
+  for (const item of press.items) {
+    if (item.rivals) continue;
+    item.rivals = [];
+    const club = state.clubs[item.clubId];
+    if (!club) continue;
+    const [min, max] = LEAD_RIVALS[club.tier] ?? [1, 2];
+    const want = clamp(rng.int(min, max) + lo, 1, max + hi);
+    // Local scouts first; when they're all busy, freelancers from abroad come looking too.
+    const local = rng.shuffle(state.rivals.filter((r) => canChaseLead(state, r, club)));
+    const abroad = rng.shuffle(state.rivals.filter((r) => !r.pursuit && r.employment.mode === 'freelance' && r.id !== state.scout?.mentor?.rivalId && !local.includes(r)));
+    const pool = [...local, ...abroad];
+    for (const r of pool) {
+      if (item.rivals.length >= want) break;
+      item.rivals.push(r.id);
+      const target = pickTarget(state, r, club, item.pos, rng, chased, protectedIds, yours, state.date);
+      if (!target) continue; // he looked, and found nobody (often: the rumour was wrong)
+      r.pursuit = { playerId: target.id, clubId: club.id, startedOn: state.date, progress: LEAD_HEAD_START, rumoured: false, lead: item.pos };
+      chased.add(target.id);
+    }
+  }
+}
+
+/** Rival scouts actually chasing a club's need at a position after reading about it. */
+export function circlingRivals(state: GameState, clubId: ClubId, pos: Player['naturalPosition']): RivalScout[] {
+  return state.rivals.filter((r) => r.pursuit?.lead === pos && r.pursuit.clubId === clubId);
 }
 
 // ── Pursuit ─────────────────────────────────────────────────────────────
@@ -207,6 +266,14 @@ function publishRumour(state: GameState, r: RivalScout, p: Player, buyer: Club, 
   });
 }
 
+/** Someone has signed for the club at this position since then: the need he read about is gone. */
+function needFilled(state: GameState, club: Club, pos: Player['naturalPosition'], since: GameDate): boolean {
+  return club.squad.some((id) => {
+    const p = state.players[id];
+    return !!p && p.naturalPosition === pos && p.joinedOn !== undefined && p.joinedOn > since;
+  });
+}
+
 function endPursuit(r: RivalScout, date: GameDate, restDays: number, failed: boolean) {
   r.pursuit = undefined;
   r.restUntil = addDays(date, restDays);
@@ -223,13 +290,19 @@ function close(state: GameState, r: RivalScout, p: Player, buyer: Club, date: Ga
   if (!rng.chance(0.5 + r.skill * 0.02)) return endPursuit(r, date, 14, true);
   const from = p.clubId ? state.clubs[p.clubId] : undefined;
   const stolen = state.deals.filter((d) => OPEN_USER.has(d.stage) && d.playerId === p.id);
+  // On a need from the paper, the club has its man: your deal for that position at that club is off too.
+  const beaten = r.pursuit?.lead
+    ? state.deals.filter((d) => OPEN_USER.has(d.stage) && d.clubId === buyer.id && d.position === r.pursuit!.lead && d.playerId !== p.id)
+    : [];
   executeTransfer(state, p, buyer, fee, wage, date);
   for (const deal of stolen) hijackDeal(state, deal, `${buyer.name} signed him first, through ${rivalLabel(state, r)}.`);
+  for (const deal of beaten) hijackDeal(state, deal, `${buyer.name} filled the position first: they signed ${p.firstName} ${p.lastName}, found by ${rivalLabel(state, r)}.`);
   r.record.signings++;
   if (stolen.length) r.record.steals++;
   r.reputation = clamp(r.reputation + 3 + (stolen.length ? 2 : 0), 0, 100);
   endPursuit(r, date, rng.int(14, 35), false);
-  if (stolen.length || state.pool[p.id] || fee >= 2_000_000)
+  if (beaten.length) r.record.steals++;
+  if (stolen.length || beaten.length || state.pool[p.id] || fee >= 2_000_000)
     addNews(state, {
       date,
       kind: 'transfer',
@@ -249,7 +322,8 @@ function pursue(state: GameState, r: RivalScout, rng: Rng, yours: Set<PlayerId>,
   if (
     !p ||
     !buyer ||
-    !rivalClubs(r).includes(buyer.id) ||
+    (!chase.lead && !rivalClubs(r).includes(buyer.id)) ||
+    (chase.lead && needFilled(state, buyer, chase.lead, chase.startedOn)) ||
     p.clubId === buyer.id ||
     (p.joinedOn !== undefined && p.joinedOn > chase.startedOn) ||
     protectedIds.has(p.id)
@@ -266,7 +340,7 @@ function pursue(state: GameState, r: RivalScout, rng: Rng, yours: Set<PlayerId>,
   }
   if (chase.progress >= 1 && isTransferWindow(date)) close(state, r, p, buyer, date, rng);
   // Out of a window, a finished chase waits; very old chases are abandoned.
-  else if (date - chase.startedOn > 240) endPursuit(r, date, 14, true);
+  else if (date - chase.startedOn > (chase.lead ? 150 : 240)) endPursuit(r, date, 14, true);
 }
 
 // ── Careers ─────────────────────────────────────────────────────────────

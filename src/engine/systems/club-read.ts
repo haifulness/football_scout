@@ -196,7 +196,13 @@ const PRESS_LEADS = 6;
  * most pressing six). It's public, and vague, but it's where a new scout finds work: each printed need gives you a
  * rough read on that position.
  */
-export function pressLeads(state: GameState): { clubId: ClubId; pos: Position }[] {
+/** Share of Wanted items that are gossip rather than confirmed, and of those, the share that's wrong. */
+export const PRESS_RUMOUR = 0.5;
+export const PRESS_WRONG = 0.5;
+
+type PressItem = NonNullable<GameState['press']>['items'][number];
+
+export function pressLeads(state: GameState): PressItem[] {
   const scout = state.scout;
   if (!scout) return [];
   const week = (state.date - ((new Date(state.date * 86_400_000).getUTCDay() + 6) % 7)) as GameDate;
@@ -208,12 +214,23 @@ export function pressLeads(state: GameState): { clubId: ClubId; pos: Position }[
     if (!top || top.severity < 0.45) continue;
     scored.push({ clubId: club.id, pos: top.position, score: top.severity * Math.log10(10 + club.transferBudget) });
   }
-  const items = scored
+  const items: PressItem[] = scored
     .sort((a, b) => b.score - a.score)
     .slice(0, PRESS_LEADS)
-    .map(({ clubId, pos }) => ({ clubId, pos }));
+    .map(({ clubId, pos }) => {
+      // How the paper heard it: confirmed (always right) or gossip (often wrong: a position they're fine at).
+      const roll = (k: string) => (hashString(`${state.seed}:press:${week}:${clubId}:${k}`) % 1000) / 1000;
+      if (roll('rumour') >= PRESS_RUMOUR) return { clubId, pos };
+      if (roll('wrong') >= PRESS_WRONG) return { clubId, pos, rumour: true };
+      const club = state.clubs[clubId]!;
+      const needs = squadNeeds(club.formation, club.squad.map((id) => state.players[id]!).filter(Boolean));
+      const covered = needs.filter((n) => n.position !== pos && n.position !== 'GK' && n.severity < 0.2);
+      const pick = covered.length ? covered[Math.floor(roll('pos') * covered.length)]!.position : pos;
+      return pick === pos ? { clubId, pos, rumour: true } : { clubId, pos: pick, rumour: true, wrong: true };
+    });
   state.press = { week, items };
-  for (const i of items) learnClub(state, i.clubId, PRESS_READ, state.date, i.pos);
+  // Only what the paper confirmed counts as a read on the club; gossip you have to check.
+  for (const i of items) if (!i.rumour) learnClub(state, i.clubId, PRESS_READ, state.date, i.pos);
   return items;
 }
 

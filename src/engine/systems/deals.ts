@@ -80,9 +80,13 @@ export interface GateResult {
 export function gateCheck(state: GameState, p: Player, club: Club, pos: Position): GateResult {
   const average = clubPositionalAverage(state, club, pos);
   const ovr = ovrAt(p, pos);
-  if (ovr > average) return { passes: true, prospect: false, average, ovr };
+  // Rival scouts chasing this need (they read the paper too) put other names in front of the club: the bar rises.
+  const circling = competition(state, club.id, pos);
+  if (ovr > average + circling) return { passes: true, prospect: false, average, ovr };
   const young = ageOn(p.birthDate, state.date) <= 21;
-  const prospectOk = young && p.hidden.potential > average && (club.acceptsProspects === 'yes' || (club.acceptsProspects === 'prodigies' && p.isProdigy));
+  if (ovr > average && !young)
+    return { passes: false, prospect: false, average, ovr, reason: `Other scouts have brought us names at ${pos}. We need someone clearly better than that.` };
+  const prospectOk = young && p.hidden.potential > average + circling && (club.acceptsProspects === 'yes' || (club.acceptsProspects === 'prodigies' && p.isProdigy));
   if (prospectOk) return { passes: true, prospect: true, average, ovr };
   const reason =
     young && club.acceptsProspects === 'never'
@@ -91,6 +95,11 @@ export function gateCheck(state: GameState, p: Player, club: Club, pos: Position
         ? `He isn't better than what we have at ${pos}. We'd only gamble on a genuine prodigy.`
         : `He isn't better than what we already have at ${pos}.`;
   return { passes: false, prospect: false, average, ovr, reason };
+}
+
+/** Rival scouts chasing a club's need at a position after reading about it: each raises the bar by a point. */
+export function competition(state: GameState, clubId: ClubId, pos: Position): number {
+  return state.rivals.filter((r) => r.pursuit?.lead === pos && r.pursuit.clubId === clubId).length;
 }
 
 /** How well a player matches what an official cares about, 0–1 per priority. */

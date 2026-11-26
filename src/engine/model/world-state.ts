@@ -97,7 +97,19 @@ export interface GameState {
   academy?: import('./academy').AcademyState;
   /** Your read on each club's needs (see systems/club-read.ts). */
   /** The needs the Touchline printed this week (each gives you a rough read on that position). */
-  press?: { week: GameDate; items: { clubId: ClubId; pos: import('./player').Position }[] };
+  press?: {
+    week: GameDate;
+    items: {
+      clubId: ClubId;
+      pos: import('./player').Position;
+      /** Gossip rather than something the paper confirmed (and sometimes wrong). */
+      rumour?: boolean;
+      /** A rumour that is wrong: they don't need this position. */
+      wrong?: boolean;
+      /** Rival scouts who read it and went after it (set once, by the rivals). */
+      rivals?: number[];
+    }[];
+  };
   clubReads?: Record<ClubId, { level: number; date: GameDate; pos?: Partial<Record<import('./player').Position, number>>; stale?: string; misread?: { pos: import('./player').Position; severity: number } }>;
   /** Choices put to you (recent ones kept for the record). */
   dilemmas?: Dilemma[];

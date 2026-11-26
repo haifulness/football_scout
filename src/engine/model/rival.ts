@@ -11,6 +11,8 @@ export interface RivalPursuit {
   progress: number;
   /** A rumour about this chase has reached the news (so you know about it). */
   rumoured: boolean;
+  /** Chasing a need he read about in the paper (the club isn't his client): the position. */
+  lead?: import('./player').Position;
 }
 
 export type RivalEmployment = { mode: 'fulltime'; clubId: ClubId } | { mode: 'freelance'; clients: ClubId[] };
