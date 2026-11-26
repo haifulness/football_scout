@@ -157,7 +157,7 @@ import { huntAction, huntOptions, huntPlace, type HuntMethod } from './systems/h
 import { dilemmaText, resolveDilemma } from './systems/dilemmas';
 import { isUnlocked, nextUnlock } from './systems/unlocks';
 import { buildTouchline, ensurePredictions } from './systems/newspaper';
-import { MAX_DELEGATE_PITCHES, STAFF_CUT, delegateCheck, delegateMandate, delegateMission, delegateSaleCheck, recallJob } from './systems/delegation';
+import { DELEGATE_SKILL, MAX_DELEGATE_PITCHES, MAX_LEADS, STAFF_CUT, delegateCheck, delegateMandate, delegateMission, delegateSaleCheck, recallJob } from './systems/delegation';
 import { answerBoardAsk, boardOdds, ensurePresidents, needsBoard, presidentOf, presidentView } from './systems/board';
 import { attendCheck, attendEvent, ensureSeasonEvents, eventEnd, eventLabel, eventStatus } from './systems/events';
 import { closeDeadline, DEADLINE_ACTION_HOURS, DEADLINE_FEE_PREMIUM, passDeadlineHours } from './systems/deadline';
@@ -526,6 +526,20 @@ export class Engine {
       nationalityId: a.nationality,
       officeId: a.officeId,
       onTask: !!a.task,
+      leads: a.leads ?? 0,
+      maxLeads: MAX_LEADS,
+      canTakeBriefs: a.skill >= DELEGATE_SKILL,
+      takesBriefs: !a.skipBriefs,
+      working: (() => {
+        const m = a.job?.missionId !== undefined ? s.missions.find((x) => x.id === a.job!.missionId) : undefined;
+        const md = a.job?.mandateId !== undefined ? s.mandates.find((x) => x.id === a.job!.mandateId) : undefined;
+        if (m) return `${m.position} brief for ${s.clubs[m.clubId]!.name}`;
+        if (md) {
+          const p = s.players[md.playerId];
+          return `Selling ${p ? `${p.firstName} ${p.lastName}` : 'a player'}`;
+        }
+        return a.analysis ? `Studying ${s.clubs[a.analysis.clubId]!.name}` : undefined;
+      })(),
     });
     const countryName = (id: string) => s.countries[id as keyof typeof s.countries]!.name;
     const base = (officeId: number, countryId: (typeof sc)['homeCountry'], cityId: (typeof sc)['homeCity'], rent: number, openedOn: GameDate) => {
@@ -565,6 +579,14 @@ export class Engine {
         season: { label: seasonLabel(year), cuts: usd(totals['agency-cut'] ?? 0), costs: usd(totals.agency ?? 0) },
         bases: [base(HQ, sc.homeCountry, sc.homeCity, 0, ag.foundedOn), ...ag.offices.map((o) => base(o.id, o.countryId, o.cityId, o.rent, o.openedOn))],
         unplaced: s.assistants.filter((a) => a.officeId === undefined).map(staffView),
+        log: (ag.log ?? []).slice(0, 30).map((e) => ({ date: e.date, kind: e.kind, text: e.text })),
+        staffBriefs: s.missions.filter((m) => m.status === 'active' && s.assistants.some((a) => a.job?.missionId === m.id)).length,
+        untouchedBriefs: s.missions.filter(
+          (m) =>
+            m.status === 'active' &&
+            !s.assistants.some((a) => a.job?.missionId === m.id) &&
+            !s.deals.some((d) => d.clubId === m.clubId && d.position === m.position && (d.stage === 'negotiating' || d.stage === 'agreed')),
+        ).length,
         deals: ag.deals.slice(0, 20).map((d) => {
           const p = s.players[d.playerId];
           const a = s.assistants.find((x) => x.id === d.assistantId);
@@ -588,6 +610,14 @@ export class Engine {
         })
         .sort((a, b) => b.clubs - a.clubs),
     };
+  }
+
+  /** Let an office staffer pick up untouched briefs on his own, or not. */
+  setStaffTakesBriefs(assistantId: number, on: boolean): void {
+    this.assertActive();
+    const a = this.s.assistants.find((x) => x.id === assistantId);
+    if (!a) throw new ScoutingError('No such assistant.');
+    a.skipBriefs = on ? undefined : true;
   }
 
   foundAgency(args: { name: string; shortName?: string; logo: AgencyLogo }): void {

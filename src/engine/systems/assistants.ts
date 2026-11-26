@@ -15,7 +15,7 @@ import { ScoutingError, addLedger, inLocation } from './scouting';
 import { UNLOCKS, isUnlocked } from './unlocks';
 import { addNews } from './season';
 import { staffCapacity } from './agency';
-import { jobWeek } from './delegation';
+import { jobWeek, officeWeek } from './delegation';
 
 /**
  * Assistant scouts (PLAN §3.13): staff who scan an area for you and feed
@@ -209,7 +209,10 @@ export function assistantTick(state: GameState, date: GameDate) {
     if (analysisWeek(state, a, date)) continue;
     if (!a.task) {
       // Office work builds an eye too, more slowly than the field.
-      if (a.officeId !== undefined && rng.chance(0.5)) a.xp++;
+      if (a.officeId !== undefined) {
+        if (rng.chance(0.5)) a.xp++;
+        officeWeek(state, a, date, rng);
+      }
       continue;
     }
     addLedger(state, { amount: usd(-a.task.weeklyExpenses), kind: 'assistant-task', label: `Task expenses: ${name(a)} in ${describeArea(state, a.task)}` });

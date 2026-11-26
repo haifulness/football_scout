@@ -10,6 +10,7 @@ import { clientSlots } from './employment';
 import { ScoutingError, addLedger } from './scouting';
 import { addNews } from './season';
 import type { AiSigning } from './transfers';
+import { agencyLog } from './agency-log';
 
 /**
  * Your own agency (phase 19): late-game business. Offices replace the client-slot
@@ -32,6 +33,8 @@ const CUT_PCT = 0.008;
 const CUT_FLOOR: Record<ClubTier, number> = { 1: 12_000, 2: 7_000, 3: 4_000, 4: 2_000, 5: 1_000 };
 const CUT_CAP = 20_000;
 const KEEP_DEALS = 60;
+/** Each deal lined up before the window adds this to his chance of closing one on a signing. */
+const LEAD_CHANCE = 0.025;
 /** Search bonuses where you have a base. */
 export const OFFICE_SEARCH_DISCOUNT = 0.75;
 export const OFFICE_REACH = 15;
@@ -165,7 +168,7 @@ export function agencyTick(state: GameState, date: GameDate) {
 
 /**
  * After clubs sign players: staff at a base sometimes brokered a signing into its country.
- * Each staffer at that base has a (1% + 0.5% × skill) chance; the agency banks 0.8% of the fee
+ * Each staffer at that base has a (0.5% + 0.3% × skill + 2.5% per lined-up deal) chance; the agency banks 0.8% of the fee
  * (floor by tier, capped).
  */
 export function agencyOnSignings(state: GameState, signings: AiSigning[], date: GameDate, label: string) {
@@ -173,7 +176,7 @@ export function agencyOnSignings(state: GameState, signings: AiSigning[], date: 
   if (!agency || !state.scout || !signings.length) return;
   const staffBy = new Map<CountryId, typeof state.assistants>();
   for (const a of state.assistants) {
-    if (a.officeId === undefined) continue;
+    if (a.officeId === undefined || a.job) continue; // on one of your briefs, not brokering
     const c = officeCountry(state, a.officeId);
     if (!c) continue;
     staffBy.set(c, [...(staffBy.get(c) ?? []), a]);
@@ -186,7 +189,9 @@ export function agencyOnSignings(state: GameState, signings: AiSigning[], date: 
     const staff = club && staffBy.get(club.countryId);
     if (!club || !staff) continue;
     for (const a of staff) {
-      if (!rng.chance(0.01 + 0.005 * a.skill)) continue;
+      const leads = a.leads ?? 0;
+      if (!rng.chance(0.005 + 0.003 * a.skill + LEAD_CHANCE * leads)) continue;
+      if (leads) a.leads = leads - 1;
       const cut = usd(Math.round(clamp(s.fee * CUT_PCT, CUT_FLOOR[club.tier], CUT_CAP) / 100) * 100);
       made.push({ date, assistantId: a.id, playerId: s.playerId, clubId: club.id, fee: s.fee, cut });
       break;
@@ -203,6 +208,7 @@ export function agencyOnSignings(state: GameState, signings: AiSigning[], date: 
     });
     agency.brokered++;
     agency.earned = usd(agency.earned + d.cut);
+    agencyLog(state, { kind: 'deal', assistantId: a.id, text: `${name(a)} brokered ${p ? `${p.firstName} ${p.lastName}` : 'a signing'} to ${state.clubs[d.clubId]!.name} (+${formatUSD(d.cut)}).` });
   }
   agency.deals = [...made.reverse(), ...agency.deals].slice(0, KEEP_DEALS);
   const total = made.reduce((n, d) => n + d.cut, 0);

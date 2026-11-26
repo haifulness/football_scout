@@ -66,6 +66,10 @@ export interface Assistant {
   analysis?: { clubId: import('../core/ids').ClubId; until: GameDate };
   /** Players reported over his time with you. */
   reports: number;
+  /** Office staff: deals lined up outside the window, ready to close when it opens. */
+  leads?: number;
+  /** Office staff: don't let him pick up your briefs on his own. */
+  skipBriefs?: boolean;
 }
 
 /** Someone on the job market. */

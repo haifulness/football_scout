@@ -687,6 +687,15 @@ export interface AgencyStaffView {
   nationalityId: CountryId;
   officeId?: number;
   onTask: boolean;
+  /** Deals he has lined up for the next window. */
+  leads: number;
+  maxLeads: number;
+  /** Skilled enough to take your briefs. */
+  canTakeBriefs: boolean;
+  /** Picks up untouched briefs on his own (office staff). */
+  takesBriefs: boolean;
+  /** The brief or sale he is working, in a few words. */
+  working?: string;
 }
 
 export interface AgencyBaseView {
@@ -722,6 +731,12 @@ export interface AgencyView {
     bases: AgencyBaseView[];
     unplaced: AgencyStaffView[];
     deals: { date: GameDate; playerId: PlayerId; playerName: string; club: ClubBadge; by: string; fee: USD; cut: USD }[];
+    /** What the staff have been doing, newest first. */
+    log: { date: GameDate; kind: 'brief' | 'lead' | 'deal' | 'pitch'; text: string }[];
+    /** Briefs you've accepted that nobody is working: neither you (no open deal) nor staff. */
+    untouchedBriefs: number;
+    /** Active briefs staff are handling. */
+    staffBriefs: number;
   };
   /** Countries where you could open an office. */
   openable: { id: CountryId; name: string; continent: string; clubs: number; setup: USD; rent: USD; market: number }[];

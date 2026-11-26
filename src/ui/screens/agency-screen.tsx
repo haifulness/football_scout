@@ -47,7 +47,7 @@ export function AgencyScreen() {
         <p className="mt-2 max-w-2xl text-sm text-mist-400">
           Once your name carries weight, set up your own scouting agency. Your headquarters and each office abroad give you room for more clients and staff
           than reputation alone. Where you have a base you sleep for free, and searches there are cheaper, quicker and reach further. Staff you place at a
-          base broker some of the transfers into its country, and the agency keeps a cut. Every base costs money each month, so staff them well.
+          base pick up briefs you haven't started within a week, line up deals between windows, and broker transfers into its country for a cut. Every base costs money each month, so staff them well.
         </p>
       </header>
       {v.agency ? <Running v={v} /> : <Founding v={v} />}
@@ -187,6 +187,7 @@ function Running({ v }: { v: AgencyView }) {
           {v.clients.used}/{v.clients.capacity} clients
         </StatTile>
       </div>
+      <Activity v={v} />
       <Bases v={v} />
       <OpenOffice v={v} />
       {ag.deals.length > 0 && <Deals v={v} />}
@@ -197,7 +198,7 @@ function Running({ v }: { v: AgencyView }) {
 function Bases({ v }: { v: AgencyView }) {
   const ag = v.agency!;
   return (
-    <Panel title="Bases" right={<span className="text-[12px] text-mist-400">Staff at a base broker deals into its country instead of going on field tasks</span>}>
+    <Panel title="Bases" right={<span className="text-[12px] text-mist-400">Staff at a base take briefs you haven't started within a week, and broker deals into its country</span>}>
       <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
         {ag.bases.map((b) => (
           <BaseCard key={b.officeId} b={b} free={ag.unplaced.filter((a) => !a.onTask)} />
@@ -228,11 +229,32 @@ function BaseCard({ b, free }: { b: AgencyBaseView; free: AgencyStaffView[] }) {
       </div>
       <ul className="flex flex-col gap-1.5">
         {b.staff.map((a) => (
-          <li key={a.id} className="flex items-center gap-2 text-sm">
-            <Portrait seed={a.portraitSeed} culture={cultureOf(a.nationalityId)} size={28} className="rounded-md" />
-            <span className="truncate">{a.name}</span>
-            <span className="text-[11px] text-mist-400">skill {a.skill}</span>
-            <button className="btn-ghost ml-auto px-2 py-0.5 text-[11px]" onClick={() => void act(() => engine.placeAssistant(a.id, null))}>
+          <li key={a.id} className="flex items-start gap-2 text-sm">
+            <Portrait seed={a.portraitSeed} culture={cultureOf(a.nationalityId)} size={28} className="mt-0.5 rounded-md" />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="truncate">{a.name}</span>
+                <span className="text-[11px] text-mist-400">skill {a.skill}</span>
+              </div>
+              <div className="text-[11px] text-mist-400">
+                {a.working ? (
+                  <span className="text-sky-300">{a.working}</span>
+                ) : (
+                  <span>
+                    {a.leads}/{a.maxLeads} deals lined up
+                  </span>
+                )}
+              </div>
+              {a.canTakeBriefs ? (
+                <label className="mt-0.5 flex items-center gap-1.5 text-[11px] text-mist-300">
+                  <input type="checkbox" checked={a.takesBriefs} onChange={(e) => void act(() => engine.setStaffTakesBriefs(a.id, e.target.checked))} />
+                  Picks up your briefs
+                </label>
+              ) : (
+                <div className="text-[11px] text-mist-500">Needs skill 12 to take briefs</div>
+              )}
+            </div>
+            <button className="btn-ghost px-2 py-0.5 text-[11px]" onClick={() => void act(() => engine.placeAssistant(a.id, null))}>
               Remove
             </button>
           </li>
@@ -272,6 +294,41 @@ function BaseCard({ b, free }: { b: AgencyBaseView; free: AgencyStaffView[] }) {
       </div>
       {error && <div className="text-[11px] text-alert-400">{error}</div>}
     </motion.div>
+  );
+}
+
+const LOG_ICON: Record<'brief' | 'lead' | 'deal' | 'pitch', string> = { brief: '📋', lead: '🤝', deal: '💰', pitch: '🎯' };
+
+function Activity({ v }: { v: AgencyView }) {
+  const ag = v.agency!;
+  const staffed = ag.bases.some((b) => b.staff.length > 0);
+  return (
+    <Panel
+      title="At the agency"
+      right={
+        <span className="text-[12px] text-mist-400">
+          {ag.staffBriefs} brief{ag.staffBriefs === 1 ? '' : 's'} with staff · {ag.untouchedBriefs} nobody is working
+        </span>
+      }
+    >
+      {ag.log.length ? (
+        <ul className="max-h-72 overflow-y-auto">
+          {ag.log.map((e, i) => (
+            <li key={i} className="flex items-start gap-2 border-b border-white/[0.04] px-4 py-1.5 text-sm last:border-0">
+              <span className="num w-24 shrink-0 text-[12px] text-mist-400">{formatDate(e.date)}</span>
+              <span aria-hidden>{LOG_ICON[e.kind]}</span>
+              <span className={`min-w-0 ${e.kind === 'deal' ? 'text-grass-300' : ''}`}>{e.text}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className="px-4 py-3 text-[12px] text-mist-400">
+          {staffed
+            ? 'Nothing yet. Each Monday your office staff pick up briefs you haven’t started, or line up deals that close when the window opens.'
+            : 'Place assistants at a base below: they pick up your briefs and broker deals for the agency.'}
+        </div>
+      )}
+    </Panel>
   );
 }
 

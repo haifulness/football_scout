@@ -159,9 +159,9 @@ function AssistantCard({ a, i, maxWeeks }: { a: AssistantView; i: number; maxWee
           </div>
         </div>
         <span
-          className={`rounded-md px-2 py-0.5 text-[11px] font-bold uppercase ${a.office || a.job || a.analysis ? 'bg-violet-500/15 text-violet-300' : t ? 'bg-grass-500/15 text-grass-300' : 'bg-flood-500/15 text-flood-300'}`}
+          className={`rounded-md px-2 py-0.5 text-[11px] font-bold uppercase ${a.job || a.office || a.analysis ? 'bg-violet-500/15 text-violet-300' : t ? 'bg-grass-500/15 text-grass-300' : 'bg-flood-500/15 text-flood-300'}`}
         >
-          {a.office ? `Office · ${a.office.label}` : a.analysis ? `Studying ${a.analysis.club}` : a.job ? 'On a brief' : t ? 'On task' : 'Idle'}
+          {a.job ? (a.office ? `On a brief · ${a.office.label}` : 'On a brief') : a.office ? `Office · ${a.office.label}` : a.analysis ? `Studying ${a.analysis.club}` : t ? 'On task' : 'Idle'}
         </span>
       </div>
 
@@ -215,13 +215,13 @@ function AssistantCard({ a, i, maxWeeks }: { a: AssistantView; i: number; maxWee
 
       {!assigning && (
         <div className="mt-3 flex flex-wrap gap-2">
-          {a.office ? (
-            <button className="btn-ghost flex-1 text-xs" onClick={() => void act(() => engine.placeAssistant(a.id, null))}>
-              Back to field work
-            </button>
-          ) : a.job ? (
+          {a.job ? (
             <button className="btn-ghost flex-1 text-xs" onClick={() => void act(() => engine.recallJob(a.id))}>
               {a.job.kind === 'sale' ? 'Take the sale back' : 'Take the brief back'}
+            </button>
+          ) : a.office ? (
+            <button className="btn-ghost flex-1 text-xs" onClick={() => void act(() => engine.placeAssistant(a.id, null))}>
+              Back to field work
             </button>
           ) : (
             <button className="btn-primary flex-1 text-xs" onClick={() => setAssigning(true)}>

@@ -28,6 +28,14 @@ export interface AgencyDeal {
   cut: USD;
 }
 
+/** One line of what the agency did (newest first on the agency screen). */
+export interface AgencyLogEntry {
+  date: GameDate;
+  kind: 'brief' | 'lead' | 'deal' | 'pitch';
+  assistantId?: number;
+  text: string;
+}
+
 /** Your own scouting agency (late game, PLAN phase 19). */
 export interface Agency {
   name: string;
@@ -41,6 +49,8 @@ export interface Agency {
   /** Lifetime totals. */
   brokered: number;
   earned: USD;
+  /** What the staff have been doing, newest first (capped). */
+  log?: AgencyLogEntry[];
 }
 
 /** Where an assistant works: the headquarters (0) or an office id. */

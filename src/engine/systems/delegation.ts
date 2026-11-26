@@ -15,6 +15,9 @@ import { ovrAt } from './ratings';
 import { ScoutingError, addLedger } from './scouting';
 import { addNews } from './season';
 import { canAfford, offeredWage, transferFee } from './transfers';
+import { agencyLog } from './agency-log';
+import { isTransferWindow, type GameDate } from '../core/calendar';
+import { HQ } from '../model/agency';
 
 /**
  * Staff take a brief off your hands: a senior assistant shortlists players for one of your active missions and
@@ -35,7 +38,7 @@ const OPEN_DEAL = new Set<Deal['stage']>(['negotiating', 'agreed']);
 
 function readyCheck(a: Assistant): { ok: boolean; reason?: string } {
   if (a.skill < DELEGATE_SKILL) return { ok: false, reason: `${name(a)} needs skill ${DELEGATE_SKILL} before you trust him with a client.` };
-  if (a.task || a.job || a.analysis || a.officeId !== undefined) return { ok: false, reason: `${name(a)} is busy.` };
+  if (a.task || a.job || a.analysis) return { ok: false, reason: `${name(a)} is busy.` };
   return { ok: true };
 }
 
@@ -90,6 +93,8 @@ function endJob(state: GameState, a: Assistant, why: string) {
   const club = m ? state.clubs[m.clubId] : md ? state.clubs[md.clubId] : undefined;
   const p = md && state.players[md.playerId];
   a.job = undefined;
+  if (m) m.yours = true;
+  if (a.officeId !== undefined) agencyLog(state, { kind: 'brief', assistantId: a.id, text: `${name(a)} is back at the office: ${why}` });
   addNews(state, {
     date: state.date,
     kind: 'career',
@@ -168,6 +173,8 @@ export function jobWeek(state: GameState, a: Assistant, rng: Rng) {
   const p = pick.p;
   const ok = deal.stage === 'negotiating';
   if (ok) job.dealId = deal.id;
+  if (a.officeId !== undefined)
+    agencyLog(state, { kind: 'pitch', assistantId: a.id, text: `${name(a)} pitched ${p.firstName} ${p.lastName} to ${club.name} (${m.position}): ${ok ? 'signed off' : 'turned down'}.` });
   addNews(state, {
     date: state.date,
     kind: 'career',
@@ -235,6 +242,8 @@ function saleWeek(state: GameState, a: Assistant, rng: Rng) {
   }
   const ok = deal.stage === 'negotiating';
   if (ok) job.dealId = deal.id;
+  if (a.officeId !== undefined)
+    agencyLog(state, { kind: 'pitch', assistantId: a.id, text: `${name(a)} offered ${p.firstName} ${p.lastName} to ${pick.club.name}: ${ok ? 'they want him' : 'they passed'}.` });
   addNews(state, {
     date: state.date,
     kind: 'career',
@@ -258,3 +267,59 @@ export function chargeStaffCut(state: GameState, deal: Deal | undefined, amount:
   addLedger(state, { amount: usd(-cut), kind: 'assistant', label: `${who}'s ${Math.round(STAFF_CUT * 100)}% of the ${what}` });
 }
 
+
+/** Office staff leave your briefs to you for this long after you accept them. */
+export const PICKUP_GRACE_DAYS = 7;
+/** Deals an office staffer can have lined up for the next window. */
+export const MAX_LEADS = 3;
+
+const baseCountry = (state: GameState, a: Assistant): CountryId | undefined =>
+  a.officeId === undefined ? undefined : a.officeId === HQ ? state.scout?.homeCountry : state.agency?.offices.find((o) => o.id === a.officeId)?.countryId;
+
+/** A brief an office staffer would take on his own: in his base's country (or his speciality), untouched by you for a week. */
+export function pickupBrief(state: GameState, a: Assistant): Mission | undefined {
+  if (!state.agency || a.skipBriefs || a.officeId === undefined || !readyCheck(a).ok) return undefined;
+  const where = new Set([baseCountry(state, a), a.speciality]);
+  return state.missions
+    .filter((m) => {
+      if (m.status !== 'active' || !m.deadline || m.yours) return false;
+      const club = state.clubs[m.clubId];
+      if (!club || !where.has(club.countryId)) return false;
+      if (state.date - (m.deadline - m.weeks * 7) < PICKUP_GRACE_DAYS) return false;
+      if (state.assistants.some((x) => x.job?.missionId === m.id)) return false;
+      // You're already working it: a deal of yours for that club and position is in progress.
+      return !state.deals.some((d) => d.clubId === m.clubId && d.position === m.position && d.delegatedTo === undefined && OPEN_DEAL.has(d.stage));
+    })
+    .sort((x, y) => x.deadline! - y.deadline!)[0];
+}
+
+/**
+ * A week at the office (Mondays, office staff with nothing else on): pick up an untouched brief if there is one;
+ * otherwise, outside the window, line up deals that close when it opens.
+ */
+export function officeWeek(state: GameState, a: Assistant, date: GameDate, rng: Rng) {
+  const m = pickupBrief(state, a);
+  if (m) {
+    const club = state.clubs[m.clubId]!;
+    a.job = { missionId: m.id, startedOn: state.date, tried: [], weeklyExpenses: expensesFor(state, a, club.countryId) };
+    agencyLog(state, { kind: 'brief', assistantId: a.id, text: `${name(a)} took over the ${m.position} brief for ${club.name}.` });
+    addNews(state, {
+      date,
+      kind: 'career',
+      link: 'missions',
+      title: `${name(a)} takes the ${m.position} brief for ${club.name}`,
+      body: `Nobody had started on it, so ${name(a)} picked it up from the office. He shortlists and pitches under your name, for ${Math.round(STAFF_CUT * 100)}% of what it earns. Take it back from the Staff screen if you'd rather do it yourself.`,
+      clubIds: [club.id],
+    });
+    return;
+  }
+  if (isTransferWindow(date) || (a.leads ?? 0) >= MAX_LEADS) return;
+  if (!rng.chance(0.2 + 0.015 * a.skill)) return;
+  a.leads = (a.leads ?? 0) + 1;
+  const c = baseCountry(state, a);
+  agencyLog(state, {
+    kind: 'lead',
+    assistantId: a.id,
+    text: `${name(a)} lined up a deal${c ? ` in ${state.countries[c]!.name}` : ''} for the window (${a.leads} ready).`,
+  });
+}

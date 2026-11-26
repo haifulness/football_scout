@@ -52,6 +52,8 @@ export interface Mission {
   preferences?: MissionPreferences;
   /** What you asked for, and the answer. Each term can be asked once. */
   negotiation?: Partial<Record<NegotiationKey, 'agreed' | 'refused'>>;
+  /** Staff have handed it back (or you took it back): office staff won't pick it up again. */
+  yours?: true;
 }
 
 /** A client club asks you to find a buyer for one of its players (freelance only). */
