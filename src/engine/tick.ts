@@ -31,6 +31,7 @@ import { huntTick } from './systems/hunts';
 import { reportTick } from './systems/reports';
 import { objectiveTick } from './systems/goals';
 import { agencyTick } from './systems/agency';
+import { rivalAgencyTick } from './systems/rival-agencies';
 import { scenarioTick } from './systems/scenarios';
 import { coachTick } from './systems/coaching';
 import { eventsTick } from './systems/events';
@@ -173,6 +174,7 @@ function playDay(state: GameState, date: GameDate, onMatch?: MatchListener): { m
     reportTick(state, date);
     objectiveTick(state, date);
     agencyTick(state, date);
+    rivalAgencyTick(state, date);
     checkSolvency(state, date);
     scenarioTick(state, date);
   }

@@ -53,5 +53,24 @@ export interface Agency {
   log?: AgencyLogEntry[];
 }
 
+/** Another scouting agency competing with yours for brokered deals and staff. */
+export interface RivalAgency {
+  id: number;
+  name: string;
+  /** Up to 4 letters for its badge. */
+  shortName: string;
+  color: string;
+  /** Countries where it has a base (its home first). */
+  countries: CountryId[];
+  /** 1–20: how often it beats you to a deal, and how much it can offer your staff. */
+  strength: number;
+  foundedOn: GameDate;
+  /** Deals it brokered: lifetime, and the dates of recent ones (capped). */
+  brokered: number;
+  recent: GameDate[];
+  /** Staff of yours it hired away. */
+  hired: number;
+}
+
 /** Where an assistant works: the headquarters (0) or an office id. */
 export const HQ = 0;

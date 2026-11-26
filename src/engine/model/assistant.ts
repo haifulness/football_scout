@@ -70,6 +70,10 @@ export interface Assistant {
   leads?: number;
   /** Office staff: don't let him pick up your briefs on his own. */
   skipBriefs?: boolean;
+  /** A rival agency wants him: match its wage by then or he goes. */
+  offer?: { agencyId: number; wage: USD; until: GameDate };
+  /** You matched an offer: he won't listen to another until then. */
+  loyalUntil?: GameDate;
 }
 
 /** Someone on the job market. */

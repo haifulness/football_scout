@@ -69,6 +69,8 @@ export interface GameState {
   reports: ScoutReport[];
   /** Your own agency, once founded. */
   agency?: Agency;
+  /** Rival agencies (once you run your own). */
+  rivalAgencies?: import('./agency').RivalAgency[];
   /** Season goals: this season's three and those of past seasons. */
   objectives: Objective[];
   /** Your trophy cabinet. */

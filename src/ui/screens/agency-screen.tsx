@@ -189,6 +189,7 @@ function Running({ v }: { v: AgencyView }) {
       </div>
       <Activity v={v} />
       <Bases v={v} />
+      {ag.rivals.length > 0 && <RivalAgencies v={v} />}
       <OpenOffice v={v} />
       {ag.deals.length > 0 && <Deals v={v} />}
     </>
@@ -227,6 +228,11 @@ function BaseCard({ b, free }: { b: AgencyBaseView; free: AgencyStaffView[] }) {
       <div className="text-[12px] text-mist-400">
         This season: {b.dealsThisSeason} deal{b.dealsThisSeason === 1 ? '' : 's'}, {formatUSD(b.earnedThisSeason)}
       </div>
+      {b.contestedBy.length > 0 && (
+        <div className="text-[11px] text-flood-300" title="They broker some of the deals here before your staff get a look">
+          Competing here: {b.contestedBy.join(', ')}
+        </div>
+      )}
       <ul className="flex flex-col gap-1.5">
         {b.staff.map((a) => (
           <li key={a.id} className="flex items-start gap-2 text-sm">
@@ -328,6 +334,37 @@ function Activity({ v }: { v: AgencyView }) {
             : 'Place assistants at a base below: they pick up your briefs and broker deals for the agency.'}
         </div>
       )}
+    </Panel>
+  );
+}
+
+function RivalAgencies({ v }: { v: AgencyView }) {
+  const ag = v.agency!;
+  return (
+    <Panel title="Rival agencies" right={<span className="text-[12px] text-mist-400">Where you share a country, they get to some deals first and try to hire your staff</span>}>
+      <ul>
+        {ag.rivals.map((r) => (
+          <li key={r.id} className="flex flex-wrap items-center gap-3 border-b border-white/[0.04] px-4 py-2.5 text-sm last:border-0">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[10px] font-black text-night-950" style={{ background: r.color }}>
+              {r.shortName}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="font-semibold">{r.name}</div>
+              <div className="flex flex-wrap gap-1 text-[11px]">
+                {r.countries.map((c) => (
+                  <span key={c.id} className={c.shared ? 'text-flood-300' : 'text-mist-400'} title={c.shared ? 'You have a base here too' : undefined}>
+                    {c.name}
+                    {c.shared ? ' ⚔' : ''}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <span className="text-[12px] text-mist-400">strength {r.strength}</span>
+            <span className="num text-[12px] text-mist-300">{r.dealsThisSeason} deals this season</span>
+            {r.hired > 0 && <span className="text-[12px] font-semibold text-alert-400">hired {r.hired} of your staff</span>}
+          </li>
+        ))}
+      </ul>
     </Panel>
   );
 }

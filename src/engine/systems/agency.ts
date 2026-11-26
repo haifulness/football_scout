@@ -11,6 +11,7 @@ import { ScoutingError, addLedger } from './scouting';
 import { addNews } from './season';
 import type { AiSigning } from './transfers';
 import { agencyLog } from './agency-log';
+import { rivalBrokers, seedRivalAgencies } from './rival-agencies';
 
 /**
  * Your own agency (phase 19): late-game business. Offices replace the client-slot
@@ -101,6 +102,7 @@ export function foundAgency(state: GameState, args: { name: string; shortName?: 
   const shortName = (args.shortName?.trim() || initials).slice(0, 4).toUpperCase();
   addLedger(state, { amount: usd(-FOUNDING_COST), kind: 'agency-setup', label: `Founding ${agencyName}` });
   state.agency = { name: agencyName, shortName, logo: args.logo, foundedOn: state.date, offices: [], deals: [], brokered: 0, earned: usd(0) };
+  seedRivalAgencies(state);
   addNews(state, {
     date: state.date,
     kind: 'career',
@@ -188,6 +190,8 @@ export function agencyOnSignings(state: GameState, signings: AiSigning[], date: 
     const club = state.clubs[s.clubId];
     const staff = club && staffBy.get(club.countryId);
     if (!club || !staff) continue;
+    // A rival agency with a base there may get to it first.
+    if (rivalBrokers(state, club.countryId, rng, date)) continue;
     for (const a of staff) {
       const leads = a.leads ?? 0;
       if (!rng.chance(0.005 + 0.003 * a.skill + LEAD_CHANCE * leads)) continue;

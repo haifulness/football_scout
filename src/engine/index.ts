@@ -30,6 +30,7 @@ import { aftercareCheck, isSettling, settleForecast, settlePenalty } from './sys
 import { taxDay, taxFor, weeklyLiving } from './systems/overheads';
 import { clientYear, nextReview } from './systems/client-review';
 import { clientRace } from './systems/client-race';
+import { agenciesIn, matchOffer, releaseToRival } from './systems/rival-agencies';
 import { activeSmear, headToHead, isNemesis, nemesisOf } from './systems/nemesis';
 import { ROUND_LABEL, groupTable } from './systems/tournaments';
 import { analysisCheck, askCoach, askCoachCheck, askPlayer, askPlayerCheck, buyInsider, dataCost, insiderCheck, insidePlayers, sendAnalyst, swapCheck, swapRivals, swapWithRival, toggleData } from './systems/club-asks';
@@ -556,6 +557,7 @@ export class Engine {
         openedOn,
         staff: s.assistants.filter((a) => a.officeId === officeId).map(staffView),
         dealsThisSeason: deals.length,
+        contestedBy: agenciesIn(s, countryId).map((x) => x.name),
         earnedThisSeason: usd(deals.reduce((n, d) => n + d.cut, 0)),
       };
     };
@@ -583,6 +585,16 @@ export class Engine {
         bases: [base(HQ, sc.homeCountry, sc.homeCity, 0, ag.foundedOn), ...ag.offices.map((o) => base(o.id, o.countryId, o.cityId, o.rent, o.openedOn))],
         unplaced: s.assistants.filter((a) => a.officeId === undefined).map(staffView),
         log: (ag.log ?? []).slice(0, 30).map((e) => ({ date: e.date, kind: e.kind, text: e.text })),
+        rivals: (s.rivalAgencies ?? []).map((x) => ({
+          id: x.id,
+          name: x.name,
+          shortName: x.shortName,
+          color: x.color,
+          countries: x.countries.map((id) => ({ id, name: countryName(id), shared: homes.has(id) })),
+          strength: Math.round(x.strength),
+          dealsThisSeason: x.recent.filter((d) => d >= makeDate(year, 7, 1)).length,
+          hired: x.hired,
+        })),
         staffBriefs: s.missions.filter((m) => m.status === 'active' && s.assistants.some((a) => a.job?.missionId === m.id)).length,
         untouchedBriefs: s.missions.filter(
           (m) =>
@@ -613,6 +625,18 @@ export class Engine {
         })
         .sort((a, b) => b.clubs - a.clubs),
     };
+  }
+
+  /** Match a rival agency's offer to one of your staff. */
+  matchOffer(assistantId: number): void {
+    this.assertActive();
+    matchOffer(this.s, assistantId);
+  }
+
+  /** Let a staffer take a rival agency's offer. */
+  releaseToRival(assistantId: number): void {
+    this.assertActive();
+    releaseToRival(this.s, assistantId);
   }
 
   /** Let an office staffer pick up untouched briefs on his own, or not. */
@@ -1855,6 +1879,7 @@ export class Engine {
           xpToLevel: 12,
           reports: a.reports,
           analysis: a.analysis && { club: s.clubs[a.analysis.clubId]?.name ?? 'a club', until: a.analysis.until },
+          offer: a.offer && { agency: s.rivalAgencies?.find((x) => x.id === a.offer!.agencyId)?.name ?? 'A rival agency', wage: a.offer.wage, until: a.offer.until },
           office:
             a.officeId === undefined
               ? undefined

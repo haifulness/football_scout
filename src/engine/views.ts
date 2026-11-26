@@ -719,6 +719,8 @@ export interface AgencyBaseView {
   openedOn: GameDate;
   staff: AgencyStaffView[];
   dealsThisSeason: number;
+  /** Rival agencies with a base in this country too. */
+  contestedBy: string[];
   earnedThisSeason: USD;
 }
 
@@ -747,6 +749,17 @@ export interface AgencyView {
     untouchedBriefs: number;
     /** Active briefs staff are handling. */
     staffBriefs: number;
+    /** The competition. */
+    rivals: {
+      id: number;
+      name: string;
+      shortName: string;
+      color: string;
+      countries: { id: CountryId; name: string; shared: boolean }[];
+      strength: number;
+      dealsThisSeason: number;
+      hired: number;
+    }[];
   };
   /** Countries where you could open an office. */
   openable: { id: CountryId; name: string; continent: string; clubs: number; setup: USD; rent: USD; market: number }[];
@@ -1308,6 +1321,8 @@ export interface AssistantView {
   office?: { id: number; label: string };
   /** Studying a club's needs for you. */
   analysis?: { club: string; until: GameDate };
+  /** A rival agency wants him: match by then or he goes. */
+  offer?: { agency: string; wage: USD; until: GameDate };
   task?: AssistantTaskView;
   /** A brief he is handling for you. */
   job?: {

@@ -165,6 +165,22 @@ function AssistantCard({ a, i, maxWeeks }: { a: AssistantView; i: number; maxWee
         </span>
       </div>
 
+      {a.offer && (
+        <div className="mt-3 rounded-lg border border-alert-500/30 bg-alert-500/[0.06] p-3 text-[12px]">
+          <div className="text-alert-300">
+            <b>{a.offer.agency}</b> have offered him {formatUSD(a.offer.wage)}/wk (you pay {formatUSD(a.wage)}). Match it by {formatDate(a.offer.until)} or he goes.
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button className="btn-primary px-3 py-1 text-xs" onClick={() => void act(() => engine.matchOffer(a.id))}>
+              Match: {formatUSD(a.offer.wage)}/wk
+            </button>
+            <button className="btn-ghost px-3 py-1 text-xs text-mist-400" onClick={() => void act(() => engine.releaseToRival(a.id))}>
+              Let him go
+            </button>
+          </div>
+        </div>
+      )}
+
       {t && !assigning && (
         <div className="mt-3 rounded-lg bg-black/20 p-3 text-sm">
           <div className="flex flex-wrap items-center gap-1.5">
