@@ -252,6 +252,8 @@ export interface ClubRecord {
   /** Players you brought who turned out hits / flops (a big fee counts twice). */
   hits?: number;
   flops?: number;
+  /** Full-time: players you sold for this club (your employer) without a brief. */
+  sales?: number;
 }
 
 export interface JobOffer {

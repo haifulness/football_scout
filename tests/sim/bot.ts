@@ -111,6 +111,32 @@ export function runBot(opts: { seed: number; seasons: number; difficulty: Diffic
     // Accept mission briefs from clients (they pay a reward on top).
     for (const m of s.missions) if (m.status === 'offered' && s.missions.filter((x) => x.status === 'active').length < 1) safe(() => e.acceptMission(m.id));
 
+    // Job mode: take your club's selling briefs and find each player a buyer, one pitch a week.
+    if (opts.job && scout().employment.mode === 'fulltime') {
+      for (const m of s.mandates) if (m.status === 'offered' && s.mandates.filter((x) => x.status === 'active').length < 2) safe(() => e.acceptMandate(m.id), 'mandate');
+      const sale = s.mandates.find((m) => m.status === 'active' && !s.deals.some((d) => d.mandateId === m.id && (d.stage === 'negotiating' || d.stage === 'agreed')));
+      const p = sale && s.players[sale.playerId];
+      if (p && scout().money > 1_500) {
+        const tried = new Set(s.deals.filter((d) => d.playerId === p.id).map((d) => d.clubId));
+        // Like a player reading the dialog: the first suggested club he would clearly improve, that can pay.
+        const pick = (safe(() => e.getClubSuggestions(p.id), 'sale') ?? [])
+          .map((x) => s.clubs[x.club.id]!)
+          .filter((c) => !tried.has(c.id))
+          .slice(0, 6)
+          .map((c) => ({ c, preview: safe(() => e.getPitchPreview(p.id, c.id, p.naturalPosition), 'sale') }))
+          .find(({ preview }) => preview?.work.ok && preview.affordable && !preview.existing && preview.clearsBar !== 'no');
+        const buyer = pick?.c;
+        if (buyer) {
+          const preview = pick.preview;
+          if (preview) {
+            const byPhone = remotePitchCheck(s, buyer.id).ok;
+            if (!byPhone) goTo(buyer);
+            if (safe(() => e.pitch({ playerId: p.id, clubId: buyer.id, position: p.naturalPosition, to: 'coach', remote: byPhone }), 'sale')) note('sale pitched');
+          } else note('no buyer for a sale');
+        } else note('no buyer for a sale');
+      }
+    }
+
     // Trade up: with every slot taken, let the smallest client go when a bigger club would now take you on (and no deal of theirs is open).
     if (turn % 8 === 0 && clients().length >= clientSlots(scout().reputation)) {
       const worst = [...clients()].sort((a, b) => s.clubs[b]!.tier - s.clubs[a]!.tier)[0];
@@ -311,6 +337,8 @@ export function runBot(opts: { seed: number; seasons: number; difficulty: Diffic
         .join(' · ') +
       ` · pool ${Object.keys(s.pool).length} · deals ${s.deals.length} · ledger ${s.ledger.length} · news ${s.news.length}`,
   );
+  // How sales for clients or the employer ended.
+  for (const d of s.deals) if (d.mandateId !== undefined || d.forEmployer) note(`sale ${d.stage}${d.reason ? `: ${d.reason.replace(/[0-9$,.k]+/g, '#').slice(0, 50)}` : ''}`);
   return { seasons, why, bankrupt: s.careerOver?.reason, secondsPerSeason: (cpu() - started) / Math.max(1, seasons.length) };
 }
 

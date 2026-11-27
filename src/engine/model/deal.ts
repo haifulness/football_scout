@@ -60,6 +60,8 @@ export interface Deal {
   mandateId?: number;
   /** A free agent you represent. */
   represented?: boolean;
+  /** Full-time: selling your employer's player to another club without a brief (no commission, but the club notices). */
+  forEmployer?: boolean;
   /** Pitched without a scouting agreement (freelance): half the signing bonus, no match bonuses. */
   open?: boolean;
   openedOn: GameDate;

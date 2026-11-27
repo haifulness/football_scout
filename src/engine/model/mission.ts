@@ -59,13 +59,15 @@ export interface Mission {
 /** A client club asks you to find a buyer for one of its players (freelance only). */
 export interface Mandate {
   id: number;
-  /** The selling club (one of your clients). */
+  /** The selling club (one of your clients, or your employer). */
   clubId: ClubId;
   playerId: PlayerId;
   /** The club won't sell for less. */
   askingFee: USD;
-  /** Your cut of the sale fee, in percent (3–5). */
+  /** Your cut of the sale fee, in percent (3–5; 2–3 for your employer). */
   commissionPct: number;
+  /** Full-time: a sale for your employer (a minimum commission by tier, on top of salary). */
+  employer?: boolean;
   reason: string;
   postedOn: GameDate;
   acceptBy: GameDate;

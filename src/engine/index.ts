@@ -1,3 +1,4 @@
+import { clamp } from './core/rng';
 import { ATTRIBUTE_LABEL } from './model/player';
 import { CAMPAIGN_BOOST, CAMPAIGN_WEEKS, SPOTLIGHT, activeCampaign, campaignCost, startCampaign, stopCampaign } from './systems/campaigns';
 import { answerConsultation, finderFee } from './systems/consultations';
@@ -95,7 +96,7 @@ import {
 } from './systems/assistants';
 import type { AssistantBrief } from './model/assistant';
 import { inLocation } from './systems/scouting';
-import { MAX_REPRESENTED, REPRESENT_RAPPORT, acceptMandate, declineMandate, pitchRights, represent, representCheck, stopRepresenting } from './systems/market';
+import { MAX_REPRESENTED, REPRESENT_RAPPORT, acceptMandate, declineMandate, mandateCommission, pitchRights, represent, representCheck, stopRepresenting } from './systems/market';
 import { BANKRUPTCY_DAYS, SIGNING_PCT } from './systems/payouts';
 import {
   AGREEMENT_GATE,
@@ -1617,7 +1618,7 @@ export class Engine {
             : { id: m.playerId, name: 'Retired player', age: 0, position: 'CM', portraitSeed: 0, nationalityId: club.countryId, ovr: [0, 0], value: usd(0) },
         askingFee: m.askingFee,
         commissionPct: m.commissionPct,
-        commission: usd(Math.round((m.askingFee * m.commissionPct) / 100)),
+        commission: mandateCommission(s, m, m.askingFee),
         reason: m.reason,
         status: m.status,
         postedOn: m.postedOn,
@@ -1675,7 +1676,10 @@ export class Engine {
         },
       ];
     });
-    return { freelance: sc?.employment.mode === 'freelance', mandates, represented, maxRepresented: MAX_REPRESENTED, representRapport: REPRESENT_RAPPORT };
+    return {
+      freelance: sc?.employment.mode === 'freelance',
+      employer: sc?.employment.mode === 'fulltime' ? s.clubs[sc.employment.clubId]!.name : undefined,
+      mandates, represented, maxRepresented: MAX_REPRESENTED, representRapport: REPRESENT_RAPPORT };
   }
 
   acceptMandate(id: number): void {
@@ -2616,13 +2620,33 @@ export class Engine {
     // Home clubs outside your book: what the paper prints this week (urgent, with money, one per club).
     const home = Object.values(s.clubs).filter((c) => c.countryId === sc.homeCountry && !mineSet.has(c.id));
     const homeNeeds = home.map((club) => ({ club, needs: needsOf(club) }));
+    // Full-time: a club that needs a position may be a buyer for one of your employer's players.
+    const employer = e.mode === 'fulltime' ? s.clubs[e.clubId] : undefined;
+    const forSale = new Set(s.mandates.filter((m) => m.clubId === employer?.id && (m.status === 'active' || m.status === 'offered')).map((m) => m.playerId));
+    const yourFit = (pos: Position, bar: number): GazetteNeed['yourFit'] => {
+      if (!employer) return undefined;
+      const atPos = employer.squad
+        .map((id) => s.players[id]!)
+        .filter((p) => p.naturalPosition === pos && p.id !== employer.captainId)
+        .map((p) => ({ p, est: estimate(fog(s, p).positions[pos]) }));
+      const pick = atPos.find((x) => forSale.has(x.p.id)) ?? atPos.filter((x) => x.est >= bar).sort((a, b) => a.est - b.est)[0];
+      return pick && { id: pick.p.id, name: `${pick.p.firstName} ${pick.p.lastName}`, sale: forSale.has(pick.p.id) };
+    };
     const leads = pressLeads(s)
       .filter((i) => !mineSet.has(i.clubId))
       .flatMap((i) => {
         const club = s.clubs[i.clubId]!;
         // What you know of the need, if you know it; otherwise only what the paper says.
         const n = needsOf(club).find((x) => x.position === i.pos) ?? { position: i.pos, severity: 0.5, positionalAverage: 0, depth: 0 };
-        return [{ ...row(club, n as ReturnType<typeof squadNeeds>[number]), coach: clubTrust(s, club.id), rumour: i.rumour, circling: i.rivals?.length ?? 0 }];
+        return [
+          {
+            ...row(club, n as ReturnType<typeof squadNeeds>[number]),
+            coach: clubTrust(s, club.id),
+            rumour: i.rumour,
+            circling: i.rivals?.length ?? 0,
+            yourFit: yourFit(i.pos, n.positionalAverage + 1),
+          },
+        ];
       });
 
     const allNeeds = [...mine.map((id) => ({ club: s.clubs[id]!, needs: needsOf(s.clubs[id]!) })), ...homeNeeds];
@@ -2742,6 +2766,7 @@ export class Engine {
       club: badge(s.clubs[m.clubId]!),
       askingFee: m.askingFee,
       commissionPct: m.commissionPct,
+      commission: mandateCommission(s, m, m.askingFee),
       status: m.status as 'offered' | 'active',
       daysLeft: m.deadline !== undefined && m.status === 'active' ? Math.max(0, m.deadline - s.date) : undefined,
     };
@@ -3029,8 +3054,8 @@ export class Engine {
       inCity: s.scout?.location === club.cityId,
       work: { ok: rights.ok, reason: rights.reason },
       rivalInterest: this.rivalInterest(p.id),
-      rights: !rights.ok ? 'none' : rights.mandate ? 'mandate' : rights.represented ? 'represented' : rights.open ? 'open' : 'club',
-      commission: rights.mandate ? usd(Math.round((fee * rights.mandate.commissionPct) / 100)) : undefined,
+      rights: !rights.ok ? 'none' : rights.mandate ? 'mandate' : rights.represented ? 'represented' : rights.open ? 'open' : rights.forEmployer ? 'employer' : 'club',
+      commission: rights.mandate ? mandateCommission(s, rights.mandate, fee) : undefined,
       agreement: s.scout ? (({ ok, reason }) => ({ ok, reason }))(agreementCheck(s, club.id)) : { ok: false },
       coach: officialView('coach'),
       existing: existing && this.dealView(existing),
@@ -3207,13 +3232,16 @@ export class Engine {
     const est = estimate(fog(s, p).ovr);
     const sale = s.mandates.find((m) => m.status === 'active' && m.playerId === p.id);
     const fee = sale ? sale.askingFee : transferFee(s, p);
-    const openToAll = !!sale || (!p.clubId && !!s.scout?.represented.includes(p.id));
+    const job0 = s.scout?.employment;
+    const ownPlayer = job0?.mode === 'fulltime' && p.clubId === job0.clubId;
+    const openToAll = !!sale || ownPlayer || (!p.clubId && !!s.scout?.represented.includes(p.id));
     const here = s.scout ? s.cities[s.scout.location]!.countryId : p.nationality;
     const scored: { club: Club; score: number; reason: string; avg?: number }[] = [];
     for (const club of Object.values(s.clubs)) {
       if (club.id === p.clubId) continue;
       const job = s.scout?.employment;
-      if (job?.mode === 'fulltime' && club.id !== job.clubId) continue;
+      // Full-time: you buy only for your employer, but you can sell its players to anyone.
+      if (job?.mode === 'fulltime' && club.id !== job.clubId && !ownPlayer) continue;
       const isClient = job?.mode === 'freelance' ? job.clients.includes(club.id) : job?.clubId === club.id;
       const pos = p.naturalPosition;
       if (!formationPositions(club).includes(pos)) continue;
@@ -3228,7 +3256,10 @@ export class Engine {
       const need = this.knownNeeds(club).find((n) => n.position === pos)?.severity ?? 0;
       const margin = avg === undefined ? 0 : est - avg;
       if (avg !== undefined && margin < -3 && !isClient && !inCity && !known) continue;
-      const score = margin * 0.6 + need * 10 + (inCity ? 6 : 0) + known / 10 + (isClient ? 25 : 0) + (openToAll && margin >= 0 ? 4 : 0);
+      // Selling: when you can't see a club's level, its division is the hint. A player his own club doesn't need fits a smaller club.
+      const sellerTier = p.clubId ? s.clubs[p.clubId]!.tier : undefined;
+      const stepDown = openToAll && avg === undefined && sellerTier !== undefined ? clamp((club.tier - sellerTier) * 3, -6, 6) : 0;
+      const score = margin * 0.6 + need * 10 + (inCity ? 6 : 0) + known / 10 + (isClient ? 25 : 0) + (openToAll && margin >= 0 ? 4 : 0) + stepDown;
       const reason =
         openToAll && !isClient && margin >= 0 && need >= 0.2
           ? `Needs a ${pos}`

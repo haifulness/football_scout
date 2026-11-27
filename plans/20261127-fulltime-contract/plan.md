@@ -1,6 +1,6 @@
 # A full-time job worth taking
 
-Status: planned 2026-11-27
+Status: phases 1–2 done 2026-11-27
 
 Feedback: a full-time contract isn't worth it. Freelancing brings far more work and money.
 

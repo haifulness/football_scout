@@ -54,7 +54,7 @@ export function clubTrust(state: GameState, clubId: ClubId): number {
   const rel = scout.relationships[club.headCoachId] ?? 0;
   const r = clubRecord(scout, clubId);
   const employer = scout.employment.mode === 'fulltime' && scout.employment.clubId === clubId ? 10 : 0;
-  const missions = Math.min(20, (r.missionsDone ?? 0) * 6) - Math.min(20, (r.missionsFailed ?? 0) * 8);
+  const missions = Math.min(20, (r.missionsDone ?? 0) * 6) - Math.min(20, (r.missionsFailed ?? 0) * 8) + Math.min(12, (r.sales ?? 0) * 4);
   // How the players you brought turned out.
   const verdicts = Math.min(16, (r.hits ?? 0) * HIT_TRUST) - Math.min(20, (r.flops ?? 0) * FLOP_TRUST);
   // A reputation for straight dealing (integrity) moves trust up to ±8.
@@ -67,6 +67,13 @@ export function clubTrust(state: GameState, clubId: ClubId): number {
 export function recordSigning(state: GameState, clubId: ClubId) {
   const scout = state.scout!;
   scout.clubRecord[clubId] = { ...clubRecord(scout, clubId), signings: clubRecord(scout, clubId).signings + 1 };
+}
+
+/** Full-time: you sold one of your employer's players without a brief. */
+export function recordSale(state: GameState, clubId: ClubId) {
+  const scout = state.scout!;
+  const r = clubRecord(scout, clubId);
+  scout.clubRecord[clubId] = { ...r, sales: (r.sales ?? 0) + 1 };
 }
 
 export function recordWeakPitch(state: GameState, clubId: ClubId) {
@@ -222,7 +229,7 @@ export function acceptOffer(state: GameState, offerId: number): Employment {
         d.log.push({ date: state.date, text: `Deal off: you joined ${club.name}.`, tone: 'bad' });
       }
     leaveMentor(state, 'job');
-    endFreelanceWork(state, `You joined ${club.name} full-time.`);
+    endFreelanceWork(state, `You joined ${club.name} full-time.`, club.id);
     // New colleagues: a working relationship from day one (more is up to you).
     scout.relationships[club.headCoachId] = Math.max(scout.relationships[club.headCoachId] ?? 0, COLLEAGUE_START);
     const { year, month } = toParts(state.date);

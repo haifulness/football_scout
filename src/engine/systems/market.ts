@@ -3,7 +3,7 @@ import { addDays, ageOn, formatDate, toParts, type GameDate } from '../core/cale
 import { chargeStaffCut } from './delegation';
 import { SPOTLIGHT, inSpotlight } from './campaigns';
 import type { ClubId, PlayerId } from '../core/ids';
-import { formatUSD, roundPrice, usd } from '../core/money';
+import { formatUSD, roundPrice, usd, type USD } from '../core/money';
 import { Rng, clamp } from '../core/rng';
 import type { Club, ClubTier } from '../model/club';
 import type { Deal } from '../model/deal';
@@ -23,7 +23,7 @@ import { positionalAverage } from './squad-needs';
 
 /**
  * The freelance market (PLAN §3.10, §3.16):
- * - Selling mandates: a client wants a player sold. You may pitch him to any
+ * - Selling mandates: a client (or, full-time, your employer) wants a player sold. You may pitch him to any
  *   club; the buyer's normal gate and sign-off apply; you earn a commission.
  * - Representation: you act for a free agent. You may pitch him to any club,
  *   and AI clubs leave him to you while you represent him.
@@ -36,6 +36,21 @@ export const REPRESENT_RAPPORT = 25;
 const RECENT_SIGNING_DAYS = 300;
 
 const isFreelance = (state: GameState) => state.scout?.employment.mode === 'freelance';
+/** Your employer, if you work full-time. */
+const employerOf = (state: GameState): ClubId | undefined => {
+  const e = state.scout?.employment;
+  return e?.mode === 'fulltime' ? e.clubId : undefined;
+};
+/** Full-time: up to this many sales for your employer at once (a client asks for one at a time). */
+export const EMPLOYER_MANDATES = 2;
+/** Full-time: the least a sale for your employer pays, by its tier (small clubs sell for small fees). */
+export const EMPLOYER_SALE_FLOOR: Record<ClubTier, number> = { 5: 500, 4: 1_400, 3: 1_750, 2: 3_500, 1: 8_750 };
+
+/** Your commission on a sale at this fee. */
+export function mandateCommission(state: GameState, m: Mandate, fee: number): USD {
+  const pct = Math.round((fee * m.commissionPct) / 100);
+  return usd(m.employer ? Math.max(pct, EMPLOYER_SALE_FLOOR[state.clubs[m.clubId]!.tier]) : pct);
+}
 
 // ── Pitch rights ────────────────────────────────────────────────────────
 
@@ -48,6 +63,8 @@ export interface PitchRights {
   represented?: boolean;
   /** A freelancer pitching to a club that isn't a client yet: allowed, but it pays less. */
   open?: boolean;
+  /** Full-time: selling one of your employer's players to another club. */
+  forEmployer?: boolean;
 }
 
 /**
@@ -68,6 +85,12 @@ export function pitchRights(state: GameState, p: Player, club: Club): PitchRight
       return age.ok ? { ok: true, represented: true } : { ok: false, reason: age.reason };
     }
     if (!canWorkWith(state, club.id).ok) return { ok: true, open: true };
+  }
+  // Full-time: your club's players are yours to sell, to anyone.
+  const employer = employerOf(state);
+  if (employer && p.clubId === employer) {
+    const mandate = state.mandates.find((m) => m.status === 'active' && m.playerId === p.id && m.clubId === employer);
+    return mandate ? { ok: true, mandate } : { ok: true, forEmployer: true };
   }
   return canWorkWith(state, club.id);
 }
@@ -103,11 +126,11 @@ export function clubReport(state: GameState, club: Club, p: Player, rng: Rng): N
 }
 
 /** Who a club would like to move on: unused, overpaid, or surplus at his position. */
-function surplusCandidate(state: GameState, club: Club, rng: Rng): { p: Player; reason: string } | undefined {
+function surplusCandidate(state: GameState, club: Club, rng: Rng, skip?: Set<PlayerId>): { p: Player; reason: string } | undefined {
   const squad = club.squad.map((id) => state.players[id]!);
   const scored = squad
     .filter(
-      (p) => p.id !== club.captainId && ageOn(p.birthDate, state.date) >= 20 && (p.joinedOn === undefined || state.date - p.joinedOn >= RECENT_SIGNING_DAYS),
+      (p) => !skip?.has(p.id) && p.id !== club.captainId && ageOn(p.birthDate, state.date) >= 20 && (p.joinedOn === undefined || state.date - p.joinedOn >= RECENT_SIGNING_DAYS),
     )
     .map((p) => {
       const ovr = ovrAt(p, p.naturalPosition);
@@ -131,9 +154,10 @@ function surplusCandidate(state: GameState, club: Club, rng: Rng): { p: Player; 
 }
 
 export function acceptMandate(state: GameState, id: number): Mandate {
-  if (!isFreelance(state)) throw new ScoutingError('Selling mandates are for freelancers.');
   const m = state.mandates.find((x) => x.id === id);
   if (!m || m.status !== 'offered') throw new ScoutingError('That mandate is no longer on offer.');
+  const employer = employerOf(state);
+  if (employer && m.clubId !== employer) throw new ScoutingError(`You work full-time for ${state.clubs[employer]!.name}: you only sell for them.`);
   if (state.mandates.filter((x) => x.status === 'active').length >= MAX_ACTIVE_MANDATES)
     throw new ScoutingError(`You can handle at most ${MAX_ACTIVE_MANDATES} sales at once.`);
   m.status = 'active';
@@ -150,6 +174,7 @@ export function acceptMandate(state: GameState, id: number): Mandate {
   for (const d of state.deals)
     if (d.playerId === m.playerId && d.clubId !== m.clubId && d.mandateId === undefined && (d.stage === 'negotiating' || d.stage === 'agreed')) {
       d.mandateId = m.id;
+      d.forEmployer = undefined;
       d.log.push({ date: state.date, text: `${club.name} asked you to sell him: this deal now counts for the sale.`, tone: 'good' });
       if (d.stage === 'agreed') onMandateSecured(state, d);
     }
@@ -183,7 +208,7 @@ export function payCommission(state: GameState, deal: Deal) {
   const m = state.mandates.find((x) => x.id === deal.mandateId);
   if (!m) return;
   const seller = state.clubs[m.clubId]!;
-  const commission = usd(Math.round((deal.fee * m.commissionPct) / 100));
+  const commission = mandateCommission(state, m, deal.fee);
   const p = state.players[deal.playerId]!;
   addLedger(state, {
     amount: commission,
@@ -233,9 +258,9 @@ export function stopRepresenting(state: GameState, playerId: PlayerId) {
 }
 
 /** Taking a full-time job: freelance-only work ends. */
-export function endFreelanceWork(state: GameState, why: string) {
+export function endFreelanceWork(state: GameState, why: string, keepClub?: ClubId) {
   for (const m of state.mandates)
-    if (m.status === 'active' || m.status === 'offered') {
+    if ((m.status === 'active' || m.status === 'offered') && m.clubId !== keepClub) {
       m.status = 'expired';
       m.resolvedOn = state.date;
       m.note = why;
@@ -248,7 +273,9 @@ export function endFreelanceWork(state: GameState, why: string) {
 export function marketTick(state: GameState, date: GameDate) {
   const scout = state.scout;
   if (!scout || state.careerOver) return;
-  const clients = scout.employment.mode === 'freelance' ? scout.employment.clients : [];
+  // The clubs that can ask you to sell: your clients, or your employer.
+  const clients = scout.employment.mode === 'freelance' ? scout.employment.clients : [scout.employment.clubId];
+  const employer = employerOf(state);
 
   for (const m of state.mandates) {
     if (m.status !== 'offered' && m.status !== 'active') continue;
@@ -330,15 +357,20 @@ export function marketTick(state: GameState, date: GameDate) {
 
   const { day } = toParts(date);
   if (day !== 8 && day !== 22) return;
-  if (!isUnlocked(state, 'mandates')) return;
+  // Your employer trusts its own scout with sales from day one; clients wait until you have a name.
+  if (!employer && !isUnlocked(state, 'mandates')) return;
   const rng = Rng.derive(state.seed, `mandates:${date}`);
   for (const clubId of clients) {
     const club = state.clubs[clubId];
-    if (!club || state.mandates.some((m) => m.clubId === clubId && (m.status === 'offered' || m.status === 'active'))) continue;
+    const open = state.mandates.filter((m) => m.clubId === clubId && (m.status === 'offered' || m.status === 'active'));
+    if (!club || open.length >= (clubId === employer ? EMPLOYER_MANDATES : 1)) continue;
     const last = Math.max(-Infinity, ...state.mandates.filter((m) => m.clubId === clubId).map((m) => m.postedOn));
     const quiet = Number.isFinite(last) ? date - last : 60;
-    if (!rng.chance(clamp(0.15 + quiet / 200, 0, 0.9))) continue;
-    const pick = surplusCandidate(state, club, rng);
+    if (!rng.chance(clamp(clubId === employer ? 0.25 + quiet / 150 : 0.15 + quiet / 200, 0, 0.9))) continue;
+    // Not someone you brought in yourself, nor one already up for sale.
+    const mine = new Set(state.placements.filter((pl) => pl.clubId === clubId && date - pl.signedOn < RECENT_SIGNING_DAYS).map((pl) => pl.playerId));
+    for (const m of open) mine.add(m.playerId);
+    const pick = surplusCandidate(state, club, rng, mine);
     if (!pick) continue;
     const mandate: Mandate = {
       report: clubReport(state, club, pick.p, rng),
@@ -346,7 +378,8 @@ export function marketTick(state: GameState, date: GameDate) {
       clubId,
       playerId: pick.p.id,
       askingFee: roundPrice(Math.max(pick.p.value * rng.float(0.85, 1.1), 1000)),
-      commissionPct: rng.int(3, 5),
+      commissionPct: clubId === employer ? rng.int(2, 3) : rng.int(3, 5),
+      employer: clubId === employer || undefined,
       reason: pick.reason,
       postedOn: date,
       acceptBy: addDays(date, OFFER_DAYS),
@@ -359,7 +392,7 @@ export function marketTick(state: GameState, date: GameDate) {
       kind: 'career',
       link: 'missions',
       title: `Selling mandate: ${club.name} want ${pick.p.firstName} ${pick.p.lastName} sold`,
-      body: `"${pick.reason}" Asking ${formatUSD(mandate.askingFee)}, your commission ${mandate.commissionPct}%. Accept by ${formatDate(mandate.acceptBy)} in Missions.`,
+      body: `"${pick.reason}" Asking ${formatUSD(mandate.askingFee)}, your commission ${formatUSD(mandateCommission(state, mandate, mandate.askingFee))} (${mandate.commissionPct}%)${clubId === employer ? ' on top of your salary. You can pitch him to any club' : ''}. Accept by ${formatDate(mandate.acceptBy)} in Missions.`,
       clubIds: [club.id],
       countryId: club.countryId,
       playerIds: [pick.p.id],

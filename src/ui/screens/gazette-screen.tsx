@@ -548,7 +548,14 @@ function Wanted({
             ) : (
               <ul className="divide-y divide-white/[0.05]">
                 {g.leads.map((n) => (
-                  <NeedLine key={`${n.club.id}:${n.position}`} n={n} onClub={onClub} onSearch={onSearch} lead />
+                  <NeedLine
+                    key={`${n.club.id}:${n.position}`}
+                    n={n}
+                    onClub={onClub}
+                    onSearch={onSearch}
+                    onPitch={(playerId, clubId) => onRecommend({ playerId: playerId as never, clubId })}
+                    lead
+                  />
                 ))}
               </ul>
             )}
@@ -619,7 +626,19 @@ function Wanted({
   );
 }
 
-function NeedLine({ n, onClub, onSearch, lead }: { n: GazetteNeed; onClub: (id: ClubId) => void; onSearch: (n: GazetteNeed) => void; lead?: boolean }) {
+function NeedLine({
+  n,
+  onClub,
+  onSearch,
+  onPitch,
+  lead,
+}: {
+  n: GazetteNeed;
+  onClub: (id: ClubId) => void;
+  onSearch: (n: GazetteNeed) => void;
+  onPitch?: (playerId: string, clubId: ClubId) => void;
+  lead?: boolean;
+}) {
   return (
     <li className="flex items-center gap-3 py-2">
       <button onClick={() => onClub(n.club.id)} title={`Open ${n.club.name}`}>
@@ -654,6 +673,15 @@ function NeedLine({ n, onClub, onSearch, lead }: { n: GazetteNeed; onClub: (id: 
           {lead && ` · ${n.coach ? `standing ${n.coach}` : 'coach never met'}`}
           {n.mission && ` · brief ${formatUSD(n.mission.reward, { compact: true })}`}
         </div>
+        {lead && n.yourFit && (
+          <button
+            className="mt-0.5 block max-w-full truncate text-left text-[11px] text-grass-300 hover:underline"
+            onClick={() => onPitch?.(n.yourFit!.id, n.club.id)}
+            title={`Pitch him to ${n.club.name}: you can sell your club's players to any club`}
+          >
+            You have a fit: {n.yourFit.name} (your club{n.yourFit.sale ? ', up for sale' : ''})
+          </button>
+        )}
       </div>
       <PosBadge pos={n.position} />
       <button

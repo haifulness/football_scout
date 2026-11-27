@@ -303,7 +303,7 @@ export interface PlayerView {
   assistantReport?: { by: string; rating: number; date: GameDate };
   representation: { status: 'represented' | 'available' | 'unavailable'; reason?: string } | null;
   /** An active or offered selling mandate on this player. */
-  mandate?: { id: number; club: ClubBadge; askingFee: USD; commissionPct: number; status: 'offered' | 'active'; daysLeft?: number };
+  mandate?: { id: number; club: ClubBadge; askingFee: USD; commissionPct: number; commission: USD; status: 'offered' | 'active'; daysLeft?: number };
   value: USD;
   wage: USD;
   contractUntil?: GameDate;
@@ -921,7 +921,7 @@ export interface PitchPreview {
   /** Whether you may recommend to this club at all (employer / client rules). */
   work: { ok: boolean; reason?: string };
   /** Why you may pitch here: the club is yours, a client's sale, or a free agent you represent. */
-  rights: 'club' | 'mandate' | 'represented' | 'open' | 'none';
+  rights: 'club' | 'mandate' | 'represented' | 'open' | 'employer' | 'none';
   rivalInterest: RivalInterestView[];
   /** Your cut if this is a mandate sale. */
   commission?: USD;
@@ -1222,6 +1222,8 @@ export interface RepresentedView {
 
 export interface MarketView {
   freelance: boolean;
+  /** Full-time: your employer's name (they give you selling briefs). */
+  employer?: string;
   mandates: MandateView[];
   represented: RepresentedView[];
   maxRepresented: number;
@@ -1416,6 +1418,8 @@ export interface GazetteNeed {
   rumour?: boolean;
   /** Leads only: rival scouts said to be working on it. */
   circling?: number;
+  /** Leads only, full-time: one of your employer's players who could fill it (`sale`: you have a brief to sell him). */
+  yourFit?: { id: PlayerId; name: string; sale: boolean };
 }
 
 export interface GazettePoolFit {

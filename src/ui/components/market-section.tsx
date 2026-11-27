@@ -24,11 +24,11 @@ const STATUS: Record<MandateView['status'], { label: string; color: string }> = 
 
 const mid = (r: [number, number]) => Math.round((r[0] + r[1]) / 2);
 
-/** Freelance market on the Missions screen: clients' sales and the free agents you represent. */
+/** The market on the Missions screen: sales for clients (or your employer) and the free agents you represent. */
 export function MarketSection({ market }: { market: MarketView }) {
   const open = market.mandates.filter((m) => m.status === 'offered' || m.status === 'active');
   const past = market.mandates.filter((m) => m.status !== 'offered' && m.status !== 'active');
-  if (!market.freelance && !past.length) return null;
+  if (!market.freelance && !market.employer && !past.length) return null;
 
   return (
     <>
@@ -43,7 +43,9 @@ export function MarketSection({ market }: { market: MarketView }) {
           <div className="p-6 text-center text-sm text-mist-400">
             {market.freelance
               ? 'No sales on your desk. Clients ask you to sell players they want to move on, about twice a month.'
-              : 'Selling mandates are for freelancers.'}
+              : market.employer
+                ? `No sales on your desk. ${market.employer} ask you to sell players they want to move on, about twice a month. You can also pitch any of their players to other clubs without a brief.`
+                : 'Selling mandates are for freelancers.'}
           </div>
         )}
         {past.length > 0 && (

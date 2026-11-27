@@ -16,7 +16,7 @@ import { FORMATIONS } from '../data/formations';
 import type { Club, ClubOfficial, OfficialPriorities } from '../model/club';
 import { emptyEarnings, type Deal, type DealEvent, type Official, type Placement } from '../model/deal';
 import { settleSigningBonuses } from './payouts';
-import { canWorkWith, clubTrust, onSigningCompleted, recordWeakPitch } from './employment';
+import { canWorkWith, clubTrust, onSigningCompleted, recordSale, recordWeakPitch } from './employment';
 import { onDealSecured, preferenceBonus } from './missions';
 import { onMandateSecured, payCommission, pitchRights } from './market';
 import { boardDecides, needsBoard, presidentOf } from './board';
@@ -196,6 +196,7 @@ export function playerChance(state: GameState, deal: Deal): number {
   if (hasTrait(p, 'mercenary')) x += raise >= 1.3 ? 0.6 : -0.4;
   if (!seller) x += 0.8; // free agents want a club
   if (deal.mandateId !== undefined) x += 1; // his club is pushing him out
+  else if (deal.forEmployer) x += 0.5; // his club is open to offers
   if (deal.represented) x += 0.6; // you speak for him
   // Offering more than he asked makes him keener (up to +50% over his demand counts).
   if (deal.wageDemand && deal.wage > deal.wageDemand) x += clamp((deal.wage / deal.wageDemand - 1) * 2.4, 0, 1.2);
@@ -360,6 +361,7 @@ export function pitch(state: GameState, args: PitchArgs): Deal {
     mandateId: rights.mandate?.id,
     represented: rights.represented,
     open: rights.open || undefined,
+    forEmployer: rights.forEmployer || undefined,
     delegatedTo: delegate?.id,
     wage: brokeredWage(state, p, club),
     estimateThen: estimate(fog(state, p).positions[args.position]),
@@ -532,7 +534,7 @@ export function resolveDeals(state: GameState, date: GameDate) {
       } else {
         deal.stage = 'failed';
         deal.reason =
-          deal.sellingClubId && deal.mandateId === undefined && rng.chance(0.4)
+          deal.sellingClubId && deal.mandateId === undefined && !deal.forEmployer && rng.chance(0.4)
             ? `${state.clubs[deal.sellingClubId]!.name} wouldn't sell.`
             : `He decided to stay where he is.`;
         log(deal, date, `Collapsed: ${deal.reason}`, 'bad');
@@ -561,17 +563,28 @@ function completeDeal(state: GameState, deal: Deal, date: GameDate) {
   executeTransfer(state, p, buyer, deal.fee, deal.wage, date);
   deal.stage = 'completed';
   deal.completedOn = date;
-  if (deal.mandateId !== undefined) {
-    // A sale for a client: commission, no placement (the buyer didn't hire you).
-    onMandateSecured(state, deal);
-    payCommission(state, deal);
+  if (deal.mandateId !== undefined || deal.forEmployer) {
+    // A sale for a client or your employer: commission (with a brief), no placement (the buyer didn't hire you).
+    if (deal.mandateId !== undefined) {
+      onMandateSecured(state, deal);
+      payCommission(state, deal);
+    } else if (from) {
+      recordSale(state, from.id);
+      const coach = from.headCoachId;
+      state.scout!.relationships[coach] = clamp((state.scout!.relationships[coach] ?? 0) + 3, 0, 100);
+    }
     log(
       deal,
       date,
       `HERE WE GO! ${p.firstName} ${p.lastName} joins ${buyer.name} for ${formatUSD(deal.fee)}. Sale completed for ${from?.name ?? 'your client'}.`,
       'good',
     );
-    event(state, deal, 'completed', `${p.firstName} ${p.lastName} sold to ${buyer.name} for ${formatUSD(deal.fee)}. Commission paid.`);
+    event(
+      state,
+      deal,
+      'completed',
+      `${p.firstName} ${p.lastName} sold to ${buyer.name} for ${formatUSD(deal.fee)}.${deal.mandateId !== undefined ? ' Commission paid.' : ` ${from?.name ?? 'Your club'} are glad of the money.`}`,
+    );
     addNews(state, {
       date,
       kind: 'transfer',

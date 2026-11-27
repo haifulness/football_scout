@@ -50,7 +50,7 @@ export function clientYear(state: GameState, clubId: ClubId, asOf: GameDate = st
   const reviewOn = asOf === state.date ? nextReview(asOf) : asOf;
   const since = Math.max(addDays(reviewOn, -365), scout.clientSince?.[clubId] ?? -Infinity) as GameDate;
   const inYear = (d?: GameDate) => d !== undefined && d >= since && d <= asOf;
-  const signings = state.deals.filter((d) => d.clubId === clubId && d.stage === 'completed' && !d.mandateId && inYear(d.completedOn)).length;
+  const signings = state.deals.filter((d) => d.clubId === clubId && d.stage === 'completed' && !d.mandateId && !d.forEmployer && inYear(d.completedOn)).length;
   const sales = state.mandates.filter((m) => m.clubId === clubId && m.status === 'succeeded' && inYear(m.resolvedOn)).length;
   const briefsDone = state.missions.filter((m) => m.clubId === clubId && m.status === 'succeeded' && inYear(m.resolvedOn)).length;
   const briefsFailed =

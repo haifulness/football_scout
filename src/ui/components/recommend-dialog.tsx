@@ -560,11 +560,13 @@ function PitchView({
 
           <RivalWarning rivals={preview.rivalInterest} compact />
 
-          {(preview.rights === 'mandate' || preview.rights === 'represented') && (
+          {(preview.rights === 'mandate' || preview.rights === 'represented' || preview.rights === 'employer') && (
             <div className="rounded-xl border border-flood-400/25 bg-flood-500/[0.06] px-4 py-3 text-sm text-mist-200">
               {preview.rights === 'mandate'
-                ? "You're selling him for a client: any club can be pitched. The sale earns your commission, not a placement bonus."
-                : 'You represent him: any club can be pitched. A signing earns your usual placement bonus.'}
+                ? "You're selling him under a mandate: any club can be pitched. The sale earns your commission, not a placement bonus."
+                : preview.rights === 'employer'
+                  ? "He plays for your club: you can sell him to any club. Without a selling brief there's no commission, but your club notices the sale and your standing there grows."
+                  : 'You represent him: any club can be pitched. A signing earns your usual placement bonus.'}
             </div>
           )}
 

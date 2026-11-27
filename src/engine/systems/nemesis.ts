@@ -50,7 +50,7 @@ export function headToHead(state: GameState, asOf: GameDate = state.date) {
   if (!r || !n) return undefined;
   const { year, month } = toParts(asOf);
   const since = makeDate(month >= 7 ? year : year - 1, 7, 1);
-  const you = state.deals.filter((d) => d.stage === 'completed' && !d.mandateId && (d.completedOn ?? -Infinity) >= since && (d.completedOn ?? Infinity) <= asOf).length;
+  const you = state.deals.filter((d) => d.stage === 'completed' && !d.mandateId && !d.forEmployer && (d.completedOn ?? -Infinity) >= since && (d.completedOn ?? Infinity) <= asOf).length;
   const him = (r.signed ?? []).filter((x) => x.date >= since && x.date <= asOf).length;
   return { you, him, steals: n.steals, clientsTaken: n.clientsTaken, yourRep: Math.round(scout.reputation), hisRep: Math.round(r.reputation), since };
 }

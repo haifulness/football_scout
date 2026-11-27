@@ -52,7 +52,7 @@ export function nextQuarter(date: GameDate): GameDate {
 export function clientRace(state: GameState, clubId: ClubId): ClientRace {
   const club = state.clubs[clubId]!;
   const since = state.date - LOOKBACK;
-  const yoursDeals = state.deals.filter((d) => d.clubId === clubId && d.stage === 'completed' && !d.mandateId && (d.completedOn ?? -Infinity) >= since);
+  const yoursDeals = state.deals.filter((d) => d.clubId === clubId && d.stage === 'completed' && !d.mandateId && !d.forEmployer && (d.completedOn ?? -Infinity) >= since);
   const yours = yoursDeals.reduce((n, d) => n + impact(state, d.playerId, club), 0);
   let rival: ClientRace['rival'];
   for (const r of state.rivals) {

@@ -32,7 +32,7 @@ export function FreelanceCard({ player }: { player: PlayerView }) {
               <ClubLink club={mandate.club} className="font-semibold" /> want him sold for <b className="num">{formatUSD(mandate.askingFee)}</b>. Your
               commission:{' '}
               <b className="num text-flood-300">
-                {mandate.commissionPct}% ({formatUSD(Math.round((mandate.askingFee * mandate.commissionPct) / 100))})
+                {formatUSD(mandate.commission)} ({mandate.commissionPct}%)
               </b>
               .
             </div>
