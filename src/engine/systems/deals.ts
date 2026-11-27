@@ -16,7 +16,7 @@ import { FORMATIONS } from '../data/formations';
 import type { Club, ClubOfficial, OfficialPriorities } from '../model/club';
 import { emptyEarnings, type Deal, type DealEvent, type Official, type Placement } from '../model/deal';
 import { settleSigningBonuses } from './payouts';
-import { canWorkWith, clubTrust, onSigningCompleted, recordSale, recordWeakPitch } from './employment';
+import { canWorkWith, clubTrust, onSigningCompleted, recordStanding, recordSale, recordWeakPitch } from './employment';
 import { onDealSecured, preferenceBonus } from './missions';
 import { onMandateSecured, payCommission, pitchRights } from './market';
 import { boardDecides, needsBoard, presidentOf } from './board';
@@ -156,7 +156,9 @@ export function signOffProbability(state: GameState, o: ClubOfficial, p: Player,
   const match = num / den;
   const scout = state.scout!;
   const relationship = scout.relationships[o.id] ?? 0;
-  const trust = clubTrust(state, club.id);
+  // Your record at the club. The coach's relationship and report accuracy have their own terms (above, and in
+  // reportBonus), so standing's share of them isn't counted again.
+  const record = recordStanding(state, club.id);
   // Pitching exactly what the club described in a discussed brief helps.
   const brief = preferenceBonus(state, p, club, pos);
   // A coach tired of names at this position, and a club that knows your record, weigh on the answer.
@@ -164,7 +166,7 @@ export function signOffProbability(state: GameState, o: ClubOfficial, p: Player,
   return pressure * sigmoid(
     (match - 0.5) * 6 +
       (relationship - 25) / 22 +
-      (trust - 25) / 40 +
+      record / 40 +
       (scout.skills.negotiation - 10) * 0.05 -
       (o.stubbornness - 50) / 40 +
       brief +

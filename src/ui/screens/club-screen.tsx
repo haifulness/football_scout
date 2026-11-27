@@ -856,7 +856,7 @@ function PitchRecord({ club }: { club: ClubView }) {
       {r.hit && (
         <span className={r.hit.label === 'wall' ? 'text-alert-400' : r.hit.label === 'trusted' ? 'text-good-300' : ''}>
           {Math.round(r.hit.rate * 100)}% of your last {r.hit.pitches} signed off
-          {r.hit.label === 'wall' ? ' · names thrown at the wall' : r.hit.label === 'trusted' ? ' · their trusted eye' : ''}
+          {r.hit.effect ? ` · ${r.hit.effect > 0 ? '+' : '−'}${Math.round(Math.abs(r.hit.effect) * 100)}% on a coach's yes` : ''}
         </span>
       )}
     </div>

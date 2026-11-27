@@ -90,7 +90,7 @@ export function positionFatigue(state: GameState, clubId: ClubId, pos: Position)
 export type HitLabel = 'wall' | 'trusted' | 'fair';
 
 /** Your record of signed-off pitches at a club (absent until you have pitched a few times there). */
-export function hitRate(state: GameState, clubId: ClubId): { rate: number; pitches: number; label: HitLabel } | undefined {
+export function hitRate(state: GameState, clubId: ClubId): { rate: number; pitches: number; label: HitLabel; effect: number } | undefined {
   const recent: Deal[] = [];
   for (const d of state.deals) {
     if (d.clubId !== clubId || !decided(d)) continue;
@@ -99,13 +99,15 @@ export function hitRate(state: GameState, clubId: ClubId): { rate: number; pitch
   }
   if (recent.length < HIT_MIN) return undefined;
   const rate = recent.filter(yes).length / recent.length;
-  return { rate, pitches: recent.length, label: rate < HIT_LOW ? 'wall' : rate > HIT_HIGH ? 'trusted' : 'fair' };
+  const label: HitLabel = rate < HIT_LOW ? 'wall' : rate > HIT_HIGH ? 'trusted' : 'fair';
+  const factor = label === 'wall' ? (isEmployer(state, clubId) ? EMPLOYER_HIT_LOW_FACTOR : HIT_LOW_FACTOR) : label === 'trusted' ? HIT_HIGH_FACTOR : 1;
+  // effect: what it does to a coach's yes there, e.g. −0.1 for −10%.
+  return { rate, pitches: recent.length, label, effect: Math.round((factor - 1) * 100) / 100 };
 }
 
 /** What your hit rate does to a coach's yes there. */
 export function hitFactor(state: GameState, clubId: ClubId): number {
-  const h = hitRate(state, clubId);
-  return !h ? 1 : h.label === 'wall' ? (isEmployer(state, clubId) ? EMPLOYER_HIT_LOW_FACTOR : HIT_LOW_FACTOR) : h.label === 'trusted' ? HIT_HIGH_FACTOR : 1;
+  return 1 + (hitRate(state, clubId)?.effect ?? 0);
 }
 
 /** What your hit rate does to how often a club sends you briefs. */

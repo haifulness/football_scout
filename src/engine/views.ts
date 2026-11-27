@@ -232,7 +232,7 @@ export interface ClubView extends ClubBadge {
     maxNoes: number;
     /** The coach won't take your pitches until then. */
     coldUntil?: GameDate;
-    hit?: { rate: number; pitches: number; label: 'wall' | 'trusted' | 'fair' };
+    hit?: { rate: number; pitches: number; label: 'wall' | 'trusted' | 'fair'; /** On a coach's yes there, e.g. −0.1. */ effect: number };
   };
   needsRead: {
     tier: 'unknown' | 'rough' | 'good' | 'sure';
@@ -903,7 +903,7 @@ export interface PitchPreview {
     coldUntil?: GameDate;
     fatigueNoes: number;
     fatigueCut: number;
-    hit?: { rate: number; pitches: number; label: 'wall' | 'trusted' | 'fair' };
+    hit?: { rate: number; pitches: number; label: 'wall' | 'trusted' | 'fair'; /** On a coach's yes there, e.g. −0.1. */ effect: number };
   };
   /** Rough chance he accepts once the club is on board, at his ask and at the ceiling. */
   acceptance: { atAsk: number; atCeiling: number };

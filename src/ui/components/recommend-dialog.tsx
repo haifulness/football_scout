@@ -814,25 +814,13 @@ function Verdict({ preview, wageOffer, deal }: { preview: Preview; wageOffer: nu
   if (preview.rivalInterest.length)
     chips.push({ text: `${preview.rivalInterest.length} rival${preview.rivalInterest.length > 1 ? 's' : ''} after him`, tone: 'warn' });
   if (preview.rights === 'open') chips.push({ text: 'Open pitch: half bonus', tone: 'warn' });
-  if (preview.style.fit !== 'neutral')
-    chips.push({
-      text: preview.style.fit === 'fits' ? `Suits their ${preview.style.label.toLowerCase()}` : `Wrong type for their ${preview.style.label.toLowerCase()}`,
-      tone: preview.style.fit === 'fits' ? 'good' : 'bad',
-    });
   if (preview.competition > 0)
     chips.push({
       text: `${preview.competition} rival scout${preview.competition > 1 ? 's' : ''} after this ${preview.position} spot: bar +${preview.competition}`,
       tone: 'warn',
     });
-  const pr = preview.pressure;
-  if (pr?.coldUntil !== undefined) chips.push({ text: `Coach not taking your pitches until ${formatDate(pr.coldUntil)}`, tone: 'bad' });
-  else if (pr && pr.noes > 0) chips.push({ text: `${pr.noes}/${pr.maxNoes} noes this month`, tone: pr.noes >= pr.maxNoes - 1 ? 'bad' : 'warn' });
-  if (pr && pr.fatigueNoes > 0)
-    chips.push({ text: `${ORDINAL[Math.min(pr.fatigueNoes, 5)]} ${preview.position} this month: −${Math.round(pr.fatigueCut * 100)}%`, tone: 'bad' });
-  if (pr?.hit && pr.hit.label !== 'fair')
-    chips.push({ text: pr.hit.label === 'wall' ? `Hit rate ${Math.round(pr.hit.rate * 100)}%: −10%` : `Trusted eye here: +5%`, tone: pr.hit.label === 'wall' ? 'bad' : 'good' });
-  if (preview.settling && (preview.settling.label === 'slow' || preview.settling.label === 'very slow'))
-    chips.push({ text: `Settling: ${preview.settling.label} (~${preview.settling.months} mo)`, tone: 'warn' });
+  const mood = coachMood(preview.pressure, preview.position);
+  if (mood) chips.push({ text: mood, tone: 'bad' });
   const chipColor = { good: 'border-good-400/25 text-good-200', bad: 'border-alert-500/40 text-alert-400', warn: 'border-flood-400/30 text-flood-300' };
   return (
     <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4">
@@ -1066,6 +1054,18 @@ function AgreementBox({
 
 const ORDINAL = ['1st', '2nd', '3rd', '4th', '5th', '6th'];
 
+const pct = (x: number) => `${x > 0 ? '+' : '−'}${Math.round(Math.abs(x) * 100)}%`;
+
+/** The one thing weighing most on the coach right now, if anything is: shown as a single chip in the verdict. */
+function coachMood(p: PitchPreview['pressure'], position: string): string | undefined {
+  if (!p) return undefined;
+  if (p.coldUntil !== undefined) return `Coach not taking your pitches until ${formatDate(p.coldUntil)}`;
+  if (p.noes > 0 && p.noes >= p.maxNoes - 1) return `Coach: ${p.noes}/${p.maxNoes} noes this month`;
+  if (p.fatigueNoes > 0) return `${ORDINAL[Math.min(p.fatigueNoes, 5)]} ${position} this month: −${Math.round(p.fatigueCut * 100)}%`;
+  if (p.hit && p.hit.effect < 0) return `Hit rate here ${Math.round(p.hit.rate * 100)}%: ${pct(p.hit.effect)}`;
+  return undefined;
+}
+
 /** What weighs on this pitch: a coach who stopped listening, noes this month, tiredness at the position, your record here. */
 function PressureNote({ p, position }: { p: PitchPreview['pressure']; position: string }) {
   if (!p) return null;
@@ -1084,12 +1084,9 @@ function PressureNote({ p, position }: { p: PitchPreview['pressure']; position: 
   if (p.hit)
     lines.push({
       text:
-        p.hit.label === 'wall'
-          ? `Only ${Math.round(p.hit.rate * 100)}% of your last ${p.hit.pitches} names here were signed off: they think you throw names at the wall (−10%).`
-          : p.hit.label === 'trusted'
-            ? `${Math.round(p.hit.rate * 100)}% of your last ${p.hit.pitches} names here were signed off: their trusted eye (+5%).`
-            : `${Math.round(p.hit.rate * 100)}% of your last ${p.hit.pitches} names here were signed off.`,
-      bad: p.hit.label === 'wall',
+        `${p.hit.label === 'wall' ? 'Only ' : ''}${Math.round(p.hit.rate * 100)}% of your last ${p.hit.pitches} names here were signed off` +
+        (p.hit.effect ? `: ${pct(p.hit.effect)} on a coach's yes.` : '.'),
+      bad: p.hit.effect < 0,
     });
   if (!lines.length) return null;
   const bad = lines.some((l) => l.bad);

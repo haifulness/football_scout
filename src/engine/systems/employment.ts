@@ -45,14 +45,18 @@ export function standingLabel(v: number): string {
 /** Below this standing a club won't discuss an agreement: they don't know you yet. */
 export const AGREEMENT_MIN_STANDING = 8;
 
-/**
- * Your standing with a club (shown to the player as one number): mostly how well the Head Coach knows you,
- * plus your record there (signings, briefs, weak pitches), report accuracy and integrity.
- */
-export function clubTrust(state: GameState, clubId: ClubId): number {
+/** The parts of a club's standing: the Head Coach's relationship (70% of it), report accuracy, and your record there. */
+export interface StandingParts {
+  coach: number;
+  accuracy: number;
+  /** Signings, briefs, sales, verdicts, weak pitches, smears, sponsorship, employer and integrity. */
+  record: number;
+}
+
+export function clubTrustParts(state: GameState, clubId: ClubId): StandingParts | undefined {
   const scout = state.scout;
   const club = state.clubs[clubId];
-  if (!scout || !club) return 0;
+  if (!scout || !club) return undefined;
   const rel = scout.relationships[club.headCoachId] ?? 0;
   const r = clubRecord(scout, clubId);
   const employer = scout.employment.mode === 'fulltime' && scout.employment.clubId === clubId ? 10 : 0;
@@ -61,9 +65,32 @@ export function clubTrust(state: GameState, clubId: ClubId): number {
   const verdicts = Math.min(16, (r.hits ?? 0) * HIT_TRUST) - Math.min(20, (r.flops ?? 0) * FLOP_TRUST);
   // A reputation for straight dealing (integrity) moves trust up to ±8.
   const integrity = ((scout.integrity ?? 50) - 50) / 6.25;
-  const trust = Math.round(clamp(-smearPenalty(state, clubId) + rel * 0.7 + Math.min(40, r.signings * 8) - Math.min(15, r.weakPitches * 3) + missions + verdicts + sponsorTrust(state, clubId) + employer + accuracyTrust(state) + integrity, 0, 100));
+  const record =
+    -smearPenalty(state, clubId) + Math.min(40, r.signings * 8) - Math.min(15, r.weakPitches * 3) + missions + verdicts + sponsorTrust(state, clubId) + employer + integrity;
+  return { coach: rel * 0.7, accuracy: accuracyTrust(state), record };
+}
+
+/**
+ * Your standing with a club (shown to the player as one number): mostly how well the Head Coach knows you,
+ * plus your record there (signings, briefs, weak pitches), report accuracy and integrity.
+ */
+export function clubTrust(state: GameState, clubId: ClubId): number {
+  const parts = clubTrustParts(state, clubId);
+  if (!parts) return 0;
+  const trust = Math.round(clamp(parts.coach + parts.accuracy + parts.record, 0, 100));
   // Your mentor's clubs know you through him.
   return isMentorClient(state, clubId) ? Math.max(trust, MENTOR_STANDING) : trust;
+}
+
+/**
+ * Standing for the coach's yes: your record at the club only. The coach's relationship and your report accuracy
+ * have their own terms in the sign-off, so they aren't counted again here.
+ */
+export function recordStanding(state: GameState, clubId: ClubId): number {
+  const parts = clubTrustParts(state, clubId);
+  if (!parts) return 0;
+  const record = clamp(parts.record, 0, 100);
+  return isMentorClient(state, clubId) ? Math.max(record, MENTOR_STANDING - parts.coach - parts.accuracy) : record;
 }
 
 export function recordSigning(state: GameState, clubId: ClubId) {
