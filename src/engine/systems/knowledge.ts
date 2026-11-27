@@ -138,10 +138,7 @@ export function seenOn(state: GameState, p: Player): GameDate | undefined {
   return k && k.level > publicLevel(state, p) ? Math.max(k.lastUpdated, k.checkedOn ?? 0) as GameDate : undefined;
 }
 
-/** Days between check-ins on the same player. */
-export const CHECK_IN_DAYS = 30;
-
-/** A check-in: your read catches up with how he is now, at the knowledge you already have. */
+/** A catch-up: your read catches up with how he is now, at the knowledge you already have. */
 export function refreshRead(state: GameState, p: Player, date: GameDate) {
   const k = state.knowledge[p.id];
   if (!k) return;
@@ -279,7 +276,7 @@ export function staleTick(state: GameState, date: GameDate) {
     date,
     kind: 'career',
     title: changed.length === 1 ? `Your read on ${name(changed[0]!.p)} is out of date` : `Your read on ${changed.length} pool players is out of date`,
-    body: `${changed.map((c) => `${name(c.p)}: ${c.reason}.`).join(' ')} Look again (video, a match, or a check-in) to see how ${changed.length === 1 ? 'he is' : 'they are'} now.`,
+    body: `${changed.map((c) => `${name(c.p)}: ${c.reason}.`).join(' ')} Look again (video or a match) to see how ${changed.length === 1 ? 'he is' : 'they are'} now.`,
     playerIds: changed.map((c) => c.p.id),
   });
 }

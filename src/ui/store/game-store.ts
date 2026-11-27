@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { create } from 'zustand';
 import type { CityId, ClubId, CountryId, PlayerId, LeagueId } from '../../engine/core/ids';
 import type { CareerSetup, SearchFilters } from '../../engine/model/scout';
-import type { LiveResult, MeetTarget, MeetingResult } from '../../engine/systems/fieldwork';
+import type { MeetTarget, MeetingResult } from '../../engine/systems/fieldwork';
 import type { AdvanceSummary, AttendedMatchView, Clock, DealEventView, DiscoveryView, DealView, ScoutView, SearchView, TrophyView, WorldSummary } from '../../engine/views';
 import type { PitchArgs } from '../../engine/systems/deals';
 import type { SaveStatus } from '../../worker/game-host';
@@ -138,7 +138,7 @@ export interface GameStore {
   openReview: (season: number) => void;
   closeReview: () => Promise<void>;
   runSearch: (filters: SearchFilters) => Promise<SearchView>;
-  watchVideo: (playerId: PlayerId) => Promise<{ before: number; after: number; cost: number }>;
+  watchVideo: (playerId: PlayerId) => Promise<{ before: number; after: number; cost: number; catchUp: boolean }>;
   travel: (cityId: CityId) => Promise<void>;
   pitch: (args: PitchArgs) => Promise<DealView>;
   proposeAgreement: (clubId: ClubId) => Promise<{ accepted: boolean; reason: string }>;
@@ -161,7 +161,6 @@ export interface GameStore {
   /** Trophies just won, waiting for their reveal. */
   trophies: TrophyView[];
   dismissTrophy: () => void;
-  scoutLive: (playerId: PlayerId) => Promise<LiveResult>;
   studyClub: (clubId: ClubId) => Promise<{ before: number; after: number; days: number }>;
   askCoach: (clubId: ClubId) => Promise<{ told: boolean; message: string }>;
   meet: (target: MeetTarget) => Promise<MeetingResult>;
@@ -416,13 +415,6 @@ export const useGame = create<GameStore>((set, get) => {
       void get().saveNow();
     },
 
-    async scoutLive(playerId) {
-      const r = await timed(
-        () => engine.scoutLive(playerId),
-        (x) => x.advance,
-      );
-      return r.result;
-    },
 
     async askCoach(clubId) {
       return timed(

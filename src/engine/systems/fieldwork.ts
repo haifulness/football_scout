@@ -1,5 +1,4 @@
 import { clearSmear } from './nemesis';
-import { LIVE_READ, learnClub } from './club-read';
 import { visitPlacement } from './placement-stories';
 import { aftercare } from './settling';
 import type { CityId, PlayerId, StaffId } from '../core/ids';
@@ -7,11 +6,11 @@ import { formatUSD, usd, type USD } from '../core/money';
 import { Rng, clamp } from '../core/rng';
 import type { ClubTier } from '../model/club';
 import type { Player } from '../model/player';
-import type { Fixture, PlayerMatchLine } from '../model/season';
+import type { Fixture } from '../model/season';
 import type { GameState } from '../model/world-state';
-import { ON_THE_PITCH, TRAIT_INFO, revealTrait, type TraitId } from './character';
+import { TRAIT_INFO, revealTrait, type TraitId } from './character';
 import { addNews } from './season';
-import { knowledgeLevel, learn, marketOf } from './knowledge';
+import { learn } from './knowledge';
 import { ScoutingError, addLedger } from './scouting';
 
 /**
@@ -45,7 +44,7 @@ export function nextLiveOption(state: GameState, p: Player): LiveOption | null {
   return { fixture: next, venue: home.cityId, daysAway: next.date - state.date, ticket };
 }
 
-/** Checks you're at the venue and buys the ticket. The caller advances to match day, then calls completeLiveScouting. */
+/** Checks you're at the venue and buys the ticket. The caller advances to match day, then writes up the match (writeAttendedMatch). */
 export function startLiveScouting(state: GameState, playerId: PlayerId): LiveOption {
   const scout = state.scout;
   if (!scout) throw new ScoutingError('Set up your scout first.');
@@ -59,36 +58,6 @@ export function startLiveScouting(state: GameState, playerId: PlayerId): LiveOpt
   const away = state.clubs[opt.fixture.awayId]!;
   addLedger(state, { amount: usd(-opt.ticket), kind: 'ticket', label: `Ticket: ${home.name} v ${away.name}` });
   return opt;
-}
-
-export interface LiveResult {
-  played: boolean;
-  before: number;
-  after: number;
-  /** Other players you got a look at in the same match. */
-  others: number;
-  /** Something about his character the match showed you. */
-  trait?: TraitId;
-}
-
-export function completeLiveScouting(state: GameState, playerId: PlayerId, lines: PlayerMatchLine[], before: number): LiveResult {
-  const scout = state.scout!;
-  const p = state.players[playerId]!;
-  const played = lines.some((l) => l.playerId === playerId);
-  // Seeing him play live tells you far more than footage; a no-show still teaches a little (warm-up, body language).
-  learn(state, p, played ? Math.round(22 + scout.skills.judgingAbility * 0.6) : 6, played ? 100 : 60, state.date);
-  let others = 0;
-  for (const l of lines) {
-    if (l.playerId === playerId) continue;
-    const o = state.players[l.playerId];
-    if (!o) continue;
-    learn(state, o, 6, 70, state.date);
-    others++;
-  }
-  scout.regionKnowledge[marketOf(state, p)] = clamp((scout.regionKnowledge[marketOf(state, p)] ?? 0) + 1, 0, 100);
-  const trait = played ? revealTrait(state, p, 0.45, 'live', ON_THE_PITCH) : undefined;
-  if (p.clubId) learnClub(state, p.clubId, LIVE_READ, state.date);
-  return { played, before, after: knowledgeLevel(state, p), others, trait };
 }
 
 // ── Meetings ────────────────────────────────────────────────────────────

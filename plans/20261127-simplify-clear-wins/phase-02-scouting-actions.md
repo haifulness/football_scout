@@ -37,3 +37,9 @@ Files:
 - Unit: catch-up at the cap refreshes the read without adding knowledge; below the cap video adds knowledge.
 - Browser check on a staged save: player page shows one footage and one match button; going with only the target
   works.
+
+## Done
+- Below the cap, a stale read now needs a day of video (it used to have a cheap check-in). The pool's ↻ shows only
+  when a catch-up is possible.
+- Attending with just him already taught more than the quick watch (and shows the match), so `scoutLive`,
+  `completeLiveScouting` and `LIVE_READ` were removed; the fieldwork test uses `attendMatch`.

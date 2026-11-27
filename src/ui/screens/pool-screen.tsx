@@ -48,10 +48,10 @@ export function PoolScreen() {
     await engine.removeFromPool(id);
     await touch();
   };
-  const checkIn = async (id: PlayerId, name: string) => {
+  const catchUp = async (id: PlayerId, name: string) => {
     try {
-      const r = await engine.checkIn(id);
-      setNote(`Checked in on ${name} for ${formatUSD(r.cost)}: your read is up to date.`);
+      const r = await engine.watchVideo(id);
+      setNote(`Caught up on ${name}'s footage for ${formatUSD(r.cost)}: your read is up to date.`);
     } catch (e) {
       setNote(e instanceof Error ? e.message : 'That did not work.');
     }
@@ -147,11 +147,11 @@ export function PoolScreen() {
                     {p.report.by.endsWith('(selling)') ? 'Club' : 'A'} {p.report.rating}
                   </span>
                 )}
-                {(p.freshness === 'ageing' || p.freshness === 'stale') && (
+                {p.catchUp !== undefined && (
                   <button
-                    onClick={() => void checkIn(p.id, p.name)}
+                    onClick={() => void catchUp(p.id, p.name)}
                     className="rounded px-1.5 text-sm leading-none text-flood-300 hover:text-flood-200"
-                    title="Check in: a small fee, no time. Your read catches up with how he is now."
+                    title={`Video catch-up: ${formatUSD(p.catchUp)}, no time. Your read catches up with how he is now.`}
                   >
                     ↻
                   </button>

@@ -120,6 +120,8 @@ export interface PlayerRow {
   freshness?: 'fresh' | 'ageing' | 'stale';
   /** Why your read went stale early (a move, an injury…). */
   staleReason?: string;
+  /** A video catch-up would bring your read up to date now, for this much (no time). */
+  catchUp?: USD;
 }
 
 export interface OfficialView extends Pick<ClubOfficial, 'id' | 'role' | 'firstName' | 'lastName' | 'age' | 'priorities' | 'stubbornness' | 'portraitSeed'> {
@@ -283,8 +285,6 @@ export interface PlayerView {
   knowledge: number;
   /** How current your own read is (absent: public information only). */
   seen?: { on: GameDate; monthsAgo: number; freshness: 'fresh' | 'ageing' | 'stale'; reason?: string };
-  /** A quick check-in (no time, a small fee) brings your read up to date. */
-  checkIn?: { ok: boolean; reason?: string; cost: USD };
   potential?: Range;
   prodigy: boolean;
   traits?: { consistency: string; injuryRisk: string; ambition?: string };
@@ -294,7 +294,8 @@ export interface PlayerView {
   character: { known: TraitView[]; total?: number };
   inPool: boolean;
   starred: boolean;
-  video: { cost: USD; gain: number; available: boolean };
+  /** Footage: a day for `gain` knowledge, or a catch-up (no time) once it has told you all it can. Absent with no scout. */
+  video?: { ok: boolean; reason?: string; cost: USD; catchUp: boolean; gain: number };
   meeting: MeetingView | null;
   live: LiveView | null;
   /** Freelance representation of a free agent. */

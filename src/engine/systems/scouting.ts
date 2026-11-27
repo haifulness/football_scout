@@ -1,4 +1,4 @@
-import { ageOn, formatDate, type GameDate } from '../core/calendar';
+import { ageOn, type GameDate } from '../core/calendar';
 import { setSeasonObjectives } from './goals';
 import { scenarioSetup, startScenario } from './scenarios';
 import { snapshotReviewBaseline } from './review';
@@ -11,7 +11,7 @@ import { ATTRIBUTE_LABEL, type Player, type Position } from '../model/player';
 import type { Background, CareerSetup, Difficulty, LedgerEntry, LedgerKind, Scout, ScoutSkills, SearchFilters, SearchRecord } from '../model/scout';
 import { VALUE_NO_MAX } from '../model/scout';
 import type { GameState } from '../model/world-state';
-import { CHECK_IN_DAYS, VIDEO_KNOWLEDGE_CAP, estimate, knowledgeLevel, learn, marketOf, refreshRead, searchLearning, searchRange, seenOn } from './knowledge';
+import { VIDEO_KNOWLEDGE_CAP, estimate, freshness, knowledgeLevel, learn, marketOf, refreshRead, searchLearning, searchRange, seenOn } from './knowledge';
 import { searchWage } from './transfers';
 import { seedRivals } from './rivals';
 import { joinMentor, mentorCut, pickMentor } from './mentor';
@@ -426,49 +426,50 @@ export function videoCost(state: GameState, p: Player): USD {
   return usd(Math.round((VIDEO_COST[tier] * state.countries[marketOf(state, p)]!.costIndex) / 5) * 5);
 }
 
-/** A check-in costs a fraction of a video session. */
-export function checkInCost(state: GameState, p: Player): USD {
+/** A catch-up (footage that only brings your read up to date) costs a fraction of a video session. */
+export function catchUpCost(state: GameState, p: Player): USD {
   return usd(Math.max(20, Math.round((videoCost(state, p) * 0.25) / 5) * 5));
 }
 
-/** May you check in on him now? Only on players you've scouted yourself, once a month each. */
-export function checkInCheck(state: GameState, p: Player): { ok: boolean; reason?: string; cost: USD } {
-  const scout = requireScout(state);
-  const cost = checkInCost(state, p);
-  const k = state.knowledge[p.id];
-  if (seenOn(state, p) === undefined) return { ok: false, reason: 'You have nothing of your own on him to update yet.', cost };
-  if (k?.checkedOn !== undefined && state.date - k.checkedOn < CHECK_IN_DAYS)
-    return { ok: false, reason: `You checked in on ${formatDate(k.checkedOn)}: once a month.`, cost };
-  if (scout.money < cost) return { ok: false, reason: `A check-in costs ${formatUSD(cost)} but you only have ${formatUSD(scout.money)}.`, cost };
-  return { ok: true, cost };
+export interface VideoCheck {
+  ok: boolean;
+  reason?: string;
+  cost: USD;
+  /** Footage has nothing new to teach, but your read is out of date: a catch-up, no time and no new knowledge. */
+  catchUp: boolean;
 }
 
-/** A quick call to his club and a look at recent highlights: your read is up to date again (no new knowledge, no time). */
-export function checkIn(state: GameState, playerId: PlayerId): { cost: USD } {
-  const p = state.players[playerId];
-  if (!p) throw new ScoutingError('That player has retired.');
-  const check = checkInCheck(state, p);
-  if (!check.ok) throw new ScoutingError(check.reason!);
-  addLedger(state, { amount: usd(-check.cost), kind: 'video', label: `Check-in: ${p.firstName} ${p.lastName}` });
-  refreshRead(state, p, state.date);
-  return { cost: check.cost };
+/**
+ * What footage can do for you now. Below VIDEO_KNOWLEDGE_CAP: a day of study, more knowledge, read up to date.
+ * At the cap with an out-of-date read of your own: a quick catch-up. Otherwise you need to see him live.
+ */
+export function videoCheck(state: GameState, p: Player): VideoCheck {
+  const scout = requireScout(state);
+  const level = knowledgeLevel(state, p);
+  const catchUp = level >= VIDEO_KNOWLEDGE_CAP;
+  const cost = catchUp ? catchUpCost(state, p) : videoCost(state, p);
+  if (catchUp && (seenOn(state, p) === undefined || freshness(state, p) === 'fresh'))
+    return { ok: false, reason: 'Footage has told you all it can. You need to see him live.', cost, catchUp };
+  if (scout.money < cost)
+    return { ok: false, reason: `${catchUp ? 'A catch-up' : 'Video analysis'} costs ${formatUSD(cost)} but you only have ${formatUSD(scout.money)}.`, cost, catchUp };
+  return { ok: true, cost, catchUp };
 }
 
 export function videoGain(state: GameState): number {
   return Math.round(12 + requireScout(state).skills.dataAnalysis * 0.5);
 }
 
-/** One day studying match footage. Cheap, but can't take you past VIDEO_KNOWLEDGE_CAP. */
-export function watchVideo(state: GameState, playerId: PlayerId): { cost: USD; before: number; after: number } {
-  const scout = requireScout(state);
+/** Study his footage: a day for more knowledge, or (once footage has told you all it can) a quick catch-up. */
+export function watchVideo(state: GameState, playerId: PlayerId): { cost: USD; before: number; after: number; catchUp: boolean } {
   const p = state.players[playerId];
   if (!p) throw new ScoutingError('That player has retired.');
+  const check = videoCheck(state, p);
+  if (!check.ok) throw new ScoutingError(check.reason!);
   const before = knowledgeLevel(state, p);
-  if (before >= VIDEO_KNOWLEDGE_CAP) throw new ScoutingError('Footage has told you all it can. You need to see him live.');
-  const cost = videoCost(state, p);
-  if (scout.money < cost) throw new ScoutingError(`Video analysis costs ${formatUSD(cost)} but you only have ${formatUSD(scout.money)}.`);
-  addLedger(state, { amount: usd(-cost), kind: 'video', label: `Video analysis: ${p.firstName} ${p.lastName}` });
-  learn(state, p, videoGain(state), VIDEO_KNOWLEDGE_CAP, state.date);
+  const name = `${p.firstName} ${p.lastName}`;
+  addLedger(state, { amount: usd(-check.cost), kind: 'video', label: check.catchUp ? `Video catch-up: ${name}` : `Video analysis: ${name}` });
+  if (!check.catchUp) learn(state, p, videoGain(state), VIDEO_KNOWLEDGE_CAP, state.date);
+  if (state.knowledge[p.id]) refreshRead(state, p, state.date);
   if (!state.pool[p.id]) state.pool[p.id] = { addedOn: state.date, source: 'manual', starred: false };
-  return { cost, before, after: knowledgeLevel(state, p) };
+  return { cost: check.cost, before, after: knowledgeLevel(state, p), catchUp: check.catchUp };
 }

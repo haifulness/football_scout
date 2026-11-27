@@ -26,7 +26,7 @@ import { isInboxItem, type Fixture, type NewsItem, type PlayerMatchLine, type Se
 import type { CareerSetup, ContractTerms, SearchFilters, SearchRecord } from './model/scout';
 import type { GameState } from './model/world-state';
 import { seasonWindow } from './systems/fixtures';
-import { TRAITS_REVEAL_LEVEL, VIDEO_KNOWLEDGE_CAP, attributeRanges, estimate, fog, freshness, knowledgeLevel, seenOn } from './systems/knowledge';
+import { TRAITS_REVEAL_LEVEL, VIDEO_KNOWLEDGE_CAP, attributeRanges, estimate, fog, freshness, seenOn } from './systems/knowledge';
 import { TRAIT_INFO, characterOf, characterView, knownTraits } from './systems/character';
 import { aftercareCheck, isSettling, settleForecast, settlePenalty } from './systems/settling';
 import { taxDay, taxFor, weeklyLiving } from './systems/overheads';
@@ -60,14 +60,12 @@ import { START_MORALE, latestVerdict, moodOf, placementForm, visitCheck } from '
 import type { TraitId } from './model/player';
 import { MAX_FOCUS, validateFocus, writeAttendedMatch } from './systems/matchday';
 import {
-  completeLiveScouting,
   meet,
   meetingInfo,
   metToday,
   nextLiveOption,
   relationshipLabel,
   startLiveScouting,
-  type LiveResult,
   type MeetTarget,
   type MeetingResult,
 } from './systems/fieldwork';
@@ -124,7 +122,7 @@ import { canAfford, wageRoom, freeAgentWage, offeredWage, transferFee, brokeredW
 import type { Deal, Official, Placement } from './model/deal';
 import type { Mission } from './model/mission';
 import type { Position } from './model/player';
-import { BACKGROUNDS, checkIn, checkInCheck, completeSearch, createCareer, estimateSearch, startSearch, videoCost, videoGain, watchVideo, ScoutingError } from './systems/scouting';
+import { BACKGROUNDS, completeSearch, createCareer, estimateSearch, startSearch, videoCheck, videoGain, watchVideo, ScoutingError } from './systems/scouting';
 import { leagueTable } from './systems/season';
 import { bestXI, squadNeeds, type SlotNeed } from './systems/squad-needs';
 import { promotionSpots } from './systems/standings';
@@ -1133,12 +1131,6 @@ export class Engine {
     return { search: this.getSearch(record.id)!, advance };
   }
 
-  /** Bring your read on him up to date: a small fee, no time, no new knowledge. */
-  checkIn(playerId: PlayerId): { cost: number } {
-    this.assertActive();
-    return checkIn(this.s, playerId);
-  }
-
   /** Ask the head coach in person what he needs. Takes a day; he may say no, and remember it. */
   askCoach(clubId: ClubId): { told: boolean; message: string; advance: AdvanceSummary } {
     this.assertActive();
@@ -1182,11 +1174,12 @@ export class Engine {
     return { ...r, advance: this.summarize(advanceDays(this.s, r.days)) };
   }
 
-  watchVideo(playerId: PlayerId): { cost: number; before: number; after: number; advance: AdvanceSummary } {
+  /** A day of footage for more knowledge, or a catch-up (no time) once footage has told you all it can. */
+  watchVideo(playerId: PlayerId): { cost: number; before: number; after: number; catchUp: boolean; advance: AdvanceSummary } {
     this.assertActive();
     this.assertNoDeadline();
     const r = watchVideo(this.s, playerId);
-    return { ...r, advance: this.summarize(advanceDays(this.s, 1)) };
+    return { ...r, advance: this.summarize(advanceDays(this.s, r.catchUp ? 0 : 1)) };
   }
 
   addToPool(playerId: PlayerId): void {
@@ -1227,23 +1220,6 @@ export class Engine {
     const quote = this.quoteTravel(cityId);
     const q = startTravel(this.s, cityId);
     return { quote, advance: this.summarize(this.spend(q.days)) };
-  }
-
-  /** Watch the player's next match from the stands (you must be in the venue's city). */
-  scoutLive(playerId: PlayerId): { result: LiveResult; advance: AdvanceSummary } {
-    this.assertActive();
-    this.assertNoDeadline();
-    const s = this.s;
-    const before = knowledgeLevel(s, s.players[playerId]!);
-    const opt = startLiveScouting(s, playerId);
-    const lines: PlayerMatchLine[] = [];
-    const clubs = new Set([opt.fixture.homeId, opt.fixture.awayId]);
-    const advance = this.summarize(
-      advanceDays(s, opt.daysAway, (ls, date) => {
-        if (date === opt.fixture.date) for (const l of ls) if (clubs.has(l.clubId)) lines.push(l);
-      }),
-    );
-    return { result: completeLiveScouting(s, playerId, lines, before), advance };
   }
 
   /** The player's next match you could attend, with both squads to choose who to watch closely. */
@@ -3913,6 +3889,11 @@ export class Engine {
       })(),
       freshness: freshness(this.s, p),
       staleReason: this.s.knowledge[p.id]?.stale,
+      catchUp: (() => {
+        if (!this.s.scout) return undefined;
+        const v = videoCheck(this.s, p);
+        return v.ok && v.catchUp ? v.cost : undefined;
+      })(),
     };
   }
 
@@ -3929,7 +3910,6 @@ export class Engine {
     const club = p.clubId ? s.clubs[p.clubId] : undefined;
     const nat = s.countries[p.nationality]!;
     const f = fog(s, p);
-    const canVideo = !!s.scout && f.level < VIDEO_KNOWLEDGE_CAP;
     return {
       id: p.id,
       firstName: p.firstName,
@@ -3949,7 +3929,6 @@ export class Engine {
         const on = seenOn(s, p);
         return on === undefined ? undefined : { on, monthsAgo: Math.floor((s.date - on) / 30), freshness: freshness(s, p)!, reason: s.knowledge[p.id]?.stale };
       })(),
-      checkIn: s.scout && seenOn(s, p) !== undefined ? checkInCheck(s, p) : undefined,
       potential: f.potential,
       prodigy: f.prodigy,
       traits: f.traits,
@@ -3966,7 +3945,7 @@ export class Engine {
       })(),
       inPool: !!s.pool[p.id],
       starred: !!s.pool[p.id]?.starred,
-      video: { cost: videoCost(s, p), gain: s.scout ? Math.min(videoGain(s), VIDEO_KNOWLEDGE_CAP - f.level) : 0, available: canVideo },
+      video: s.scout ? { ...videoCheck(s, p), gain: Math.max(0, Math.min(videoGain(s), VIDEO_KNOWLEDGE_CAP - f.level)) } : undefined,
       meeting: s.scout ? this.meetingView({ kind: 'player', id: p.id }) : null,
       live: s.scout ? this.liveView(p) : null,
       rivalInterest: this.rivalInterest(p.id),

@@ -71,21 +71,22 @@ describe('live scouting', () => {
     advanceDays(s, 30); // into the season
     const opt = nextLiveOption(s, p)!;
     expect(opt).not.toBeNull();
-    expect(() => e.scoutLive(p.id)).toThrow(/Travel there first/);
+    expect(() => e.attendMatch(p.id, [p.id])).toThrow(/Travel there first/);
     e.travel(opt.venue);
     const fresh = nextLiveOption(s, p)!;
-    const { result } = e.scoutLive(p.id);
+    const before = knowledgeLevel(s, p);
+    const { match } = e.attendMatch(p.id, [p.id]);
     expect(s.date).toBe(fresh.fixture.date);
-    expect(result.after).toBeGreaterThan(result.before);
-    expect(result.others).toBeGreaterThan(15);
-    if (result.played) {
+    expect(knowledgeLevel(s, p)).toBeGreaterThan(before);
+    expect(match.others).toBeGreaterThan(15);
+    if (match.focus[0]?.played) {
       // With repeated live viewing you can get past what footage allows.
       let guard = 0;
       while (knowledgeLevel(s, p) <= 60 && guard++ < 6) {
         const next = nextLiveOption(s, p);
         if (!next) break;
         if (s.scout!.location !== next.venue) e.travel(next.venue);
-        e.scoutLive(p.id);
+        e.attendMatch(p.id, [p.id]);
       }
       expect(knowledgeLevel(s, p)).toBeGreaterThan(60);
     }

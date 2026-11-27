@@ -3,7 +3,7 @@ import type { CountryId } from '../../src/engine/core/ids';
 import { generateWorld } from '../../src/engine/generation/world-generator';
 import type { Player } from '../../src/engine/model/player';
 import type { GameState } from '../../src/engine/model/world-state';
-import { AGEING_DAYS, STALE_DAYS, fog, freshness, learn, publicLevel, seenOn, staleTick } from '../../src/engine/systems/knowledge';
+import { AGEING_DAYS, STALE_DAYS, VIDEO_KNOWLEDGE_CAP, fog, freshness, learn, publicLevel, seenOn, staleTick } from '../../src/engine/systems/knowledge';
 import { executeTransfer } from '../../src/engine/systems/transfers';
 import { usd } from '../../src/engine/core/money';
 import { toParts } from '../../src/engine/core/calendar';
@@ -153,13 +153,14 @@ describe('events that make your read stale', () => {
   });
 });
 
-describe('a check-in', () => {
-  it('brings an old read up to date for a small fee, without new knowledge or time, once a month', async () => {
-    const { checkIn, checkInCheck } = await import('../../src/engine/systems/scouting');
+describe('video', () => {
+  it('once footage has told you all it can, catches an old read up for a small fee, without new knowledge or time', async () => {
+    const { videoCheck, watchVideo } = await import('../../src/engine/systems/scouting');
     const { w, p } = setup();
     w.scout!.money = usd(10_000);
-    expect(checkInCheck(w, p).ok).toBe(false); // nothing of your own on him yet
     learn(w, p, 60, 80, w.date);
+    expect(w.knowledge[p.id]!.level).toBeGreaterThanOrEqual(VIDEO_KNOWLEDGE_CAP);
+    expect(videoCheck(w, p).ok).toBe(false); // a fresh read: nothing for footage to add
     w.date = (w.date + STALE_DAYS) as typeof w.date;
     w.knowledge[p.id]!.stale = 'he moved club';
     grow(p, 4);
@@ -169,7 +170,8 @@ describe('a check-in', () => {
     const level = w.knowledge[p.id]!.level;
     const money = w.scout!.money;
     const day = w.date;
-    const r = checkIn(w, p.id);
+    const r = watchVideo(w, p.id);
+    expect(r.catchUp).toBe(true);
     expect(w.scout!.money).toBe(money - r.cost);
     expect(w.date).toBe(day);
     expect(w.knowledge[p.id]!.level).toBe(level);
@@ -177,9 +179,20 @@ describe('a check-in', () => {
     const fresh = fog(w, p).ovr;
     expect(fresh[0]).toBeLessThanOrEqual(now);
     expect(fresh[1]).toBeGreaterThanOrEqual(now);
+    expect(videoCheck(w, p).ok).toBe(false);
+  });
 
-    expect(() => checkIn(w, p.id)).toThrow(/once a month/);
-    w.date = (w.date + 30) as typeof w.date;
-    expect(checkInCheck(w, p).ok).toBe(true);
+  it('below the cap, adds knowledge and brings the read up to date', async () => {
+    const { watchVideo } = await import('../../src/engine/systems/scouting');
+    const { w, p } = setup();
+    w.scout!.money = usd(10_000);
+    learn(w, p, 25, 80, w.date);
+    w.date = (w.date + STALE_DAYS) as typeof w.date;
+    w.knowledge[p.id]!.stale = 'he moved club';
+    const level = w.knowledge[p.id]!.level;
+    const r = watchVideo(w, p.id);
+    expect(r.catchUp).toBe(false);
+    expect(w.knowledge[p.id]!.level).toBeGreaterThan(level);
+    expect(freshness(w, p)).toBe('fresh');
   });
 });

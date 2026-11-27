@@ -1,6 +1,6 @@
 # Simplify: the clear wins
 
-Status: phase 1 done 2026-11-27
+Status: phases 1–2 done 2026-11-27
 
 Feedback: "Check the entire game for anything that is too complicated and unnecessary." From the audit, these are
 the fixes that remove clutter without undoing anything the user designed. The cuts (dilemmas, consultations,

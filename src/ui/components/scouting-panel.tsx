@@ -20,7 +20,7 @@ const MILESTONES = [
 
 /** What you know about a player, what knowing more unlocks, and the fieldwork that gets you there. */
 export function ScoutingPanel({ player: p }: { player: PlayerView }) {
-  const { watchVideo, scoutLive, meet, openTravel, openRecommend, advancing, touch, scout, navigate } = useGame();
+  const { watchVideo, meet, openTravel, openRecommend, advancing, touch, scout, navigate } = useGame();
   const [flash, setFlash] = useState<string>();
   const [error, setError] = useState<string>();
 
@@ -36,25 +36,12 @@ export function ScoutingPanel({ player: p }: { player: PlayerView }) {
   const video = () =>
     act(async () => {
       const r = await watchVideo(p.id);
-      return `Video: +${r.after - r.before} knowledge for ${formatUSD(r.cost)}`;
-    });
-  const live = () =>
-    act(async () => {
-      const r = await scoutLive(p.id);
-      return r.played
-        ? `Watched him live: +${r.after - r.before} knowledge (and a look at ${r.others} others)${r.trait ? `. You saw he's a ${TRAIT_INFO[r.trait].label.toLowerCase()}` : ''}`
-        : `He didn't play. You learned a little from the warm-up (+${r.after - r.before}).`;
+      return r.catchUp ? `Caught up on his footage for ${formatUSD(r.cost)}: your read is up to date` : `Video: +${r.after - r.before} knowledge for ${formatUSD(r.cost)}`;
     });
   const meetHim = () =>
     act(async () => {
       const r = await meet({ kind: 'player', id: p.id });
       return `Rapport ${r.before} → ${r.after}${r.trait ? `. You learn he's ${TRAIT_INFO[r.trait].label.toLowerCase()}` : ''}${r.settled ? `. He'll settle ${r.settled} days sooner` : ''}${r.cheered ? `. Your visit lifts him (${r.cheered === 'happy' ? 'happy again' : r.cheered === 'restless' ? 'still restless' : 'still wants out'})` : ''}`;
-    });
-  const checkIn = () =>
-    act(async () => {
-      const r = await engine.checkIn(p.id);
-      await touch();
-      return `Checked in for ${formatUSD(r.cost)}: your read is up to date`;
     });
   const togglePool = async () => {
     if (p.inPool) await engine.removeFromPool(p.id);
@@ -88,16 +75,6 @@ export function ScoutingPanel({ player: p }: { player: PlayerView }) {
                 : p.seen.monthsAgo === 0
                   ? 'You looked at him this month.'
                   : `You last looked ${p.seen.monthsAgo} month${p.seen.monthsAgo === 1 ? '' : 's'} ago${p.seen.freshness === 'fresh' ? '.' : ': he may have changed since. Look again to see how he is now.'}`}
-              {p.checkIn && p.seen.freshness !== 'fresh' && (
-                <button
-                  className="btn-ghost ml-2 px-2 py-0.5 text-[11px]"
-                  disabled={!p.checkIn.ok || advancing}
-                  title={p.checkIn.ok ? 'A call to his club and recent highlights: your read catches up, without adding knowledge' : p.checkIn.reason}
-                  onClick={() => void checkIn()}
-                >
-                  ↻ Check in · {formatUSD(p.checkIn.cost)} · no time
-                </button>
-              )}
             </div>
           )}
           <div className="relative mt-3 h-2 rounded-full bg-white/[0.06]">
@@ -161,24 +138,14 @@ export function ScoutingPanel({ player: p }: { player: PlayerView }) {
                     {formatUSD(p.live.ticket)}
                   </div>
                   {p.live.inPlace ? (
-                    <div className="mt-2 grid grid-cols-2 gap-2">
-                      <button
-                        className="btn-primary py-1.5 text-xs"
-                        disabled={advancing || money < p.live.ticket}
-                        onClick={() => navigate({ screen: 'matchday', id: p.id })}
-                        title="Watch the match unfold and pick up to three players to study closely"
-                      >
-                        Attend & watch closely
-                      </button>
-                      <button
-                        className="btn-ghost py-1.5 text-xs"
-                        disabled={advancing || money < p.live.ticket}
-                        onClick={() => void live()}
-                        title="Go, watch, and come back with the usual impression"
-                      >
-                        Quick watch ({p.live.daysAway}d)
-                      </button>
-                    </div>
+                    <button
+                      className="btn-primary mt-2 w-full py-1.5 text-xs"
+                      disabled={advancing || money < p.live.ticket}
+                      onClick={() => navigate({ screen: 'matchday', id: p.id })}
+                      title="Watch him, and up to two others closely if you like. Skip to the end whenever you want."
+                    >
+                      Go to the match ({p.live.daysAway}d)
+                    </button>
                   ) : (
                     <button
                       className="btn-ghost mt-2 w-full py-1.5 text-xs"
@@ -216,11 +183,23 @@ export function ScoutingPanel({ player: p }: { player: PlayerView }) {
         </div>
 
         <div className="flex flex-col justify-center gap-2 border-t border-white/[0.05] bg-black/20 p-4 lg:border-l lg:border-t-0">
-          <button onClick={() => void video()} disabled={advancing || !p.video.available || !scout || money < p.video.cost} className="btn-primary w-full">
-            {p.video.available ? `Watch video · ${formatUSD(p.video.cost)} · 1 day` : 'Footage exhausted'}
+          <button onClick={() => void video()} disabled={advancing || !p.video?.ok} title={p.video?.reason} className="btn-primary w-full">
+            {!p.video
+              ? 'Watch video'
+              : p.video.catchUp
+                ? p.video.ok
+                  ? `Video catch-up · ${formatUSD(p.video.cost)} · no time`
+                  : 'Footage exhausted'
+                : `Watch video · ${formatUSD(p.video.cost)} · 1 day`}
           </button>
           <div className="text-center text-[11px] text-mist-400">
-            {p.video.available ? `+${p.video.gain} knowledge (video tops out at 60).` : 'Watch him live to learn more.'}
+            {!p.video
+              ? ''
+              : !p.video.catchUp
+                ? `+${p.video.gain} knowledge, and your read is up to date (video tops out at 60).`
+                : p.video.ok
+                  ? 'Recent highlights bring your read up to date. No new knowledge: watch him live for that.'
+                  : 'Watch him live to learn more.'}
           </div>
           <button className="btn-ghost w-full border-flood-400/40 text-flood-300" disabled={!scout} onClick={() => openRecommend({ playerId: p.id })}>
             Recommend to a club…

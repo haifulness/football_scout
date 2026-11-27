@@ -133,8 +133,6 @@ export function studyClub(state: GameState, clubId: ClubId): { before: number; a
 
 /** Watching a club play: the XI the coach really picks, and who struggles. */
 export const MATCH_READ = 50;
-/** Watching one of its players: a glimpse of the team around him. */
-export const LIVE_READ = 35;
 /** A coach who turns your player down at the club gate tells you what he has there. */
 export const REFUSAL_READ = 80;
 /** A client's needs meeting each quarter. */
