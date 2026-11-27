@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, makeDate } from '../../src/engine/core/calendar';
+import { makeDate } from '../../src/engine/core/calendar';
 import type { CountryId } from '../../src/engine/core/ids';
 import { usd } from '../../src/engine/core/money';
 import { Engine } from '../../src/engine/index';

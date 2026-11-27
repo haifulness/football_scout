@@ -18,6 +18,7 @@ import { scheduleLeague, seasonWindow } from './fixtures';
 import { ovrAt } from './ratings';
 import { bestXI } from './squad-needs';
 import { computeTable, promotionSpots, type TableRow } from './standings';
+import { seasonBonus } from './employment';
 import { boardNewSeason, sackOrAsk } from './board';
 
 const MIN_SQUAD = 22;
@@ -88,6 +89,7 @@ export function endSeason(state: GameState, date: GameDate) {
     });
     addNews(state, { date, kind: 'season-review', title, body: parts.join(' '), countryId: country.id, clubIds });
   }
+  seasonBonus(state, date);
   state.season.ended = true;
 }
 

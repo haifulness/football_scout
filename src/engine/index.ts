@@ -96,7 +96,7 @@ import {
 import type { AssistantBrief } from './model/assistant';
 import { inLocation } from './systems/scouting';
 import { MAX_REPRESENTED, REPRESENT_RAPPORT, acceptMandate, declineMandate, pitchRights, represent, representCheck, stopRepresenting } from './systems/market';
-import { BANKRUPTCY_DAYS } from './systems/payouts';
+import { BANKRUPTCY_DAYS, SIGNING_PCT } from './systems/payouts';
 import {
   AGREEMENT_GATE,
   EXPENSE_COVER,
@@ -110,6 +110,7 @@ import {
   dropClient,
   proposeAgreement,
   resign,
+  seasonBonusTerms,
 } from './systems/employment';
 import { REMOTE_PITCH_TRUST, clubPositionalAverage, competition, defaultPitchPosition, formationPositions, pitch, pitchFee, remotePitchCheck, repitchCheck, repitchMessage, signOffProbability, type PitchArgs, playerChance, wageCeiling } from './systems/deals';
 import { canAfford, wageRoom, freeAgentWage, offeredWage, transferFee, brokeredWage } from './systems/transfers';
@@ -1412,6 +1413,7 @@ export class Engine {
               until: e.until,
               leavingOn: e.leavingOn,
               expenseCover: EXPENSE_COVER[s.clubs[e.clubId]!.tier],
+              bonuses: seasonBonusTerms(),
               trust: clubTrust(s, e.clubId),
             },
       offers: s.offers.map((o) => {
@@ -1426,6 +1428,8 @@ export class Engine {
           renewal: o.renewal,
           club: { ...badge(c), cityName: s.cities[c.cityId]!.name, countryName: s.countries[c.countryId]!.name, leagueName: s.leagues[c.leagueId]!.name },
           expenseCover: EXPENSE_COVER[c.tier],
+          bonuses: o.kind === 'fulltime' ? seasonBonusTerms() : undefined,
+          signingPct: SIGNING_PCT.fulltime,
           trust: clubTrust(s, c.id),
         };
       }),

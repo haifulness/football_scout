@@ -249,7 +249,7 @@ function OffersPanel({ offers, career }: { offers: OfferView[]; career: CareerVi
             )}
             <div className="mt-2 text-[11px] text-mist-400">
               {o.kind === 'fulltime' &&
-                `${o.seasons} season${o.seasons === 1 ? '' : 's'} · full-time means pitching only to them, at full-time rates (1.5% signing bonus, ×1 match bonuses). `}
+                `${o.seasons} season${o.seasons === 1 ? '' : 's'} · full-time means pitching only to them, at full-time rates (${o.signingPct}% signing bonus, ×1 match bonuses). ${o.bonuses}. `}
               {o.kind === 'fulltime' &&
                 career.employment.mode === 'freelance' &&
                 career.employment.clients.length > 0 &&
@@ -305,6 +305,9 @@ function EmploymentPanel({ c }: { c: CareerView }) {
             <ClubLink club={e.club} className="block font-display text-3xl font-bold uppercase leading-none" />
             <div className="mt-1 text-sm text-mist-300">
               {formatUSD(e.salary)} a year · {Math.round(e.expenseCover * 100)}% of expenses paid · since {formatDate(e.since)}
+            </div>
+            <div className="mt-1 text-[12px] text-mist-400">
+              {e.bonuses}.
             </div>
             <div className="mt-1 text-[12px] text-mist-400">
               Contract until {formatDate(e.until)} · standing <TrustBar value={e.trust} />{' '}

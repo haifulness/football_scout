@@ -102,7 +102,7 @@ function makeMission(state: GameState, club: Club, rng: Rng): Mission | undefine
   const weeks = rng.int(4, 10);
   const e = state.scout!.employment;
   const reward =
-    e.mode === 'fulltime' ? usd(Math.round((e.salary / 52) * rng.int(2, 6))) : usd(Math.round(rng.float(...FREELANCE_REWARD[club.tier]) / 100) * 100);
+    e.mode === 'fulltime' ? usd(Math.round((e.salary / 52) * rng.int(4, 10))) : usd(Math.round(rng.float(...FREELANCE_REWARD[club.tier]) / 100) * 100);
   const brief =
     (byName ? `We hear you're the one to ask about ${group === 'GK' ? 'goalkeepers' : group === 'DEF' ? 'defenders' : group === 'MID' ? 'midfielders' : 'forwards'}. ` : '') +
     (policy === 'sell' && req.maxFee !== undefined

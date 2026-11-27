@@ -42,6 +42,7 @@ describe('bot career (Normal, freelance)', () => {
       seed: Number((globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.SEED ?? 4242),
       seasons: Number((globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.SEASONS ?? 3),
       difficulty: 'normal',
+      job: !!(globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.JOB,
     });
     console.log(
       '\n' +

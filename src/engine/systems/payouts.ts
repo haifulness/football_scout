@@ -18,9 +18,9 @@ import { addNews } from './season';
 
 type Mode = Placement['mode'];
 
-export const SIGNING_PCT: Record<Mode, number> = { fulltime: 0.6, freelance: 1.25 };
+export const SIGNING_PCT: Record<Mode, number> = { fulltime: 0.9, freelance: 1.25 };
 export const SIGNING_FLOOR: Record<Mode, Record<ClubTier, number>> = {
-  fulltime: { 5: 600, 4: 1_600, 3: 2_000, 2: 4_000, 1: 10_000 },
+  fulltime: { 5: 1_000, 4: 2_800, 3: 3_500, 2: 7_000, 1: 17_500 },
   freelance: { 5: 1_500, 4: 4_000, 3: 5_000, 2: 10_000, 1: 25_000 },
 };
 /** Per-match base values at a tier-3 club for a full-time scout. */

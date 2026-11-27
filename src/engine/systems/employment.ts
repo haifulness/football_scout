@@ -13,7 +13,9 @@ import { meetingInfo, metToday, COLLEAGUE_START } from './fieldwork';
 import { EXPENSE_COVER, ScoutingError, addLedger } from './scouting';
 
 export { EXPENSE_COVER };
-import { addNews } from './season';
+import { addNews, leagueTable } from './season';
+import { promotionSpots } from './standings';
+import { ordinal } from './review';
 import { endFreelanceWork } from './market';
 import { rivalAtClub, rivalName } from './rivals';
 import { specialties, specialtyAppeal } from './goals';
@@ -82,7 +84,11 @@ export function clientSlots(reputation: number): number {
 /** Reputation a club of each tier expects before taking you on (as client or employee). */
 export const AGREEMENT_GATE: Record<ClubTier, number> = { 1: 75, 2: 50, 3: 20, 4: 0, 5: 0 };
 export const JOB_GATE: Record<ClubTier, number> = { 1: 70, 2: 50, 3: 30, 4: 15, 5: 5 };
-export const SALARY: Record<ClubTier, number> = { 1: 220_000, 2: 110_000, 3: 55_000, 4: 30_000, 5: 18_000 };
+export const SALARY: Record<ClubTier, number> = { 1: 400_000, 2: 200_000, 3: 100_000, 4: 55_000, 5: 32_000 };
+/** Season bonus in a full-time contract, as a share of the year's salary (the best one that applies). */
+export const SEASON_BONUS = { title: 0.3, promotion: 0.25, topHalf: 0.1 } as const;
+/** A relegation costs you this much with the coach (and pays no bonus). */
+export const RELEGATION_COST = 5;
 const NOTICE_DAYS = 28;
 const OFFER_DAYS = 21;
 
@@ -266,6 +272,68 @@ function goFreelance(state: GameState, why: string) {
   addNews(state, { date: state.date, kind: 'career', title: `${scout.name} leaves ${club.name}`, body: why, clubIds: [club.id], countryId: club.countryId });
 }
 
+/** The season bonus terms, in words, for offers and the career screen. */
+export function seasonBonusTerms(): string {
+  const pct = (v: number) => `${Math.round(v * 100)}%`;
+  return `Season bonus: ${pct(SEASON_BONUS.title)} of salary for a title, ${pct(SEASON_BONUS.promotion)} for promotion, ${pct(SEASON_BONUS.topHalf)} for a top-half finish`;
+}
+
+/**
+ * End of season (final tables are in): a full-time scout earns a bonus on how his club did, pro rata for the
+ * part of the season he was there. A relegation pays nothing and sours things with the coach.
+ */
+export function seasonBonus(state: GameState, date: GameDate) {
+  const scout = state.scout;
+  const e = scout?.employment;
+  if (!scout || e?.mode !== 'fulltime' || state.careerOver) return;
+  const club = state.clubs[e.clubId]!;
+  const country = state.countries[club.countryId]!;
+  const level = country.leagueIds.findIndex((lid) => state.leagues[lid]!.clubIds.includes(club.id));
+  if (level < 0) return;
+  const lid = country.leagueIds[level]!;
+  const size = state.leagues[lid]!.clubIds.length;
+  const table = leagueTable(state, lid);
+  const pos = table.findIndex((r) => r.clubId === club.id) + 1;
+  if (pos <= 0) return;
+  const spots = promotionSpots(size);
+  if (level < country.leagueIds.length - 1 && pos > size - spots) {
+    scout.relationships[club.headCoachId] = clamp((scout.relationships[club.headCoachId] ?? 0) - RELEGATION_COST, 0, 100);
+    addNews(state, {
+      date,
+      kind: 'career',
+      link: 'career',
+      title: `${club.name} go down: no season bonus`,
+      body: `${club.name} finish ${ordinal(pos)} and are relegated. There's no bonus this year, and the coach is in a dark mood.`,
+      clubIds: [club.id],
+      countryId: club.countryId,
+    });
+    return;
+  }
+  const [why, share] =
+    pos === 1
+      ? ['winning the league', SEASON_BONUS.title]
+      : level > 0 && pos <= spots
+        ? ['promotion', SEASON_BONUS.promotion]
+        : pos <= Math.ceil(size / 2)
+          ? [`a top-half finish (${ordinal(pos)})`, SEASON_BONUS.topHalf]
+          : ['', 0];
+  if (!share) return;
+  const start = makeDate(state.season.year, 7, 1);
+  const part = clamp((date - Math.max(start, e.since)) / Math.max(1, date - start), 0, 1);
+  const amount = Math.round((e.salary * share * part) / 100) * 100;
+  if (amount <= 0) return;
+  addLedger(state, { amount: usd(amount), kind: 'salary', label: `Season bonus: ${club.name}, ${why}` });
+  addNews(state, {
+    date,
+    kind: 'career',
+    link: 'career',
+    title: `Season bonus: ${formatUSD(amount)} from ${club.name}`,
+    body: `${club.name} reward you for ${why}: ${Math.round(share * 100)}% of your salary${part < 1 ? ', for the part of the season you were there' : ''}.`,
+    clubIds: [club.id],
+    countryId: club.countryId,
+  });
+}
+
 /** Share of an expense your employer pays (0 as a freelancer). */
 export function expenseCover(state: GameState): number {
   const e = state.scout?.employment;
@@ -295,7 +363,7 @@ export function makeOffer(state: GameState, o: Omit<JobOffer, 'id' | 'createdOn'
     body:
       o.kind === 'client'
         ? `${club.name} would like to take you on as a freelance scout. Answer in your Career screen within three weeks.`
-        : `${club.name} offer you the role of ${o.title}: ${formatUSD(o.salary!)} a year for ${o.seasons} seasons, with ${Math.round(EXPENSE_COVER[club.tier] * 100)}% of expenses covered.`,
+        : `${club.name} offer you the role of ${o.title}: ${formatUSD(o.salary!)} a year for ${o.seasons} seasons, with ${Math.round(EXPENSE_COVER[club.tier] * 100)}% of expenses covered. ${seasonBonusTerms()}.`,
     clubIds: [club.id],
     countryId: club.countryId,
   });

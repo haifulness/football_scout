@@ -68,7 +68,7 @@ describe('signing bonus', () => {
     expect(signingBonus(base)).toBe(24_063); // 1.25% of $1.925M
     expect(signingBonus({ ...base, ovrGap: 3 })).toBe(31_281); // ×1.3
     expect(signingBonus({ ...base, ovrGap: 30 })).toBe(36_094); // capped ×1.5
-    expect(signingBonus({ ...base, mode: 'fulltime' })).toBe(11_550); // 0.6%
+    expect(signingBonus({ ...base, mode: 'fulltime' })).toBe(17_325); // 0.9%
     expect(signingBonus({ ...base, fee: usd(800_000), tier: 3 })).toBe(7_188); // $500k + 25% of $300k = $575k at 1.25%
     expect(signingBonus({ ...base, fee: usd(0), value: usd(10_000), tier: 5 })).toBe(1_500); // free agent → floor
     expect(signingBonus({ ...base, prospect: true })).toBe(0);

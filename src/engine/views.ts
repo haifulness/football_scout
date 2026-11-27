@@ -1020,6 +1020,10 @@ export interface OfferView {
   salary?: USD;
   seasons?: number;
   expenseCover: number;
+  /** Full-time: the season bonus terms, in words. */
+  bonuses?: string;
+  /** Full-time signing bonus, percent of the fee. */
+  signingPct: number;
   expiresOn: GameDate;
   renewal?: boolean;
   trust: number;
@@ -1060,6 +1064,8 @@ export interface CareerView {
         until: GameDate;
         leavingOn?: GameDate;
         expenseCover: number;
+        /** The season bonus terms, in words. */
+        bonuses: string;
         trust: number;
       };
   offers: OfferView[];

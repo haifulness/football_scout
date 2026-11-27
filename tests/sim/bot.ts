@@ -47,7 +47,7 @@ export interface BotResult {
 
 const INCOME = new Set(['signing-bonus', 'match-bonus', 'sale-commission', 'mission-reward', 'salary', 'award']);
 
-export function runBot(opts: { seed: number; seasons: number; difficulty: Difficulty; home?: string }): BotResult {
+export function runBot(opts: { seed: number; seasons: number; difficulty: Difficulty; home?: string; /** Take a full-time job as soon as one is offered. */ job?: boolean }): BotResult {
   const e = new Engine();
   e.generate(opts.seed);
   const home = (opts.home ?? 'eng') as CountryId;
@@ -68,7 +68,11 @@ export function runBot(opts: { seed: number; seasons: number; difficulty: Diffic
   const endMoney = new Map<number, number>();
 
   const scout = () => s.scout!;
-  const clients = (): ClubId[] => (scout().employment.mode === 'freelance' ? (scout().employment as { clients: ClubId[] }).clients : []);
+  // In a job, the employer is the one club to work for.
+  const clients = (): ClubId[] => {
+    const em = scout().employment;
+    return em.mode === 'freelance' ? em.clients : [em.clubId];
+  };
   const goTo = (club: Club) => {
     if (scout().location !== club.cityId) e.travel(club.cityId);
   };
@@ -97,6 +101,12 @@ export function runBot(opts: { seed: number; seasons: number; difficulty: Diffic
 
     // 1. Client invitations.
     for (const o of [...s.offers]) if (o.kind === 'client' && clients().length < clientSlots(scout().reputation)) safe(() => e.acceptOffer(o.id));
+    // Job mode: take the first job, any renewal, and a step up to a bigger club.
+    if (opts.job)
+      for (const o of [...s.offers]) {
+        const em = scout().employment;
+        if (o.kind === 'fulltime' && (em.mode === 'freelance' || o.renewal || s.clubs[o.clubId]!.tier < s.clubs[em.clubId]!.tier)) safe(() => e.acceptOffer(o.id), 'job');
+      }
 
     // Accept mission briefs from clients (they pay a reward on top).
     for (const m of s.missions) if (m.status === 'offered' && s.missions.filter((x) => x.status === 'active').length < 1) safe(() => e.acceptMission(m.id));
