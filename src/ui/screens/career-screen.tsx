@@ -304,7 +304,7 @@ function EmploymentPanel({ c }: { c: CareerView }) {
             <div className="text-[11px] uppercase tracking-wider text-flood-300">{e.title}</div>
             <ClubLink club={e.club} className="block font-display text-3xl font-bold uppercase leading-none" />
             <div className="mt-1 text-sm text-mist-300">
-              {formatUSD(e.salary)} a year · {Math.round(e.expenseCover * 100)}% of expenses paid · since {formatDate(e.since)}
+              {formatUSD(e.salary)} a year · work expenses paid in full at home, {Math.round(e.expenseCover * 100)}% abroad · since {formatDate(e.since)}
             </div>
             <div className="mt-1 text-[12px] text-mist-400">
               {e.bonuses}.
@@ -334,6 +334,7 @@ function EmploymentPanel({ c }: { c: CareerView }) {
             </button>
           )}
         </div>
+        {e.windowPlan && <WindowPlanCard plan={e.windowPlan} />}
       </Panel>
     );
   }
@@ -506,5 +507,44 @@ function RaceChip({ r }: { r: Extract<CareerView['employment'], { mode: 'freelan
     >
       {r.behind ? `Behind ${r.rival.name.split(' ').slice(-1)[0]}` : `Ahead of ${r.rival.name.split(' ').slice(-1)[0]}`}
     </span>
+  );
+}
+
+type WindowPlanView = NonNullable<Extract<CareerView['employment'], { mode: 'fulltime' }>['windowPlan']>;
+
+/** Full-time: the club's plan for the transfer window, as a checklist. */
+function WindowPlanCard({ plan }: { plan: WindowPlanView }) {
+  const navigate = useGame((g) => g.navigate);
+  const items = plan.buys.length + plan.sells.length;
+  const done = plan.buys.filter((b) => b.done).length + plan.sells.filter((x) => x.done).length;
+  const tick = (ok: boolean) => <span className={ok ? 'text-grass-300' : 'text-mist-500'}>{ok ? '✓' : '○'}</span>;
+  return (
+    <div className="mx-4 mb-4 rounded-lg border border-white/10 bg-white/[0.03] p-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div className="panel-title text-[11px] text-flood-300">Window plan</div>
+        <div className="text-[11px] text-mist-400">
+          {plan.result === 'done'
+            ? `Delivered: ${formatUSD(plan.bonus)} bonus paid`
+            : plan.result === 'missed'
+              ? `Window shut: ${done} of ${items} delivered`
+              : `${done}/${items} done · until ${formatDate((plan.closes - 1) as typeof plan.closes)} · bonus ${formatUSD(plan.bonus)} · budget ${formatUSD(plan.budget, { compact: true })}`}
+        </div>
+      </div>
+      <ul className="mt-2 space-y-1 text-sm">
+        {plan.buys.map((b) => (
+          <li key={b.position} className="flex items-center gap-2">
+            {tick(b.done)} Sign a <b>{b.position}</b>
+          </li>
+        ))}
+        {plan.sells.map((x) => (
+          <li key={x.player.id} className="flex items-center gap-2">
+            {tick(x.done)} Sell{' '}
+            <button className="font-semibold hover:text-grass-300" onClick={() => navigate({ screen: 'player', id: x.player.id })}>
+              {x.player.name}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

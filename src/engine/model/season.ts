@@ -1,6 +1,7 @@
 import type { GameDate } from '../core/calendar';
 import type { ClubId, CountryId, LeagueId, PlayerId } from '../core/ids';
 import type { Position } from './player';
+import type { USD } from '../core/money';
 
 export interface GoalEvent {
   minute: number;
@@ -117,3 +118,17 @@ export interface SeasonState {
 
 /** Messages addressed to you (the Inbox), as opposed to world news. */
 export const isInboxItem = (n: NewsItem) => n.kind === 'career' || n.kind === 'finance' || !!n.forYou;
+
+/** Full-time: what your employer wants from a transfer window (positions to fill, players to sell). */
+export interface WindowPlan {
+  clubId: ClubId;
+  opens: GameDate;
+  /** The first day after the window. */
+  closes: GameDate;
+  /** The club's transfer budget when the window opened. */
+  budget: USD;
+  buys: { position: Position; done?: boolean }[];
+  sells: { playerId: PlayerId; done?: boolean }[];
+  /** Set when the window closes. */
+  result?: 'done' | 'missed';
+}

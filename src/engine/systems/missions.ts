@@ -35,6 +35,8 @@ const OFFER_DAYS = 10;
 /** Days before an unanswered offer lapses when you get a reminder. */
 export const OFFER_REMINDER_DAYS = 2;
 const MAX_ACTIVE = 3;
+/** Open briefs at once from one club: your employer asks for more than a client does. */
+export const OPEN_BRIEFS = { fulltime: 3, freelance: 1 } as const;
 const FREELANCE_REWARD: Record<ClubTier, [number, number]> = {
   5: [1_000, 3_000],
   4: [3_000, 8_000],
@@ -66,7 +68,7 @@ function topPriorities(p: OfficialPriorities, n = 2): (keyof OfficialPriorities)
     .map(([k]) => k);
 }
 
-function makeMission(state: GameState, club: Club, rng: Rng): Mission | undefined {
+function makeMission(state: GameState, club: Club, rng: Rng, only?: Position): Mission | undefined {
   const squad = club.squad.map((id) => state.players[id]!);
   // Never two open briefs for the same position at one club.
   const openHere = new Set(state.missions.filter((m) => m.clubId === club.id && OPEN(m)).map((m) => m.position));
@@ -84,7 +86,10 @@ function makeMission(state: GameState, club: Club, rng: Rng): Mission | undefine
   const weight = (n: (typeof needs)[number]) =>
     (0.05 + n.severity) * (askedHere.includes(n.position) ? 0.1 : 1) * (askedAnywhere.includes(n.position) ? 0.4 : 1);
   const real = needs.filter((n) => n.severity >= 0.1);
-  const need = (byName && niche && !askedHere.includes(niche.position) ? niche : undefined) ?? rng.weighted(real.length ? real : needs, weight);
+  // A window plan asks for a given position.
+  const asked = only ? needs.find((n) => n.position === only) : undefined;
+  if (only && !asked) return undefined;
+  const need = asked ?? (byName && niche && !askedHere.includes(niche.position) ? niche : undefined) ?? rng.weighted(real.length ? real : needs, weight);
   const pos = need.position;
   const avg = clubPositionalAverage(state, club, pos);
   const coach = state.officials[club.headCoachId]!;
@@ -494,7 +499,7 @@ export function missionTick(state: GameState, date: GameDate) {
     const club = state.clubs[clubId];
     if (!club || !FORMATIONS[club.formation]) continue;
     const open = state.missions.filter((m) => m.clubId === clubId && OPEN(m)).length;
-    if (open >= (fulltime ? 2 : 1)) continue;
+    if (open >= OPEN_BRIEFS[fulltime ? 'fulltime' : 'freelance']) continue;
     // The longer a club goes without asking, the likelier it asks: steady pacing, no long droughts.
     const last = Math.max(-Infinity, ...state.missions.filter((m) => m.clubId === clubId).map((m) => m.postedOn));
     const quietDays = Number.isFinite(last) ? date - last : 90;
@@ -507,15 +512,28 @@ export function missionTick(state: GameState, date: GameDate) {
     if (!hasWageRoomForSigning(state, club)) continue;
     const m = makeMission(state, club, rng);
     if (!m) continue;
-    state.missions.push(m);
-    addNews(state, {
-      date,
-      kind: 'career',
-      link: 'missions',
-      title: passed ? `${mentorName(state)} passes you a brief: ${club.name} want a ${m.position}` : `Mission offer: ${club.name} want a ${m.position}`,
-      body: `${passed ? `${mentorName(state)} can't take this one. ` : ''}"${m.brief}" Brief: ${describeRequirements(m.requirements, m.position, state).join(', ')}, within ${m.weeks} weeks. Reward ${formatUSD(m.reward)}. Accept by ${formatDate(m.acceptBy)} in Missions.`,
-      clubIds: [club.id],
-      countryId: club.countryId,
-    });
+    postMission(state, club, m, passed);
   }
+}
+
+function postMission(state: GameState, club: Club, m: Mission, passed = false) {
+  state.missions.push(m);
+  addNews(state, {
+    date: state.date,
+    kind: 'career',
+    link: 'missions',
+    title: passed ? `${mentorName(state)} passes you a brief: ${club.name} want a ${m.position}` : `Mission offer: ${club.name} want a ${m.position}`,
+    body: `${passed ? `${mentorName(state)} can't take this one. ` : ''}"${m.brief}" Brief: ${describeRequirements(m.requirements, m.position, state).join(', ')}, within ${m.weeks} weeks. Reward ${formatUSD(m.reward)}. Accept by ${formatDate(m.acceptBy)} in Missions.`,
+    clubIds: [club.id],
+    countryId: club.countryId,
+  });
+}
+
+/** A brief for a given position (a window plan's), unless one is already open there. */
+export function postBrief(state: GameState, club: Club, pos: Position): Mission | undefined {
+  const open = state.missions.find((m) => m.clubId === club.id && m.position === pos && OPEN(m));
+  if (open) return open;
+  const m = makeMission(state, club, Rng.derive(state.seed, `brief:${club.id}:${pos}:${state.date}`), pos);
+  if (m) postMission(state, club, m);
+  return m;
 }

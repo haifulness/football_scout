@@ -3,7 +3,7 @@ import { formatUSD, usd, type USD } from '../core/money';
 import { clamp } from '../core/rng';
 import type { City } from '../model/geography';
 import type { GameState } from '../model/world-state';
-import { ScoutingError, addLedger } from './scouting';
+import { ScoutingError, addLedger, coverFor } from './scouting';
 import { hasBase } from './agency';
 
 /**
@@ -75,7 +75,9 @@ export function quoteTravel(state: GameState, to: CityId): TravelQuote {
   const costIndex = (state.countries[a.countryId]!.costIndex + state.countries[b.countryId]!.costIndex) / 2;
   const cost = usd(Math.round((clamp(spec.min + km * spec.perKm, spec.min, spec.max) * costIndex) / 10) * 10);
   const days = spec.days + (band === 'continent' && km > 2500 ? 1 : 0);
-  return { from: a.id, to: b.id, band, distanceKm: km, cost, days, nightly: nightlyCost(state, b.id), affordable: scout.money >= cost };
+  // A full-time scout's employer pays some or all of it.
+  const youPay = cost * (1 - coverFor(state, 'travel', b.countryId));
+  return { from: a.id, to: b.id, band, distanceKm: km, cost, days, nightly: nightlyCost(state, b.id), affordable: scout.money >= youPay };
 }
 
 /** Pays for the trip and moves you. The caller advances the travel days. */
@@ -86,7 +88,8 @@ export function startTravel(state: GameState, to: CityId): TravelQuote {
   if (!q.affordable && to !== state.scout!.homeCity)
     throw new ScoutingError(`This trip costs ${formatUSD(q.cost)} but you only have ${formatUSD(state.scout!.money)}.`);
   const dest = state.cities[to]!;
-  addLedger(state, { amount: usd(-q.cost), kind: 'travel', label: `Travel to ${dest.name}, ${state.countries[dest.countryId]!.name}` });
+  // A trip to (or within) your employer's country is on the club.
+  addLedger(state, { amount: usd(-q.cost), kind: 'travel', label: `Travel to ${dest.name}, ${state.countries[dest.countryId]!.name}` }, { countryId: dest.countryId });
   state.scout!.location = to;
   return q;
 }

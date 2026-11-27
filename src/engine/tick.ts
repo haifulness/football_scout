@@ -20,6 +20,7 @@ import { resolveDeals } from './systems/deals';
 import { employmentTick } from './systems/employment';
 import { missionTick } from './systems/missions';
 import { marketTick } from './systems/market';
+import { windowPlanTick } from './systems/window-plan';
 import { rivalTick, rivalsReadPaper } from './systems/rivals';
 import { assistantTick } from './systems/assistants';
 import { checkSolvency, payMatchBonuses, settleSigningBonuses, updatePlacements } from './systems/payouts';
@@ -150,6 +151,7 @@ function playDay(state: GameState, date: GameDate, onMatch?: MatchListener): { m
     campaignTick(state, date);
     missionTick(state, date);
     marketTick(state, date);
+    windowPlanTick(state, date);
     assistantTick(state, date);
     huntTick(state, date);
     eventsTick(state, date);

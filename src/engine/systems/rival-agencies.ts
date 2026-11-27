@@ -137,7 +137,7 @@ export function rivalAgencyTick(state: GameState, date: GameDate) {
   for (const a of rivals) a.strength = clamp(a.strength + 0.1, 1, 20);
   // Offers to your best staff.
   for (const s of state.assistants) {
-    if (s.offer || s.skill < OFFER_SKILL || (s.loyalUntil !== undefined && date < s.loyalUntil)) continue;
+    if (s.clubPaid !== undefined || s.offer || s.skill < OFFER_SKILL || (s.loyalUntil !== undefined && date < s.loyalUntil)) continue;
     if (!rng.chance(0.03 + 0.01 * (s.skill - OFFER_SKILL))) continue;
     const by = rng.pick(rivals);
     const wage = usd(Math.round((s.wage * RAISE) / 10) * 10);

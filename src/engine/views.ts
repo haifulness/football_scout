@@ -1067,6 +1067,15 @@ export interface CareerView {
         /** The season bonus terms, in words. */
         bonuses: string;
         trust: number;
+        /** What the club wants from the current (or last) transfer window. */
+        windowPlan?: {
+          closes: GameDate;
+          budget: USD;
+          bonus: USD;
+          buys: { position: Position; done: boolean }[];
+          sells: { player: { id: PlayerId; name: string }; done: boolean }[];
+          result?: 'done' | 'missed';
+        };
       };
   offers: OfferView[];
   /** The scout you work under. */
@@ -1331,6 +1340,8 @@ export interface AssistantView {
   analysis?: { club: string; until: GameDate };
   /** A rival agency wants him: match by then or he goes. */
   offer?: { agency: string; wage: USD; until: GameDate };
+  /** On your employer's staff: the club's name (it pays him). */
+  clubPaid?: string;
   task?: AssistantTaskView;
   /** A brief he is handling for you. */
   job?: {

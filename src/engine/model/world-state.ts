@@ -38,6 +38,8 @@ export interface GameState {
   news: NewsItem[];
   /** The player character. Undefined until the career is set up. */
   scout?: Scout;
+  /** Full-time: what your employer wants from the current transfer window. */
+  windowPlan?: import('./season').WindowPlan;
   knowledge: Record<PlayerId, Knowledge>;
   pool: Record<PlayerId, PoolEntry>;
   searches: SearchRecord[];

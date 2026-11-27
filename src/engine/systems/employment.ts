@@ -21,6 +21,8 @@ import { rivalAtClub, rivalName } from './rivals';
 import { specialties, specialtyAppeal } from './goals';
 import { clientCapacity, hasBase } from './agency';
 import { MENTOR_STANDING, isMentorClient, leaveMentor } from './mentor';
+import { assignJuniorScout, releaseJuniorScouts } from './assistants';
+import { learn } from './knowledge';
 
 /**
  * Careers (PLAN §3.10, §3.12). Freelancers pitch only to their client clubs and
@@ -241,6 +243,9 @@ export function acceptOffer(state: GameState, offerId: number): Employment {
       since: state.date,
       until: makeDate(year + (offer.seasons ?? 2) + (month >= 7 ? 0 : -1), 6, 30),
     };
+    releaseJuniorScouts(state);
+    assignJuniorScout(state, club.id);
+    analystsRead(state, club.id, true);
     addNews(state, {
       date: state.date,
       kind: 'career',
@@ -276,6 +281,7 @@ function goFreelance(state: GameState, why: string) {
   if (e.mode !== 'fulltime') return;
   const club = state.clubs[e.clubId]!;
   scout.employment = { mode: 'freelance', clients: [] };
+  releaseJuniorScouts(state);
   addNews(state, { date: state.date, kind: 'career', title: `${scout.name} leaves ${club.name}`, body: why, clubIds: [club.id], countryId: club.countryId });
 }
 
@@ -339,6 +345,32 @@ export function seasonBonus(state: GameState, date: GameDate) {
     clubIds: [club.id],
     countryId: club.countryId,
   });
+}
+
+/** How well the club's analysts know every player in its league (a first read, not a scout's). */
+export const ANALYST_KNOWLEDGE = 15;
+
+/** Full-time: the club's analysts share their file on your league (on joining, and each summer). */
+export function analystsRead(state: GameState, clubId: ClubId, announce = false) {
+  const club = state.clubs[clubId]!;
+  const league = state.leagues[club.leagueId]!;
+  let n = 0;
+  for (const cid of league.clubIds)
+    for (const pid of state.clubs[cid]!.squad) {
+      const p = state.players[pid];
+      if (!p || (state.knowledge[pid]?.level ?? 0) >= ANALYST_KNOWLEDGE) continue;
+      learn(state, p, ANALYST_KNOWLEDGE, ANALYST_KNOWLEDGE, state.date);
+      n++;
+    }
+  if (announce || n)
+    addNews(state, {
+      date: state.date,
+      kind: 'career',
+      title: `The analysts' file on the ${league.name}`,
+      body: `${club.name}'s analysts share what they have on the ${league.name}: a first read on ${n} players. Watch them yourself to know more.`,
+      clubIds: [club.id],
+      countryId: club.countryId,
+    });
 }
 
 /** Share of an expense your employer pays (0 as a freelancer). */
@@ -413,6 +445,9 @@ export function employmentTick(state: GameState, date: GameDate) {
   }
 
   if (day === 1) monthlyOffers(state, date);
+  // Each summer the analysts update their file on the league.
+  const s2 = state.scout?.employment;
+  if (s2?.mode === 'fulltime' && day === 1 && toParts(date).month === 7) analystsRead(state, s2.clubId);
 }
 
 function monthlyOffers(state: GameState, date: GameDate) {

@@ -50,7 +50,7 @@ export const UNLOCKS: { key: UnlockKey; reputation: number; label: string; body:
 const inUse = (state: GameState, key: UnlockKey): boolean => {
   switch (key) {
     case 'assistants':
-      return state.assistants.length > 0;
+      return state.assistants.some((a) => a.clubPaid === undefined);
     case 'mandates':
       return state.mandates.length > 0;
     case 'representation':

@@ -66,6 +66,8 @@ export interface Assistant {
   analysis?: { clubId: import('../core/ids').ClubId; until: GameDate };
   /** Players reported over his time with you. */
   reports: number;
+  /** On your employer's payroll (full-time): the club pays him, he doesn't ask for raises, and he stays at the club when you leave. */
+  clubPaid?: ClubId;
   /** Office staff: deals lined up outside the window, ready to close when it opens. */
   leads?: number;
   /** Office staff: don't let him pick up your briefs on his own. */

@@ -261,7 +261,7 @@ function saleWeek(state: GameState, a: Assistant, rng: Rng) {
 export function chargeStaffCut(state: GameState, deal: Deal | undefined, amount: USD, what: string) {
   if (!deal || deal.delegatedTo === undefined || amount <= 0) return;
   const a = state.assistants.find((x) => x.id === deal.delegatedTo);
-  if (!a) return; // he has left: nobody to pay
+  if (!a || a.clubPaid !== undefined) return; // he has left, or the club pays him: nobody to pay
   const who = name(a);
   const cut = usd(Math.round(amount * STAFF_CUT));
   addLedger(state, { amount: usd(-cut), kind: 'assistant', label: `${who}'s ${Math.round(STAFF_CUT * 100)}% of the ${what}` });

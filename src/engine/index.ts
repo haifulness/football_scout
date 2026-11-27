@@ -1,4 +1,5 @@
 import { clamp } from './core/rng';
+import { WINDOW_BONUS } from './systems/window-plan';
 import { ATTRIBUTE_LABEL } from './model/player';
 import { CAMPAIGN_BOOST, CAMPAIGN_WEEKS, SPOTLIGHT, activeCampaign, campaignCost, startCampaign, stopCampaign } from './systems/campaigns';
 import { answerConsultation, finderFee } from './systems/consultations';
@@ -93,6 +94,8 @@ import {
   recallAssistant,
   skillCeiling,
   taskExpenses,
+  ownStaff,
+  staffAvailable,
 } from './systems/assistants';
 import type { AssistantBrief } from './model/assistant';
 import { inLocation } from './systems/scouting';
@@ -573,7 +576,7 @@ export class Engine {
       requirements: { reputation: AGENCY_REP, cost: usd(FOUNDING_COST), yourReputation: sc.reputation, money: sc.money },
       maxOffices: MAX_OFFICES,
       clients: { used, capacity: clientCapacity(s) },
-      staff: { used: s.assistants.length, capacity: staffCapacity(s) },
+      staff: { used: ownStaff(s).length, capacity: staffCapacity(s) },
       agency: ag && {
         name: ag.name,
         shortName: ag.shortName,
@@ -1416,6 +1419,21 @@ export class Engine {
               expenseCover: EXPENSE_COVER[s.clubs[e.clubId]!.tier],
               bonuses: seasonBonusTerms(),
               trust: clubTrust(s, e.clubId),
+              windowPlan: (() => {
+                const wp = s.windowPlan;
+                if (!wp || wp.clubId !== e.clubId) return undefined;
+                return {
+                  closes: wp.closes,
+                  budget: wp.budget,
+                  bonus: usd(Math.round((e.salary * WINDOW_BONUS) / 100) * 100),
+                  buys: wp.buys.map((b) => ({ position: b.position, done: !!b.done })),
+                  sells: wp.sells.map((x) => {
+                    const p = s.players[x.playerId];
+                    return { player: { id: x.playerId, name: p ? `${p.firstName} ${p.lastName}` : 'a player' }, done: !!x.done };
+                  }),
+                  result: wp.result,
+                };
+              })(),
             },
       offers: s.offers.map((o) => {
         const c = s.clubs[o.clubId]!;
@@ -1572,7 +1590,7 @@ export class Engine {
           return a && { id: a.id, name: `${a.firstName} ${a.lastName}` };
         })(),
         delegates:
-          m.status === 'active' && isUnlocked(s, 'assistants')
+          m.status === 'active' && staffAvailable(s)
             ? s.assistants.map((a) => {
                 const c = delegateCheck(s, a, m);
                 return { id: a.id, name: `${a.firstName} ${a.lastName}`, skill: a.skill, ok: c.ok, reason: c.reason };
@@ -1643,7 +1661,7 @@ export class Engine {
           return a && { id: a.id, name: `${a.firstName} ${a.lastName}` };
         })(),
         delegates:
-          m.status === 'active' && isUnlocked(s, 'assistants')
+          m.status === 'active' && staffAvailable(s)
             ? s.assistants.map((a) => {
                 const c = delegateSaleCheck(s, a, m);
                 return { id: a.id, name: `${a.firstName} ${a.lastName}`, skill: a.skill, ok: c.ok, reason: c.reason };
@@ -1888,6 +1906,7 @@ export class Engine {
           reports: a.reports,
           analysis: a.analysis && { club: s.clubs[a.analysis.clubId]?.name ?? 'a club', until: a.analysis.until },
           offer: a.offer && { agency: s.rivalAgencies?.find((x) => x.id === a.offer!.agencyId)?.name ?? 'A rival agency', wage: a.offer.wage, until: a.offer.until },
+          clubPaid: a.clubPaid !== undefined ? s.clubs[a.clubPaid]?.name : undefined,
           office:
             a.officeId === undefined
               ? undefined
@@ -1954,7 +1973,7 @@ export class Engine {
       })),
       limit: staffCapacity(s),
       ceiling: skillCeiling(sc.reputation),
-      weeklyCost: usd(s.assistants.reduce((n, a) => n + a.wage + (a.task?.weeklyExpenses ?? 0), 0)),
+      weeklyCost: usd(s.assistants.reduce((n, a) => n + (a.clubPaid === undefined ? a.wage : 0) + (a.task?.weeklyExpenses ?? 0), 0)),
       maxWeeks: MAX_TASK_WEEKS,
     };
   }
@@ -3339,7 +3358,7 @@ export class Engine {
           : `Freelance · ${sc.employment.clients.length}/${clientCapacity(s)} clients`,
       employer: sc.employment.mode === 'fulltime' ? { club: badge(s.clubs[sc.employment.clubId]!), title: sc.employment.title } : undefined,
       unlocked: {
-        assistants: isUnlocked(s, 'assistants'),
+        assistants: staffAvailable(s),
         mandates: isUnlocked(s, 'mandates'),
         representation: isUnlocked(s, 'representation'),
         agency: isUnlocked(s, 'agency'),

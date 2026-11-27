@@ -131,7 +131,13 @@ describe('full-time employment', () => {
     expect(salary.amount).toBeGreaterThan(0);
     expect(w.scout!.money).toBeGreaterThan(money);
 
-    const search = startSearch(w, { location: { scope: 'country', id: eng }, positions: [], attributes: [], includeFreeAgents: false });
+    // At home the club pays it all; abroad, its usual share.
+    const before = w.scout!.money;
+    startSearch(w, { location: { scope: 'country', id: eng }, positions: [], attributes: [], includeFreeAgents: false });
+    expect(w.scout!.money).toBe(before);
+    expect(w.ledger.some((l) => l.kind === 'search')).toBe(false);
+    const abroad = Object.keys(w.countries).find((id) => id !== 'eng') as CountryId;
+    const search = startSearch(w, { location: { scope: 'country', id: abroad }, positions: [], attributes: [], includeFreeAgents: false });
     const line = w.ledger.find((l) => l.kind === 'search')!;
     expect(line.label).toMatch(/club pays 70%/);
     expect(-line.amount).toBeLessThan(search.cost);

@@ -63,12 +63,25 @@ export const STARTING_MONEY: Record<Difficulty, number> = { easy: 25_000, normal
 
 /** Full-time scouts: the employer pays part of work expenses. */
 const COVERED: ReadonlySet<LedgerKind> = new Set(['search', 'video', 'travel', 'accommodation', 'ticket', 'meeting', 'assistant-task']);
-/** Share of work expenses a full-time employer pays, by club tier. */
+/** Share of work expenses a full-time employer pays, by club tier (all of them in the club's own country). */
 export const EXPENSE_COVER: Record<ClubTier, number> = { 1: 0.9, 2: 0.8, 3: 0.7, 4: 0.6, 5: 0.5 };
-function withExpenseCover(state: GameState, e: Omit<LedgerEntry, 'date'>): Omit<LedgerEntry, 'date'> {
+/** Your own work in the club's country: the club pays it all. Your assistants' tasks still cost the usual share. */
+const HOME_COVERED: ReadonlySet<LedgerKind> = new Set(['search', 'video', 'travel', 'accommodation', 'ticket', 'meeting']);
+
+/** The share of an expense of this kind, in this country, your employer pays (0 as a freelancer). */
+export function coverFor(state: GameState, kind: LedgerKind, countryId?: CountryId): number {
   const job = state.scout?.employment;
-  if (e.amount >= 0 || !COVERED.has(e.kind) || job?.mode !== 'fulltime') return e;
-  const cover = EXPENSE_COVER[state.clubs[job.clubId]!.tier];
+  if (job?.mode !== 'fulltime' || !COVERED.has(kind)) return 0;
+  const club = state.clubs[job.clubId]!;
+  const where = countryId ?? state.cities[state.scout!.location]?.countryId;
+  return where === club.countryId && HOME_COVERED.has(kind) ? 1 : EXPENSE_COVER[club.tier];
+}
+
+function withExpenseCover(state: GameState, e: Omit<LedgerEntry, 'date'>, countryId?: CountryId): Omit<LedgerEntry, 'date'> {
+  if (e.amount >= 0) return e;
+  const cover = coverFor(state, e.kind, countryId);
+  if (!cover) return e;
+  if (cover >= 1) return { ...e, amount: usd(0), label: `${e.label} (club pays)` };
   return { ...e, amount: usd(Math.round(e.amount * (1 - cover))), label: `${e.label} (club pays ${Math.round(cover * 100)}%)` };
 }
 
@@ -77,9 +90,16 @@ function withExpenseCover(state: GameState, e: Omit<LedgerEntry, 'date'>): Omit<
  * the latest entry (same kind and label) is added to it instead of a new line,
  * so a two-week hotel stay is one line, not fourteen.
  */
-export function addLedger(state: GameState, entryIn: Omit<LedgerEntry, 'date'>, opts: { date?: GameDate; merge?: boolean } = {}) {
+export function addLedger(
+  state: GameState,
+  entryIn: Omit<LedgerEntry, 'date'>,
+  /** `countryId`: where the expense is (your location when absent), for an employer that pays all costs at home. */
+  opts: { date?: GameDate; merge?: boolean; countryId?: CountryId } = {},
+) {
   const date = opts.date ?? state.date;
-  const entry = withExpenseCover(state, entryIn);
+  const entry = withExpenseCover(state, entryIn, opts.countryId);
+  // Fully covered: nothing to record.
+  if (entry.amount === 0 && entryIn.amount < 0) return;
   const last = state.ledger[0];
   if (opts.merge && last && last.kind === entry.kind && last.label === entry.label) {
     last.amount = usd(last.amount + entry.amount);
@@ -262,7 +282,11 @@ function validateFilters(f: SearchFilters) {
 function createPendingSearch(state: GameState, f: SearchFilters, est: SearchEstimate): SearchRecord {
   const id = state.counters.search++;
   const label = describeSearch(state, f);
-  addLedger(state, { amount: usd(-est.cost), kind: 'search', label: `Search: ${label}` });
+  // Where the search looks decides whether your employer pays it all (its own country) or a share (anywhere wider).
+  const loc = f.location;
+  const where =
+    loc.scope === 'country' ? loc.id : loc.scope === 'region' ? state.regions[loc.id]?.countryId : loc.scope === 'city' ? state.cities[loc.id]?.countryId : ('abroad' as CountryId);
+  addLedger(state, { amount: usd(-est.cost), kind: 'search', label: `Search: ${label}` }, { countryId: where });
   const record: SearchRecord = {
     id,
     filters: f,

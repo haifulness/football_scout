@@ -24,13 +24,14 @@ const control = 'w-full rounded-lg border border-white/10 bg-night-950/70 px-2.5
 export function StaffScreen() {
   const staff = useEngineQuery(() => engine.getStaff(), []);
   if (!staff) return <Loading label="Calling your staff" />;
-  const full = staff.assistants.length >= staff.limit;
+  const own = staff.assistants.filter((a) => !a.clubPaid).length;
+  const full = own >= staff.limit;
   return (
     <div className="flex flex-col gap-4">
       <header className="flex flex-wrap items-end gap-6">
         <div className="min-w-0 flex-1">
           <div className="panel-title text-grass-400">
-            {staff.assistants.length}/{staff.limit} assistants · {formatUSD(staff.weeklyCost)} a week
+            {own}/{staff.limit} assistants{own < staff.assistants.length ? ' + club staff' : ''} · {formatUSD(staff.weeklyCost)} a week
           </div>
           <h1 className="font-display text-5xl font-bold uppercase leading-none">Staff</h1>
           <p className="mt-2 max-w-2xl text-sm text-mist-400">
@@ -152,7 +153,7 @@ function AssistantCard({ a, i, maxWeeks }: { a: AssistantView; i: number; maxWee
             <span className="text-[11px] text-mist-400">{a.age}</span>
           </div>
           <div className="text-[11px] text-mist-400">
-            Knows {a.speciality.name} · {formatUSD(a.wage)}/wk · {a.reports} reports
+            Knows {a.speciality.name} · {a.clubPaid ? `paid by ${a.clubPaid}` : `${formatUSD(a.wage)}/wk`} · {a.reports} reports
           </div>
           <div className="mt-1">
             <SkillBar skill={a.skill} xp={a.xp} xpToLevel={a.xpToLevel} />
@@ -249,7 +250,7 @@ function AssistantCard({ a, i, maxWeeks }: { a: AssistantView; i: number; maxWee
               Recall
             </button>
           )}
-          {confirmFire ? (
+          {a.clubPaid ? null : confirmFire ? (
             <>
               <button className="btn-ghost border-alert-500/40 text-xs text-alert-400" onClick={() => void act(() => engine.fireAssistant(a.id))}>
                 Confirm: pay {formatUSD(a.wage)} notice

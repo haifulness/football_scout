@@ -367,35 +367,44 @@ export function marketTick(state: GameState, date: GameDate) {
     const last = Math.max(-Infinity, ...state.mandates.filter((m) => m.clubId === clubId).map((m) => m.postedOn));
     const quiet = Number.isFinite(last) ? date - last : 60;
     if (!rng.chance(clamp(clubId === employer ? 0.25 + quiet / 150 : 0.15 + quiet / 200, 0, 0.9))) continue;
-    // Not someone you brought in yourself, nor one already up for sale.
-    const mine = new Set(state.placements.filter((pl) => pl.clubId === clubId && date - pl.signedOn < RECENT_SIGNING_DAYS).map((pl) => pl.playerId));
-    for (const m of open) mine.add(m.playerId);
-    const pick = surplusCandidate(state, club, rng, mine);
-    if (!pick) continue;
-    const mandate: Mandate = {
-      report: clubReport(state, club, pick.p, rng),
-      id: state.counters.mandate++,
-      clubId,
-      playerId: pick.p.id,
-      askingFee: roundPrice(Math.max(pick.p.value * rng.float(0.85, 1.1), 1000)),
-      commissionPct: clubId === employer ? rng.int(2, 3) : rng.int(3, 5),
-      employer: clubId === employer || undefined,
-      reason: pick.reason,
-      postedOn: date,
-      acceptBy: addDays(date, OFFER_DAYS),
-      weeks: rng.int(6, 10),
-      status: 'offered',
-    };
-    state.mandates.push(mandate);
-    addNews(state, {
-      date,
-      kind: 'career',
-      link: 'missions',
-      title: `Selling mandate: ${club.name} want ${pick.p.firstName} ${pick.p.lastName} sold`,
-      body: `"${pick.reason}" Asking ${formatUSD(mandate.askingFee)}, your commission ${formatUSD(mandateCommission(state, mandate, mandate.askingFee))} (${mandate.commissionPct}%)${clubId === employer ? ' on top of your salary. You can pitch him to any club' : ''}. Accept by ${formatDate(mandate.acceptBy)} in Missions.`,
-      clubIds: [club.id],
-      countryId: club.countryId,
-      playerIds: [pick.p.id],
-    });
+    offerMandate(state, club, rng, clubId === employer);
   }
+}
+
+/** A club asks you to sell one of its surplus players (not one you brought in, nor one already up for sale). */
+export function offerMandate(state: GameState, club: Club, rng: Rng, forEmployer: boolean): Mandate | undefined {
+  const date = state.date;
+  const clubId = club.id;
+  const employer = forEmployer ? clubId : undefined;
+  const open = state.mandates.filter((m) => m.clubId === clubId && (m.status === 'offered' || m.status === 'active'));
+  const mine = new Set(state.placements.filter((pl) => pl.clubId === clubId && date - pl.signedOn < RECENT_SIGNING_DAYS).map((pl) => pl.playerId));
+  for (const m of open) mine.add(m.playerId);
+  const pick = surplusCandidate(state, club, rng, mine);
+  if (!pick) return undefined;
+  const mandate: Mandate = {
+    report: clubReport(state, club, pick.p, rng),
+    id: state.counters.mandate++,
+    clubId,
+    playerId: pick.p.id,
+    askingFee: roundPrice(Math.max(pick.p.value * rng.float(0.85, 1.1), 1000)),
+    commissionPct: clubId === employer ? rng.int(2, 3) : rng.int(3, 5),
+    employer: clubId === employer || undefined,
+    reason: pick.reason,
+    postedOn: date,
+    acceptBy: addDays(date, OFFER_DAYS),
+    weeks: rng.int(6, 10),
+    status: 'offered',
+  };
+  state.mandates.push(mandate);
+  addNews(state, {
+    date,
+    kind: 'career',
+    link: 'missions',
+    title: `Selling mandate: ${club.name} want ${pick.p.firstName} ${pick.p.lastName} sold`,
+    body: `"${pick.reason}" Asking ${formatUSD(mandate.askingFee)}, your commission ${formatUSD(mandateCommission(state, mandate, mandate.askingFee))} (${mandate.commissionPct}%)${clubId === employer ? ' on top of your salary. You can pitch him to any club' : ''}. Accept by ${formatDate(mandate.acceptBy)} in Missions.`,
+    clubIds: [club.id],
+    countryId: club.countryId,
+    playerIds: [pick.p.id],
+  });
+  return mandate;
 }

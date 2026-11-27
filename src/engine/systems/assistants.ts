@@ -1,7 +1,7 @@
 import { analysisWeek } from './club-asks';
 import { revealTrait } from './character';
 import { addDays, ageOn, toParts, type GameDate } from '../core/calendar';
-import type { PlayerId } from '../core/ids';
+import type { ClubId, PlayerId } from '../core/ids';
 import { formatUSD, usd, type USD } from '../core/money';
 import { Rng, clamp } from '../core/rng';
 import { culture } from '../data/names';
@@ -25,6 +25,53 @@ import { jobWeek, officeWeek } from './delegation';
 
 export const MAX_TASK_WEEKS = 8;
 const XP_PER_LEVEL = 12;
+/** Skill of the junior scout a club gives its full-time scout, by tier. */
+const JUNIOR_SKILL: Record<number, number> = { 5: 4, 4: 5, 3: 6, 2: 7, 1: 8 };
+
+/** Staff you pay yourself (they count toward your limit; club staff don't). */
+export const ownStaff = (state: GameState) => state.assistants.filter((a) => a.clubPaid === undefined);
+/** Can you use the Staff screen: hired staff allowed, or a junior scout from your club. */
+export const staffAvailable = (state: GameState) => isUnlocked(state, 'assistants') || state.assistants.some((a) => a.clubPaid !== undefined);
+
+/** Full-time: the club puts a junior scout at your disposal. */
+export function assignJuniorScout(state: GameState, clubId: ClubId) {
+  if (state.assistants.some((a) => a.clubPaid === clubId)) return;
+  const club = state.clubs[clubId]!;
+  const country = state.countries[club.countryId]!;
+  const rng = Rng.derive(state.seed, `junior:${clubId}:${state.date}`);
+  const names = culture(country.culture);
+  const skill = JUNIOR_SKILL[club.tier]! + rng.int(0, 1);
+  const a: Assistant = {
+    id: state.counters.assistant++,
+    firstName: rng.pick(names.first),
+    lastName: rng.pick(names.last),
+    nationality: country.id,
+    portraitSeed: rng.seed(),
+    age: rng.int(21, 27),
+    skill,
+    speciality: country.id,
+    wage: wageFor(skill),
+    hiredOn: state.date,
+    xp: 0,
+    reports: 0,
+    clubPaid: clubId,
+  };
+  state.assistants.push(a);
+  addNews(state, {
+    date: state.date,
+    kind: 'career',
+    link: 'staff',
+    title: `${club.name} give you a junior scout`,
+    body: `${a.firstName} ${a.lastName} (skill ${skill}) joins you from the club's staff. The club pays him: send him on tasks or hand him briefs like any assistant. He stays at the club if you leave.`,
+    clubIds: [club.id],
+    countryId: club.countryId,
+  });
+}
+
+/** Leaving a club: its junior scout stays behind (his work for you ends). */
+export function releaseJuniorScouts(state: GameState) {
+  state.assistants = state.assistants.filter((a) => a.clubPaid === undefined);
+}
 const BASE_EXPENSES = { city: 80, region: 160, country: 320 } as const;
 
 export const staffLimit = (reputation: number) => (reputation >= 40 ? 3 : reputation >= 15 ? 2 : 1);
@@ -81,7 +128,7 @@ export function hireAssistant(state: GameState, candidateId: number): Assistant 
   const c = state.assistantMarket.find((x) => x.id === candidateId);
   if (!c) throw new ScoutingError('That scout has taken another job.');
   const limit = staffCapacity(state);
-  if (state.assistants.length >= limit)
+  if (ownStaff(state).length >= limit)
     throw new ScoutingError(`${state.agency ? 'Your offices have room for' : 'Your reputation supports'} ${limit} assistant${limit > 1 ? 's' : ''} at most.`);
   if (scout.money < c.wage) throw new ScoutingError(`You need at least a week's wage (${formatUSD(c.wage)}) in the bank to hire.`);
   state.assistantMarket = state.assistantMarket.filter((x) => x.id !== c.id);
@@ -94,6 +141,7 @@ export function hireAssistant(state: GameState, candidateId: number): Assistant 
 export function fireAssistant(state: GameState, id: number) {
   const a = state.assistants.find((x) => x.id === id);
   if (!a) return;
+  if (a.clubPaid !== undefined) throw new ScoutingError(`${name(a)} works for the club, not for you: he stays while you're there.`);
   addLedger(state, { amount: usd(-a.wage), kind: 'assistant', label: `Notice pay: ${name(a)}` });
   state.assistants = state.assistants.filter((x) => x.id !== id);
 }
@@ -200,7 +248,7 @@ export function assistantTick(state: GameState, date: GameDate) {
   if (weekday !== 1 || !state.assistants.length) return;
   const rng = Rng.derive(state.seed, `assistants:${date}`);
   for (const a of state.assistants) {
-    addLedger(state, { amount: usd(-a.wage), kind: 'assistant', label: `Wage: ${name(a)}` });
+    if (a.clubPaid === undefined) addLedger(state, { amount: usd(-a.wage), kind: 'assistant', label: `Wage: ${name(a)}` });
     if (a.job) {
       jobWeek(state, a, rng);
       if (a.xp >= XP_PER_LEVEL) levelUp(state, a, date);
@@ -226,12 +274,16 @@ function levelUp(state: GameState, a: Assistant, date: GameDate) {
   if (a.skill >= 20) return;
   a.xp = 0;
   a.skill++;
-  a.wage = usd(Math.round((a.wage * 1.08) / 10) * 10);
+  // Club staff are on the club's pay scale: no raise to ask you for.
+  if (a.clubPaid === undefined) a.wage = usd(Math.round((a.wage * 1.08) / 10) * 10);
   addNews(state, {
     date,
     kind: 'career',
     link: 'staff',
     title: `${name(a)} is improving`,
-    body: `Weeks in the field have sharpened his eye (skill ${a.skill}). He asks for a raise: now ${formatUSD(a.wage)} a week.`,
+    body:
+      a.clubPaid === undefined
+        ? `Weeks in the field have sharpened his eye (skill ${a.skill}). He asks for a raise: now ${formatUSD(a.wage)} a week.`
+        : `Weeks in the field have sharpened his eye (skill ${a.skill}).`,
   });
 }
