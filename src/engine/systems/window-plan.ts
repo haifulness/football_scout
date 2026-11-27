@@ -5,6 +5,7 @@ import { Rng, clamp } from '../core/rng';
 import type { WindowPlan } from '../model/season';
 import type { GameState } from '../model/world-state';
 import { offerMandate } from './market';
+import { bonusMult } from './employment';
 import { postBrief } from './missions';
 import { addLedger } from './scouting';
 import { addNews } from './season';
@@ -103,7 +104,7 @@ function closePlan(state: GameState, plan: WindowPlan) {
   const got = items.filter((i) => i.done).length;
   plan.result = got === items.length ? 'done' : 'missed';
   if (plan.result === 'done' && e.mode === 'fulltime') {
-    const bonus = Math.round((e.salary * WINDOW_BONUS) / 100) * 100;
+    const bonus = Math.round((e.salary * WINDOW_BONUS * bonusMult(state)) / 100) * 100;
     addLedger(state, { amount: usd(bonus), kind: 'salary', label: `Window bonus: ${club.name}` });
     scout.relationships[club.headCoachId] = clamp((scout.relationships[club.headCoachId] ?? 0) + WINDOW_STANDING, 0, 100);
     addNews(state, {

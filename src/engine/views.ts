@@ -1024,6 +1024,8 @@ export interface OfferView {
   bonuses?: string;
   /** Full-time signing bonus, percent of the fee. */
   signingPct: number;
+  /** Full-time: the terms you can choose, with the salary each pays (and with an extra season). */
+  terms?: { focus: 'standard' | 'salary' | 'bonuses'; label: string; blurb: string; salary: USD; extendedSalary: USD }[];
   expiresOn: GameDate;
   renewal?: boolean;
   trust: number;
@@ -1066,6 +1068,8 @@ export interface CareerView {
         expenseCover: number;
         /** The season bonus terms, in words. */
         bonuses: string;
+        /** The terms you signed, in words. */
+        terms: string;
         trust: number;
         /** What the club wants from the current (or last) transfer window. */
         windowPlan?: {

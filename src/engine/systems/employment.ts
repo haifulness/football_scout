@@ -7,7 +7,7 @@ import type { ClubId } from '../core/ids';
 import { formatUSD, usd, type USD } from '../core/money';
 import { Rng, clamp } from '../core/rng';
 import type { Club, ClubTier } from '../model/club';
-import type { ClubRecord, Employment, JobOffer, Scout } from '../model/scout';
+import type { ClubRecord, ContractTerms, Employment, JobOffer, Scout } from '../model/scout';
 import type { GameState } from '../model/world-state';
 import { meetingInfo, metToday, COLLEAGUE_START } from './fieldwork';
 import { EXPENSE_COVER, ScoutingError, addLedger } from './scouting';
@@ -94,6 +94,28 @@ export function clientSlots(reputation: number): number {
 export const AGREEMENT_GATE: Record<ClubTier, number> = { 1: 75, 2: 50, 3: 20, 4: 0, 5: 0 };
 export const JOB_GATE: Record<ClubTier, number> = { 1: 70, 2: 50, 3: 30, 4: 15, 5: 5 };
 export const SALARY: Record<ClubTier, number> = { 1: 400_000, 2: 200_000, 3: 100_000, 4: 55_000, 5: 32_000 };
+/** Contract terms you can choose when you sign: more salary or more bonuses (season and window). */
+export const TERMS: Record<ContractTerms['focus'], { label: string; salary: number; bonuses: number; blurb: string }> = {
+  standard: { label: 'Standard', salary: 1, bonuses: 1, blurb: 'The club’s offer as it stands.' },
+  salary: { label: 'Salary first', salary: 1.15, bonuses: 0.5, blurb: '15% more salary, half the season and window bonuses.' },
+  bonuses: { label: 'Bonuses first', salary: 0.85, bonuses: 1.5, blurb: '15% less salary, half as much again in season and window bonuses.' },
+};
+/** An extra season on the contract costs this much salary... */
+export const EXTENDED_SALARY = 0.95;
+/** ...and a sacking pays out the rest of the contract up to a year (otherwise up to six months). */
+export const PAYOUT_DAYS = { standard: 182, extended: 365 } as const;
+
+/** What your season and window bonuses are multiplied by, under the terms you signed. */
+export function bonusMult(state: GameState): number {
+  const e = state.scout?.employment;
+  return e?.mode === 'fulltime' ? TERMS[e.terms?.focus ?? 'standard'].bonuses : 1;
+}
+
+/** The salary an offer pays under the terms you choose. */
+export function salaryUnder(salary: number, terms?: ContractTerms): USD {
+  return usd(Math.round((salary * TERMS[terms?.focus ?? 'standard'].salary * (terms?.extended ? EXTENDED_SALARY : 1)) / 1000) * 1000);
+}
+
 /** Season bonus in a full-time contract, as a share of the year's salary (the best one that applies). */
 export const SEASON_BONUS = { title: 0.3, promotion: 0.25, topHalf: 0.1 } as const;
 /** A relegation costs you this much with the coach (and pays no bonus). */
@@ -211,7 +233,7 @@ export function salaryFor(tier: ClubTier, reputation: number, wealthIndex: numbe
   return usd(Math.round((base * Math.sqrt(wealthIndex)) / 1000) * 1000);
 }
 
-export function acceptOffer(state: GameState, offerId: number): Employment {
+export function acceptOffer(state: GameState, offerId: number, terms?: ContractTerms): Employment {
   const scout = state.scout!;
   const offer = state.offers.find((o) => o.id === offerId);
   if (!offer) throw new ScoutingError('That offer is no longer on the table.');
@@ -235,13 +257,15 @@ export function acceptOffer(state: GameState, offerId: number): Employment {
     // New colleagues: a working relationship from day one (more is up to you).
     scout.relationships[club.headCoachId] = Math.max(scout.relationships[club.headCoachId] ?? 0, COLLEAGUE_START);
     const { year, month } = toParts(state.date);
+    const chosen: ContractTerms | undefined = terms && (terms.focus !== 'standard' || terms.extended) ? terms : undefined;
     scout.employment = {
       mode: 'fulltime',
       clubId: club.id,
       title: offer.title!,
-      salary: offer.salary!,
+      salary: salaryUnder(offer.salary!, chosen),
       since: state.date,
-      until: makeDate(year + (offer.seasons ?? 2) + (month >= 7 ? 0 : -1), 6, 30),
+      until: makeDate(year + (offer.seasons ?? 2) + (chosen?.extended ? 1 : 0) + (month >= 7 ? 0 : -1), 6, 30),
+      terms: chosen,
     };
     releaseJuniorScouts(state);
     assignJuniorScout(state, club.id);
@@ -250,7 +274,7 @@ export function acceptOffer(state: GameState, offerId: number): Employment {
       date: state.date,
       kind: 'career',
       title: `${scout.name} joins ${club.name}`,
-      body: `${club.name} appoint ${scout.name} as ${offer.title} on ${formatUSD(offer.salary!)} a year.`,
+      body: `${club.name} appoint ${scout.name} as ${offer.title} on ${formatUSD(salaryUnder(offer.salary!, chosen))} a year.`,
       clubIds: [club.id],
       countryId: club.countryId,
     });
@@ -333,7 +357,7 @@ export function seasonBonus(state: GameState, date: GameDate) {
   if (!share) return;
   const start = makeDate(state.season.year, 7, 1);
   const part = clamp((date - Math.max(start, e.since)) / Math.max(1, date - start), 0, 1);
-  const amount = Math.round((e.salary * share * part) / 100) * 100;
+  const amount = Math.round((e.salary * share * part * bonusMult(state)) / 100) * 100;
   if (amount <= 0) return;
   addLedger(state, { amount: usd(amount), kind: 'salary', label: `Season bonus: ${club.name}, ${why}` });
   addNews(state, {
@@ -341,7 +365,7 @@ export function seasonBonus(state: GameState, date: GameDate) {
     kind: 'career',
     link: 'career',
     title: `Season bonus: ${formatUSD(amount)} from ${club.name}`,
-    body: `${club.name} reward you for ${why}: ${Math.round(share * 100)}% of your salary${part < 1 ? ', for the part of the season you were there' : ''}.`,
+    body: `${club.name} reward you for ${why}: ${Math.round(share * bonusMult(state) * 100)}% of your salary${part < 1 ? ', for the part of the season you were there' : ''}.`,
     clubIds: [club.id],
     countryId: club.countryId,
   });
@@ -430,7 +454,8 @@ export function employmentTick(state: GameState, date: GameDate) {
           kind: 'fulltime',
           clubId: club.id,
           title: jobTitle(club.tier, scout.reputation),
-          salary: usd(Math.round(e.salary * 1.1)),
+          // 10% up on the club's terms (before the trade-off you chose last time; you choose again).
+          salary: usd(Math.round((e.salary / (TERMS[e.terms?.focus ?? 'standard'].salary * (e.terms?.extended ? EXTENDED_SALARY : 1))) * 1.1)),
           seasons: 2,
           renewal: true,
         });
@@ -440,7 +465,14 @@ export function employmentTick(state: GameState, date: GameDate) {
         goFreelance(state, `${club.name} let ${scout.name}'s contract run out.`);
       }
     } else if (day === 1 && clubTrust(state, club.id) < 12 && date - e.since > 90) {
-      goFreelance(state, `${club.name} dismiss ${scout.name}: the coach no longer trusts their judgement.`);
+      // A sacking pays out what's left of the contract, up to six months (a year on an extended contract).
+      const days = Math.max(0, Math.min(e.until - date, e.terms?.extended ? PAYOUT_DAYS.extended : PAYOUT_DAYS.standard));
+      const payout = Math.round((e.salary * days) / 365 / 100) * 100;
+      if (payout > 0) addLedger(state, { amount: usd(payout), kind: 'salary', label: `Payout: ${club.name}` });
+      goFreelance(
+        state,
+        `${club.name} dismiss ${scout.name}: the coach no longer trusts their judgement.${payout > 0 ? ` ${scout.name} leaves with ${formatUSD(payout)} for the rest of the contract.` : ''}`,
+      );
     }
   }
 

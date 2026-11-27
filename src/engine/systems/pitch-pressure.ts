@@ -26,6 +26,21 @@ export const HIT_LOW = 0.3;
 export const HIT_HIGH = 0.6;
 const HIT_LOW_FACTOR = 0.9;
 const HIT_HIGH_FACTOR = 1.05;
+/** Your employer's coach knows you: twice the patience, half the fatigue, and a poor run costs half as much. */
+export const EMPLOYER_PATIENCE_NOES = 6;
+const EMPLOYER_FATIGUE_STEP = 0.025;
+const EMPLOYER_HIT_LOW_FACTOR = 0.95;
+
+/** Is this club your employer (full-time)? */
+export function isEmployer(state: GameState, clubId: ClubId): boolean {
+  const e = state.scout?.employment;
+  return e?.mode === 'fulltime' && e.clubId === clubId;
+}
+
+/** Noes in a month before the coach here stops listening. */
+export function patienceNoes(state: GameState, clubId: ClubId): number {
+  return isEmployer(state, clubId) ? EMPLOYER_PATIENCE_NOES : PATIENCE_NOES;
+}
 
 /** The club gave its answer on this pitch (deals start out undecided). */
 const decided = (d: Deal) => !!d.signOff || !!d.rejectedBy || !!d.clubLevelRejection;
@@ -60,7 +75,7 @@ export function coldUntil(state: GameState, officialId: StaffId): GameDate | und
 /** After a no: one too many and he stops listening. Returns the date he'll listen again, when that happens now. */
 export function afterNo(state: GameState, clubId: ClubId, officialId: StaffId): GameDate | undefined {
   const scout = state.scout!;
-  if (recentNoes(state, clubId) < PATIENCE_NOES) return undefined;
+  if (recentNoes(state, clubId) < patienceNoes(state, clubId)) return undefined;
   const until = addDays(state.date, COLD_DAYS);
   scout.coldUntil = { ...(scout.coldUntil ?? {}), [officialId]: until };
   return until;
@@ -69,7 +84,7 @@ export function afterNo(state: GameState, clubId: ClubId, officialId: StaffId): 
 /** How tired the coach is of names at this position: the share taken off the next one's chance. */
 export function positionFatigue(state: GameState, clubId: ClubId, pos: Position): { noes: number; cut: number } {
   const noes = recentNoes(state, clubId, pos);
-  return { noes, cut: Math.min(FATIGUE_MAX, noes * FATIGUE_STEP) };
+  return { noes, cut: Math.min(FATIGUE_MAX, noes * (isEmployer(state, clubId) ? EMPLOYER_FATIGUE_STEP : FATIGUE_STEP)) };
 }
 
 export type HitLabel = 'wall' | 'trusted' | 'fair';
@@ -90,13 +105,13 @@ export function hitRate(state: GameState, clubId: ClubId): { rate: number; pitch
 /** What your hit rate does to a coach's yes there. */
 export function hitFactor(state: GameState, clubId: ClubId): number {
   const h = hitRate(state, clubId);
-  return !h ? 1 : h.label === 'wall' ? HIT_LOW_FACTOR : h.label === 'trusted' ? HIT_HIGH_FACTOR : 1;
+  return !h ? 1 : h.label === 'wall' ? (isEmployer(state, clubId) ? EMPLOYER_HIT_LOW_FACTOR : HIT_LOW_FACTOR) : h.label === 'trusted' ? HIT_HIGH_FACTOR : 1;
 }
 
 /** What your hit rate does to how often a club sends you briefs. */
 export function hitBriefFactor(state: GameState, clubId: ClubId): number {
   const h = hitRate(state, clubId);
-  return !h ? 1 : h.label === 'wall' ? 0.6 : h.label === 'trusted' ? 1.3 : 1;
+  return !h ? 1 : h.label === 'wall' ? (isEmployer(state, clubId) ? 0.8 : 0.6) : h.label === 'trusted' ? 1.3 : 1;
 }
 
 /** Everything that weighs on the next pitch to a club, at a position. */
@@ -105,7 +120,7 @@ export function pitchPressure(state: GameState, clubId: ClubId, pos: Position) {
   const fatigue = positionFatigue(state, clubId, pos);
   return {
     noes: coachNoes(state, clubId),
-    maxNoes: PATIENCE_NOES,
+    maxNoes: patienceNoes(state, clubId),
     coldUntil: coldUntil(state, club.headCoachId),
     fatigueNoes: fatigue.noes,
     fatigueCut: fatigue.cut,

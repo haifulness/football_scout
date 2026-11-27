@@ -378,7 +378,9 @@ function close(state: GameState, r: RivalScout, p: Player, buyer: Club, date: Ga
   // The shark pays the player more to beat your deal; the insider's coaches say yes more easily.
   const style = rivalStyle(state, r);
   const edge = (style === 'shark' && stolen.length ? 0.2 : 0) + (style === 'insider' ? 0.1 : 0);
-  if (!rng.chance(0.5 + r.skill * 0.02 + edge)) return endPursuit(r, date, 14, true);
+  // Your employer listens to its own scout first: outsiders close there less often, and their edge counts for half.
+  const yourClub = state.scout?.employment.mode === 'fulltime' && state.scout.employment.clubId === buyer.id;
+  if (!rng.chance(yourClub ? (0.5 + r.skill * 0.02 + edge / 2) * 0.75 : 0.5 + r.skill * 0.02 + edge)) return endPursuit(r, date, 14, true);
   // On a need from the paper, the club has its man: your deal for that position at that club is off too.
   const beaten = r.pursuit?.lead
     ? state.deals.filter((d) => OPEN_USER.has(d.stage) && d.clubId === buyer.id && d.position === r.pursuit!.lead && d.playerId !== p.id)

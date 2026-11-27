@@ -16,7 +16,6 @@ import { YourPlayersPanel } from '../components/your-players';
 import { engine } from '../store/engine-client';
 import { useEngineQuery, useGame } from '../store/game-store';
 
-
 export function CareerScreen() {
   const c = useEngineQuery(() => engine.getCareer(), []);
   if (!c) return <Loading label="Reading your CV" />;
@@ -219,56 +218,93 @@ function OffersPanel({ offers, career }: { offers: OfferView[]; career: CareerVi
     <Panel title={`Offers (${offers.length})`} right={<span className="text-[11px] text-mist-400">Each offer stands for three weeks</span>}>
       <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2">
         {offers.map((o, i) => (
-          <motion.div
-            key={o.id}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-            className="rounded-xl border border-flood-400/30 bg-flood-500/5 p-4"
-          >
-            <div className="flex items-center gap-3">
-              <Crest club={o.club} size={36} />
-              <div className="min-w-0 flex-1">
-                <div className="text-[10px] uppercase tracking-wider text-flood-300">
-                  {o.kind === 'client' ? 'Freelance client' : o.renewal ? 'Contract renewal' : 'Full-time job'}
-                </div>
-                <ClubLink club={o.club} className="block max-w-full font-semibold" />
-                <div className="truncate text-[11px] text-mist-400">
-                  {o.club.leagueName} · {o.club.cityName}, {o.club.countryName}
-                </div>
-              </div>
-            </div>
-            {o.kind === 'fulltime' ? (
-              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                <Mini label="Role" value={o.title!} />
-                <Mini label="Salary" value={`${formatUSD(o.salary!)}/yr`} />
-                <Mini label="Expenses paid" value={`${Math.round(o.expenseCover * 100)}%`} />
-              </div>
-            ) : (
-              <div className="mt-3 text-[12px] text-mist-300">Work for them alongside your other clients, at freelance rates.</div>
-            )}
-            <div className="mt-2 text-[11px] text-mist-400">
-              {o.kind === 'fulltime' &&
-                `${o.seasons} season${o.seasons === 1 ? '' : 's'} · full-time means pitching only to them, at full-time rates (${o.signingPct}% signing bonus, ×1 match bonuses). ${o.bonuses}. `}
-              {o.kind === 'fulltime' &&
-                career.employment.mode === 'freelance' &&
-                career.employment.clients.length > 0 &&
-                'You would give up your freelance clients. '}
-              Expires {formatDate(o.expiresOn)}.
-            </div>
-            <div className="mt-3 flex gap-2">
-              <button className="btn-primary flex-1 text-xs" onClick={() => void act(() => engine.acceptOffer(o.id))}>
-                Accept
-              </button>
-              <button className="btn-ghost flex-1 text-xs" onClick={() => void act(() => engine.declineOffer(o.id))}>
-                Decline
-              </button>
-            </div>
-          </motion.div>
+          <OfferCard key={o.id} o={o} i={i} career={career} act={act} />
         ))}
       </div>
       {error && <div className="px-4 pb-3 text-sm text-alert-400">{error}</div>}
     </Panel>
+  );
+}
+
+function OfferCard({ o, i, career, act }: { o: OfferView; i: number; career: CareerView; act: (fn: () => Promise<unknown>) => void }) {
+  const [focus, setFocus] = useState<'standard' | 'salary' | 'bonuses'>('standard');
+  const [extended, setExtended] = useState(false);
+  const pick = o.terms?.find((t) => t.focus === focus);
+  const salary = pick ? (extended ? pick.extendedSalary : pick.salary) : o.salary;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: i * 0.05 }}
+      className="rounded-xl border border-flood-400/30 bg-flood-500/5 p-4"
+    >
+      <div className="flex items-center gap-3">
+        <Crest club={o.club} size={36} />
+        <div className="min-w-0 flex-1">
+          <div className="text-[10px] uppercase tracking-wider text-flood-300">
+            {o.kind === 'client' ? 'Freelance client' : o.renewal ? 'Contract renewal' : 'Full-time job'}
+          </div>
+          <ClubLink club={o.club} className="block max-w-full font-semibold" />
+          <div className="truncate text-[11px] text-mist-400">
+            {o.club.leagueName} · {o.club.cityName}, {o.club.countryName}
+          </div>
+        </div>
+      </div>
+      {o.kind === 'fulltime' ? (
+        <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+          <Mini label="Role" value={o.title!} />
+          <Mini label="Salary" value={`${formatUSD(salary!)}/yr`} />
+          <Mini label="Expenses abroad" value={`${Math.round(o.expenseCover * 100)}%`} />
+        </div>
+      ) : (
+        <div className="mt-3 text-[12px] text-mist-300">Work for them alongside your other clients, at freelance rates.</div>
+      )}
+      <div className="mt-2 text-[11px] text-mist-400">
+        {o.kind === 'fulltime' &&
+          `${o.seasons} season${o.seasons === 1 ? '' : 's'} · full-time means pitching only to them, at full-time rates (${o.signingPct}% signing bonus, ×1 match bonuses). ${o.bonuses}. `}
+        {o.kind === 'fulltime' &&
+          career.employment.mode === 'freelance' &&
+          career.employment.clients.length > 0 &&
+          'You would give up your freelance clients. '}
+        Expires {formatDate(o.expiresOn)}.
+      </div>
+      {o.terms && (
+        <div className="mt-3 space-y-2">
+          <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Contract terms">
+            {o.terms.map((t) => (
+              <button
+                key={t.focus}
+                role="radio"
+                aria-checked={focus === t.focus}
+                className={`rounded-md border px-2 py-1 text-[11px] ${focus === t.focus ? 'border-grass-400/60 bg-grass-500/15 text-grass-200' : 'border-white/10 text-mist-300 hover:border-white/25'}`}
+                onClick={() => setFocus(t.focus)}
+              >
+                {t.label}
+              </button>
+            ))}
+            <label className="ml-auto inline-flex items-center gap-1.5 text-[11px] text-mist-300">
+              <input type="checkbox" checked={extended} onChange={(ev) => setExtended(ev.target.checked)} />
+              {(o.seasons ?? 2) + 1} seasons
+            </label>
+          </div>
+          <div className="text-[11px] text-mist-400">
+            {pick?.blurb}{' '}
+            {extended ? 'An extra season: 5% less salary, but a sacking pays up to a year of salary.' : 'A sacking pays up to six months of salary.'}
+          </div>
+        </div>
+      )}
+      <div className="mt-3 flex gap-2">
+        <button
+          className="btn-primary flex-1 text-xs"
+          onClick={() => void act(() => engine.acceptOffer(o.id, o.terms ? { focus, extended: extended || undefined } : undefined))}
+        >
+          Accept
+        </button>
+        <button className="btn-ghost flex-1 text-xs" onClick={() => void act(() => engine.declineOffer(o.id))}>
+          Decline
+        </button>
+      </div>
+    </motion.div>
   );
 }
 
@@ -306,9 +342,8 @@ function EmploymentPanel({ c }: { c: CareerView }) {
             <div className="mt-1 text-sm text-mist-300">
               {formatUSD(e.salary)} a year · work expenses paid in full at home, {Math.round(e.expenseCover * 100)}% abroad · since {formatDate(e.since)}
             </div>
-            <div className="mt-1 text-[12px] text-mist-400">
-              {e.bonuses}.
-            </div>
+            <div className="mt-1 text-[12px] text-mist-400">{e.bonuses}.</div>
+            <div className="mt-1 text-[12px] text-mist-400">{e.terms}.</div>
             <div className="mt-1 text-[12px] text-mist-400">
               Contract until {formatDate(e.until)} · standing <TrustBar value={e.trust} />{' '}
               {e.trust < 20 && <span className="text-alert-400">· below 12 you'll be dismissed</span>}

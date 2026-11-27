@@ -105,20 +105,28 @@ export function nemesisSeason(state: GameState, date: GameDate) {
 // ── Dirty tricks ────────────────────────────────────────────────────────
 
 /** Standing a rumour is costing you at a club right now. */
+/** At your employer a rumour fades faster: they know you. */
+export const SMEAR_DAYS_EMPLOYER = 60;
+function smearDays(state: GameState, clubId: ClubId): number {
+  const e = state.scout?.employment;
+  return e?.mode === 'fulltime' && e.clubId === clubId ? SMEAR_DAYS_EMPLOYER : SMEAR_DAYS;
+}
+
 export function smearPenalty(state: GameState, clubId: ClubId): number {
   const s = state.scout?.smears?.[clubId];
-  return s && state.date - s.date < SMEAR_DAYS ? s.amount : 0;
+  return s && state.date - s.date < smearDays(state, clubId) ? s.amount : 0;
 }
 
 export function activeSmear(state: GameState, clubId: ClubId) {
   const s = state.scout?.smears?.[clubId];
-  return s && state.date - s.date < SMEAR_DAYS ? { ...s, until: addDays(s.date, SMEAR_DAYS) } : undefined;
+  const days = smearDays(state, clubId);
+  return s && state.date - s.date < days ? { ...s, until: addDays(s.date, days) } : undefined;
 }
 
 /** Meeting the coach: you set the record straight and win back part of what the rumour cost. */
 export function clearSmear(state: GameState, clubId: ClubId): boolean {
   const s = state.scout?.smears?.[clubId];
-  if (!s || s.cleared || state.date - s.date >= SMEAR_DAYS) return false;
+  if (!s || s.cleared || state.date - s.date >= smearDays(state, clubId)) return false;
   s.cleared = true;
   s.amount = SMEAR_CLEARED;
   const club = state.clubs[clubId]!;

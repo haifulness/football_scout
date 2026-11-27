@@ -227,6 +227,13 @@ export type LedgerKind =
   | 'training-fee'
   | 'sell-on';
 
+/** How a full-time contract weighs pay against bonuses, and whether you took an extra season. */
+export interface ContractTerms {
+  focus: 'standard' | 'salary' | 'bonuses';
+  /** One season longer than offered: a little less pay, a bigger payout if they sack you. */
+  extended?: boolean;
+}
+
 export type Employment =
   | { mode: 'freelance'; clients: ClubId[] }
   | {
@@ -241,6 +248,8 @@ export type Employment =
       leavingOn?: GameDate;
       /** The club has already offered to renew this contract: if you don't take it, you leave. */
       renewalOffered?: boolean;
+      /** What you chose when you signed (standard terms when absent). */
+      terms?: ContractTerms;
     };
 
 export interface ClubRecord {

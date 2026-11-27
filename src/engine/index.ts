@@ -23,7 +23,7 @@ import type { Club, ClubOfficial } from './model/club';
 import type { Player } from './model/player';
 import { POSITIONS } from './model/player';
 import { isInboxItem, type Fixture, type NewsItem, type PlayerMatchLine, type SeasonStats } from './model/season';
-import type { CareerSetup, SearchFilters, SearchRecord } from './model/scout';
+import type { CareerSetup, ContractTerms, SearchFilters, SearchRecord } from './model/scout';
 import type { GameState } from './model/world-state';
 import { seasonWindow } from './systems/fixtures';
 import { TRAITS_REVEAL_LEVEL, VIDEO_KNOWLEDGE_CAP, attributeRanges, estimate, fog, freshness, knowledgeLevel, seenOn } from './systems/knowledge';
@@ -115,6 +115,9 @@ import {
   proposeAgreement,
   resign,
   seasonBonusTerms,
+  bonusMult,
+  salaryUnder,
+  TERMS,
 } from './systems/employment';
 import { REMOTE_PITCH_TRUST, clubPositionalAverage, competition, defaultPitchPosition, formationPositions, pitch, pitchFee, remotePitchCheck, repitchCheck, repitchMessage, signOffProbability, type PitchArgs, playerChance, wageCeiling } from './systems/deals';
 import { canAfford, wageRoom, freeAgentWage, offeredWage, transferFee, brokeredWage } from './systems/transfers';
@@ -165,7 +168,7 @@ import { huntAction, huntOptions, huntPlace, type HuntMethod } from './systems/h
 import { dilemmaText, resolveDilemma } from './systems/dilemmas';
 import { isUnlocked, nextUnlock } from './systems/unlocks';
 import { buildTouchline, ensurePredictions } from './systems/newspaper';
-import { PATIENCE_NOES, coachNoes, coldUntil, hitRate, pitchPressure } from './systems/pitch-pressure';
+import { patienceNoes, coachNoes, coldUntil, hitRate, pitchPressure } from './systems/pitch-pressure';
 import { DELEGATE_SKILL, MAX_DELEGATE_PITCHES, MAX_LEADS, STAFF_CUT, delegateCheck, delegateMandate, delegateMission, delegateSaleCheck, recallJob } from './systems/delegation';
 import { answerBoardAsk, boardOdds, ensurePresidents, needsBoard, presidentOf, presidentView } from './systems/board';
 import { attendCheck, attendEvent, ensureSeasonEvents, eventEnd, eventLabel, eventStatus } from './systems/events';
@@ -1418,6 +1421,7 @@ export class Engine {
               leavingOn: e.leavingOn,
               expenseCover: EXPENSE_COVER[s.clubs[e.clubId]!.tier],
               bonuses: seasonBonusTerms(),
+              terms: `${TERMS[e.terms?.focus ?? 'standard'].label} terms${e.terms?.extended ? ', extended' : ''}${bonusMult(s) !== 1 ? ` (bonuses ×${bonusMult(s)})` : ''} · a sacking pays up to ${e.terms?.extended ? 'a year' : 'six months'} of salary`,
               trust: clubTrust(s, e.clubId),
               windowPlan: (() => {
                 const wp = s.windowPlan;
@@ -1425,7 +1429,7 @@ export class Engine {
                 return {
                   closes: wp.closes,
                   budget: wp.budget,
-                  bonus: usd(Math.round((e.salary * WINDOW_BONUS) / 100) * 100),
+                  bonus: usd(Math.round((e.salary * WINDOW_BONUS * bonusMult(s)) / 100) * 100),
                   buys: wp.buys.map((b) => ({ position: b.position, done: !!b.done })),
                   sells: wp.sells.map((x) => {
                     const p = s.players[x.playerId];
@@ -1448,6 +1452,16 @@ export class Engine {
           club: { ...badge(c), cityName: s.cities[c.cityId]!.name, countryName: s.countries[c.countryId]!.name, leagueName: s.leagues[c.leagueId]!.name },
           expenseCover: EXPENSE_COVER[c.tier],
           bonuses: o.kind === 'fulltime' ? seasonBonusTerms() : undefined,
+          terms:
+            o.kind === 'fulltime'
+              ? (Object.keys(TERMS) as ContractTerms['focus'][]).map((focus) => ({
+                  focus,
+                  label: TERMS[focus].label,
+                  blurb: TERMS[focus].blurb,
+                  salary: salaryUnder(o.salary!, { focus }),
+                  extendedSalary: salaryUnder(o.salary!, { focus, extended: true }),
+                }))
+              : undefined,
           signingPct: SIGNING_PCT.fulltime,
           trust: clubTrust(s, c.id),
         };
@@ -1511,9 +1525,9 @@ export class Engine {
     };
   }
 
-  acceptOffer(offerId: number): CareerView {
+  acceptOffer(offerId: number, terms?: ContractTerms): CareerView {
     this.assertActive();
-    acceptOffer(this.s, offerId);
+    acceptOffer(this.s, offerId, terms);
     return this.getCareer();
   }
 
@@ -3743,7 +3757,7 @@ export class Engine {
         const coach = s.officials[club.headCoachId];
         return {
           noes: coachNoes(s, club.id),
-          maxNoes: PATIENCE_NOES,
+          maxNoes: patienceNoes(s, club.id),
           coldUntil: coach ? coldUntil(s, coach.id) : undefined,
           hit: hitRate(s, club.id),
         };
