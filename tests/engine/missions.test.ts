@@ -32,6 +32,7 @@ function withClient(seed = 11223): { w: GameState; club: Club } {
   createCareer(w, { name: 'Jo', nationality: eng, homeCountry: eng, background: 'analyst', difficulty: 'easy' });
   const club = Object.values(w.clubs).find((c) => c.tier === 3 && c.countryId === eng)!;
   if (w.scout!.employment.mode === 'freelance') w.scout!.employment.clients.push(club.id);
+  w.scout!.clientSince = { [club.id]: w.date };
   return { w, club };
 }
 

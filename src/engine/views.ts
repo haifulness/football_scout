@@ -1052,10 +1052,22 @@ export interface CareerView {
         clients: (ClubBadge & {
           cityName: string;
           trust: number;
-          /** How their July review is shaping up. */
-          review: { outlook: 'delighted' | 'satisfied' | 'at-risk' | 'leaving'; score: number; bar: number; warned: boolean; grace: boolean; reviewOn: GameDate; deals: number; briefs: number; failed: number; hits: number; flops: number };
-          /** Their quarterly comparison with the best rival who has brought them players. */
-          race: { yours: number; rival?: { name: string; score: number; signings: number }; behind: boolean; warned: boolean; nextOn: GameDate };
+          /** How their next quarterly review is shaping up, including the best rival who brought them players. */
+          review: {
+            outlook: 'delighted' | 'satisfied' | 'at-risk' | 'leaving';
+            score: number;
+            bar: number;
+            warnedOn?: GameDate;
+            grace: boolean;
+            reviewOn: GameDate;
+            deals: number;
+            briefs: number;
+            failed: number;
+            hits: number;
+            flops: number;
+            rival?: { name: string; score: number; signings: number };
+            behind: boolean;
+          };
         })[];
       }
     | {

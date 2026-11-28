@@ -30,8 +30,7 @@ import { TRAITS_REVEAL_LEVEL, VIDEO_KNOWLEDGE_CAP, attributeRanges, estimate, fo
 import { TRAIT_INFO, characterOf, characterView, knownTraits } from './systems/character';
 import { aftercareCheck, isSettling, settleForecast, settlePenalty } from './systems/settling';
 import { taxDay, taxFor, weeklyLiving } from './systems/overheads';
-import { clientYear, nextReview } from './systems/client-review';
-import { clientRace } from './systems/client-race';
+import { clientReview, nextReview } from './systems/client-review';
 import { agenciesIn, matchOffer, releaseToRival } from './systems/rival-agencies';
 import { activeSmear, headToHead, isNemesis, nemesisOf } from './systems/nemesis';
 import { ROUND_LABEL, groupTable } from './systems/tournaments';
@@ -1356,7 +1355,7 @@ export class Engine {
       employment:
         e.mode === 'freelance'
           ? { mode: 'freelance', slots: clientCapacity(s), clients: e.clients.map((id) => {
-                const y = clientYear(s, id);
+                const y = clientReview(s, id);
                 return {
                   ...badgeCity(id),
                   trust: clubTrust(s, id),
@@ -1364,7 +1363,7 @@ export class Engine {
                     outlook: y.outlook,
                     score: y.score,
                     bar: y.bar,
-                    warned: y.warned,
+                    warnedOn: y.warnedOn,
                     grace: y.grace,
                     reviewOn: y.reviewOn,
                     deals: y.signings + y.sales,
@@ -1372,11 +1371,9 @@ export class Engine {
                     failed: y.briefsFailed,
                     hits: y.hits,
                     flops: y.flops,
+                    rival: y.rival && { name: y.rival.name, score: y.rival.score, signings: y.rival.signings },
+                    behind: y.behind,
                   },
-                  race: (() => {
-                    const r = clientRace(s, id);
-                    return { yours: r.yours, rival: r.rival && { name: r.rival.name, score: r.rival.score, signings: r.rival.signings }, behind: r.behind, warned: r.warned, nextOn: r.nextOn };
-                  })(),
                 };
               }),
             }
@@ -2156,7 +2153,7 @@ export class Engine {
     const tax = taxFor(s, s.season.year);
     add({ key: `tax-${s.season.year}`, kind: 'work', start: taxDay(s.season.year), label: `Tax bill${tax.bill ? `, about ${formatUSD(tax.bill)} so far` : ''}`, detail: `${Math.round(tax.rate * 100)}% of the season's profit`, link: { screen: 'finances' } });
     if (s.scout?.employment.mode === 'freelance' && s.scout.employment.clients.length)
-      add({ key: `reviews-${s.season.year}`, kind: 'work', start: nextReview(s.date), label: 'Clients review your year', detail: 'Each client judges your season', link: { screen: 'career' } });
+      add({ key: `reviews-${nextReview(s.date)}`, kind: 'work', start: nextReview(s.date), label: 'Clients review your year', detail: 'Each client looks back at your last year, and at any rival who brought them players', link: { screen: 'career' } });
     if (s.academy && (s.academy.own || s.academy.sponsorships.length))
       add({ key: `intake-${s.season.year}`, kind: 'work', start: nextIntake(s.date), label: 'Academy intake', detail: s.academy.own ? 'New kids arrive; 19-year-olds leave' : 'Sponsored intakes scouted for you', link: { screen: 'academy' } });
     const from = addDays(s.date, -45);
@@ -2409,18 +2406,19 @@ export class Engine {
         link: { screen: 'deals' },
       });
     }
-    // Clients unhappy with your year: their July review could end the agreement.
+    // Clients unhappy with your year: their next quarterly review could end the agreement.
     if (s.scout!.employment.mode === 'freelance')
       for (const id of (s.scout!.employment as { clients: ClubId[] }).clients) {
-        const y = clientYear(s, id);
-        if (y.grace || (y.outlook !== 'leaving' && !(y.outlook === 'at-risk' && y.reviewOn - s.date <= 90))) continue;
+        const y = clientReview(s, id);
+        if (y.grace || (y.outlook !== 'leaving' && !(y.outlook === 'at-risk' && y.warnedOn === undefined))) continue;
         const club = s.clubs[id]!;
+        const why = y.behind && y.rival ? `${y.rival.name} is doing better for them` : `${y.signings + y.sales} deals and ${y.briefsDone} briefs this year`;
         needsYou.push({
           key: `review${id}`,
           kind: 'clients',
           tone: y.outlook === 'leaving' ? 'urgent' : 'action',
-          title: y.outlook === 'leaving' ? `${club.name} will drop you in July` : `${club.name} expect more by July`,
-          detail: `${y.signings + y.sales} deals and ${y.briefsDone} briefs this year${y.warned ? ' · they warned you last summer' : ''} · bring them a signing`,
+          title: y.outlook === 'leaving' ? `${club.name} will drop you on ${formatDate(y.reviewOn)}` : `${club.name} will warn you on ${formatDate(y.reviewOn)}`,
+          detail: `${why} · bring them a signing`,
           daysLeft: y.reviewOn - s.date,
           club: badge(club),
           link: { screen: 'club', id },

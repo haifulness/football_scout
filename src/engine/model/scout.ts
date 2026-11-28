@@ -68,7 +68,9 @@ export interface Scout {
   mentorDone?: boolean;
   /** When each freelance client took you on (their first review waits a while). */
   clientSince?: Record<ClubId, GameDate>;
-  /** Clients that warned you at their last review: another thin year and they go. */
+  /** Clients that warned you at a quarterly review, and when: still failing two quarters later and they go. */
+  clientWarnings?: Record<ClubId, GameDate>;
+  /** Older saves: July-review warnings, without a date. Read by `warnedOn`, cleared when the client next reviews you. */
   clientWarned?: ClubId[];
   /** The rival who has made it personal: he rises with you and goes after your clubs and players. */
   nemesis?: {
@@ -84,7 +86,7 @@ export interface Scout {
   };
   /** Rumours a rival spread about you at a club: standing lost there until it fades (or you clear it). */
   smears?: Record<ClubId, { rivalId: number; date: GameDate; amount: number; cleared?: boolean }>;
-  /** Clients who warned you last quarter that a rival's signings are doing better (when). */
+  /** Older saves: rival-comparison warnings. Read by `warnedOn`, cleared when the client next reviews you. */
   raceWarned?: Record<ClubId, GameDate>;
   /** Head coaches who refused to discuss their needs with you, and when. */
   coachRefused?: Record<StaffId, GameDate>;
