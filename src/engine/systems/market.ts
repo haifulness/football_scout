@@ -1,4 +1,3 @@
-import { isAcademyPlayer, placeCheck } from './academy';
 import { addDays, ageOn, formatDate, toParts, type GameDate } from '../core/calendar';
 import { chargeStaffCut } from './delegation';
 import type { ClubId, PlayerId } from '../core/ids';
@@ -78,11 +77,6 @@ export function pitchRights(state: GameState, p: Player, club: Club): PitchRight
     const mandate = state.mandates.find((m) => m.status === 'active' && m.playerId === p.id && m.clubId !== club.id);
     if (mandate) return { ok: true, mandate };
     if (!p.clubId && scout.represented.includes(p.id)) return { ok: true, represented: true };
-    // Your academy's kids are yours to place, from a certain age.
-    if (isAcademyPlayer(state, p.id)) {
-      const age = placeCheck(state, p);
-      return age.ok ? { ok: true, represented: true } : { ok: false, reason: age.reason };
-    }
     if (!canWorkWith(state, club.id).ok) return { ok: true, open: true };
   }
   // Full-time: your club's players are yours to sell, to anyone.

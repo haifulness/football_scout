@@ -1,17 +1,13 @@
-import { ageOn, makeDate, type GameDate } from '../core/calendar';
-import type { ClubId, CountryId, PlayerId } from '../core/ids';
+import { makeDate, toParts, type GameDate } from '../core/calendar';
+import type { ClubId, PlayerId } from '../core/ids';
 import { formatUSD, usd, type USD } from '../core/money';
-import { Rng, clamp } from '../core/rng';
-import { FORMATIONS } from '../data/formations';
-import { generatePlayer } from '../generation/player-generator';
-import { newPlayerId } from '../generation/world-generator';
 import type { AcademyState, OwnAcademy } from '../model/academy';
 import type { ClubTier } from '../model/club';
-import type { Placement } from '../model/deal';
 import type { Player } from '../model/player';
 import type { GameState } from '../model/world-state';
-import { agencyCountries } from './agency';
 import { characterOf } from './character';
+import { weeklyWage } from './economy';
+import { ovrAt } from './ratings';
 import { clubTrust } from './employment';
 import { learn } from './knowledge';
 import { ScoutingError, addLedger } from './scouting';
@@ -19,15 +15,8 @@ import { addNews } from './season';
 import { isUnlocked } from './unlocks';
 
 /**
- * Academies, the late game's long investment.
- *
- * Sponsor a club's academy (reputation 45): a yearly fee. Its youth intake grows better and comes to you first,
- * already scouted; the club values you more.
- *
- * Open your own (with an agency, in a country where you have a base): build it, pay its upkeep, and each summer it
- * recruits 15–16-year-olds. They train (faster at a better academy) and belong to you: no club can sign them except
- * through you. Place them from 17: the club pays a training fee, and you keep a share of their next transfer.
- * Unplaced at 19, they leave as free agents.
+ * Academies, the late game's long investment. Sponsor a club's academy (reputation 45): a yearly fee. Its youth
+ * intake grows better and comes to you first, already scouted; the club values you more.
  */
 
 export const SPONSOR_REP = 45;
@@ -37,19 +26,6 @@ const SPONSOR_BASE = 12_000;
 export const SPONSOR_TRUST = 30;
 const SPONSOR_TRUST_BONUS = 8;
 
-const BUILD_COST = 60_000;
-const UPGRADE_COST: Record<2 | 3, number> = { 2: 50_000, 3: 100_000 };
-const UPKEEP_WEEKLY: Record<1 | 2 | 3, number> = { 1: 600, 2: 1_000, 3: 1_600 };
-export const CAPACITY: Record<1 | 2 | 3, number> = { 1: 10, 2: 16, 3: 24 };
-const INTAKE: Record<1 | 2 | 3, number> = { 1: 4, 2: 6, 3: 8 };
-/** How fast they grow without first-team football (a club youngster on the bench is 0.6–1.4). */
-export const TRAINING: Record<1 | 2 | 3, number> = { 1: 0.75, 2: 0.95, 3: 1.15 };
-const PRODIGY: Record<1 | 2 | 3, number> = { 1: 0.03, 2: 0.05, 3: 0.08 };
-export const PLACE_AGE = 17;
-const LEAVE_AGE = 19;
-/** Paid by the club on signing a graduate, by its tier. */
-const TRAINING_FEE: Record<ClubTier, number> = { 1: 60_000, 2: 30_000, 3: 15_000, 4: 8_000, 5: 4_000 };
-export const SELL_ON_PCT = 15;
 
 const academyOf = (state: GameState): AcademyState => (state.academy ??= { sponsorships: [] });
 const name = (p: Player) => `${p.firstName} ${p.lastName}`;
@@ -145,142 +121,50 @@ function renewSponsorships(state: GameState, date: GameDate) {
   }
 }
 
-// ── Your own academy ────────────────────────────────────────────────────
+// ── Older saves: an academy of your own ────────────────────────────────
 
-export const buildCost = (state: GameState, countryId: CountryId) => usd(Math.round((BUILD_COST * state.countries[countryId]!.costIndex) / 1000) * 1000);
-export const upgradeCost = (state: GameState, level: 2 | 3) => usd(Math.round((UPGRADE_COST[level] * state.countries[state.academy!.own!.countryId]!.costIndex) / 1000) * 1000);
-export const upkeep = (state: GameState, own: OwnAcademy) => usd(Math.round((UPKEEP_WEEKLY[own.level] * state.countries[own.countryId]!.costIndex) / 10) * 10);
+const BUILD_COST = 60_000;
+const UPGRADE_COST: Record<2 | 3, number> = { 2: 50_000, 3: 100_000 };
+const YOUTH_CONTRACT_YEARS = 3;
 
-export function openCheck(state: GameState, countryId: CountryId): { ok: boolean; reason?: string; cost: USD } {
-  const cost = buildCost(state, countryId);
-  if (!state.agency) return { ok: false, reason: 'Your own academy needs an agency behind it.', cost };
-  if (state.academy?.own) return { ok: false, reason: 'You already run an academy.', cost };
-  if (!agencyCountries(state).has(countryId)) return { ok: false, reason: 'Build it where your agency has a base.', cost };
-  if (state.scout!.money < cost) return { ok: false, reason: `Building it costs ${formatUSD(cost)}.`, cost };
-  return { ok: true, cost };
-}
-
-export function openAcademy(state: GameState, countryId: CountryId): OwnAcademy {
-  const check = openCheck(state, countryId);
-  if (!check.ok) throw new ScoutingError(check.reason!);
-  const country = state.countries[countryId]!;
-  const city = Object.values(state.clubs)
-    .filter((c) => c.countryId === countryId)
-    .sort((a, b) => b.reputation - a.reputation)[0]!.cityId;
-  const own: OwnAcademy = { name: `${state.agency!.name} Academy`, countryId, cityId: city, openedOn: state.date, level: 1, players: [], graduates: [], earned: usd(0) };
-  academyOf(state).own = own;
-  addLedger(state, { amount: usd(-check.cost), kind: 'academy', label: `${own.name} built in ${state.cities[city]!.name}` });
-  addNews(state, {
-    date: state.date,
-    kind: 'career',
-    link: 'academy',
-    title: `${own.name} opens in ${state.cities[city]!.name}`,
-    body: `Pitches, coaches, a dormitory. The first kids arrive in July: you train them, and from ${PLACE_AGE} you place them. Every club that signs one pays a training fee, and you keep ${SELL_ON_PCT}% of his next transfer.`,
-    countryId: country.id,
-  });
-  // A first intake straight away, so there is something to see.
-  recruit(state, own, state.date);
-  return own;
-}
-
-export function upgradeAcademy(state: GameState) {
-  const own = state.academy?.own;
-  if (!own) throw new ScoutingError('You have no academy.');
-  if (own.level >= 3) throw new ScoutingError('It is as good as it gets.');
-  const next = (own.level + 1) as 2 | 3;
-  const cost = upgradeCost(state, next);
-  if (state.scout!.money < cost) throw new ScoutingError(`The upgrade costs ${formatUSD(cost)}.`);
-  own.level = next;
-  addLedger(state, { amount: usd(-cost), kind: 'academy', label: `${own.name}: level ${next}` });
-  for (const id of own.players) if (state.players[id]) state.players[id]!.academyTraining = TRAINING[next];
-}
-
-export const isAcademyPlayer = (state: GameState, id: PlayerId) => !!state.academy?.own?.players.includes(id);
-
-/** Each summer: new kids from the academy's country (and, at a better academy, from nearby). */
-function recruit(state: GameState, own: OwnAcademy, date: GameDate) {
-  const rng = Rng.derive(state.seed, `academy-intake:${date}`);
-  const room = CAPACITY[own.level] - own.players.length;
-  const n = Math.min(room, INTAKE[own.level]);
-  if (n <= 0) return;
-  const home = state.countries[own.countryId]!;
-  const near = Object.values(state.countries).filter((c) => c.continentId === home.continentId && c.id !== home.id);
-  const positions = FORMATIONS['4-3-3']!.map((s) => s.position);
-  const kids: PlayerId[] = [];
-  for (let i = 0; i < n; i++) {
-    const nat = own.level >= 2 && near.length && rng.chance(0.3) ? rng.pick(near) : home;
-    const p = generatePlayer(rng, {
-      id: newPlayerId(state),
-      position: rng.pick(positions),
-      targetOvr: clamp(Math.round(34 + own.level * 3 + rng.gaussian(0, 5)), 25, 60),
-      age: rng.int(15, 16),
-      nationality: nat.id,
-      cultureName: nat.culture,
-      today: date,
-      wealthIndex: home.wealthIndex,
-      prodigyChance: PRODIGY[own.level],
-    });
-    p.academyTraining = TRAINING[own.level];
-    state.players[p.id] = p;
-    own.players.push(p.id);
-    // Your own kids: you know them inside out.
-    learn(state, p, 80, 80, date);
-    state.knowledge[p.id]!.characterSeen = [...characterOf(p)];
-    state.pool[p.id] = { addedOn: date, source: 'manual', starred: false };
-    kids.push(p.id);
+/**
+ * Running your own academy was removed. An older save that has one winds it up once: each kid joins a club in the
+ * academy's country (the smallest squad at the lowest level, its city first) and stays in your pool, and half of
+ * what you paid to build and upgrade it comes back. Sell-on shares on graduates you placed still pay out.
+ */
+export function windUpOwnAcademy(state: GameState, date: GameDate) {
+  const own = state.academy?.own as OwnAcademy | undefined;
+  if (!own || !state.academy) return;
+  const country = state.countries[own.countryId];
+  const clubs = Object.values(state.clubs).filter((c) => c.countryId === own.countryId);
+  const { year } = toParts(date);
+  const placed: PlayerId[] = [];
+  for (const id of own.players) {
+    const p = state.players[id];
+    if (!p || p.clubId) continue;
+    p.academyTraining = undefined;
+    const club = [...clubs].sort((a, b) => b.tier - a.tier || Number(b.cityId === own.cityId) - Number(a.cityId === own.cityId) || a.squad.length - b.squad.length)[0];
+    if (!club) {
+      state.freeAgents.push(id);
+      continue;
+    }
+    p.clubId = club.id;
+    p.contractUntil = makeDate(year + YOUTH_CONTRACT_YEARS, 6, 30);
+    p.wage = weeklyWage(ovrAt(p, p.naturalPosition), club.tier, country?.wealthIndex ?? 1);
+    club.squad.push(id);
+    placed.push(id);
   }
+  const costIndex = country?.costIndex ?? 1;
+  const spent = BUILD_COST + (own.level >= 2 ? UPGRADE_COST[2] : 0) + (own.level >= 3 ? UPGRADE_COST[3] : 0);
+  const refund = usd(Math.round((spent * costIndex) / 2 / 1000) * 1000);
+  state.academy.own = undefined;
+  if (state.scout) addLedger(state, { amount: refund, kind: 'academy', label: `${own.name} wound up` });
   addNews(state, {
     date,
     kind: 'career',
-    link: 'academy',
-    title: `${own.name}: ${kids.length} new kids`,
-    body: `A new intake joins ${own.name}. They're in your pool. Place them with clubs from ${PLACE_AGE}.`,
-    playerIds: kids,
-  });
-}
-
-/** The 1st of July: kids who are 19 and still unplaced leave as free agents. */
-function releaseOlder(state: GameState, own: OwnAcademy, date: GameDate) {
-  for (const id of [...own.players]) {
-    const p = state.players[id];
-    if (!p) {
-      own.players = own.players.filter((x) => x !== id);
-      continue;
-    }
-    if (ageOn(p.birthDate, date) < LEAVE_AGE) continue;
-    own.players = own.players.filter((x) => x !== id);
-    p.academyTraining = undefined;
-    state.freeAgents.push(id);
-    addNews(state, { date, kind: 'career', title: `${name(p)} leaves ${own.name}`, body: 'At 19, with no club found, he goes his own way as a free agent.', playerIds: [id] });
-  }
-}
-
-/** Pitching rule: a kid can be placed from this age. */
-export function placeCheck(state: GameState, p: Player): { ok: boolean; reason?: string } {
-  if (!isAcademyPlayer(state, p.id)) return { ok: true };
-  return ageOn(p.birthDate, state.date) >= PLACE_AGE ? { ok: true } : { ok: false, reason: `Academy kids can join a club from ${PLACE_AGE}.` };
-}
-
-/** A graduate signs: he leaves the academy, the club pays a training fee, and you keep a share of his next move. */
-export function onGraduate(state: GameState, p: Player, pl: Placement) {
-  const own = state.academy?.own;
-  if (!own || !own.players.includes(p.id)) return;
-  own.players = own.players.filter((x) => x !== p.id);
-  own.graduates.push(p.id);
-  p.academyTraining = undefined;
-  const club = state.clubs[pl.clubId]!;
-  const fee = usd(Math.round((TRAINING_FEE[club.tier] * state.countries[club.countryId]!.wealthIndex) / 500) * 500);
-  pl.sellOnPct = SELL_ON_PCT;
-  own.earned = usd(own.earned + fee);
-  addLedger(state, { amount: fee, kind: 'training-fee', label: `Training fee: ${name(p)} to ${club.name}` });
-  addNews(state, {
-    date: state.date,
-    kind: 'career',
-    link: 'academy',
-    title: `${own.name} graduate: ${name(p)} joins ${club.name}`,
-    body: `${club.name} pay ${formatUSD(fee)} for his training, and you keep ${SELL_ON_PCT}% of whatever they sell him for.`,
-    playerIds: [p.id],
-    clubIds: [club.id],
+    title: `${own.name} closes`,
+    body: `You wind up the academy and get ${formatUSD(refund)} back for the grounds. ${placed.length ? `Its ${placed.length} kids join clubs nearby and stay in your pool.` : ''} Sell-on shares on the graduates you placed still pay out.`,
+    playerIds: placed,
   });
 }
 
@@ -303,18 +187,11 @@ export function paySellOn(state: GameState, p: Player, sellerId: ClubId | undefi
   }
 }
 
-/** Mondays: upkeep. The 1st of July: sponsorships renew, the academy recruits, 19-year-olds leave. */
+/** The 1st of July: sponsorships renew. (An older save's own academy winds up on the first day played.) */
 export function academyTick(state: GameState, date: GameDate, rolled: boolean) {
   if (!state.scout || state.careerOver || !state.academy) return;
-  const own = state.academy.own;
-  if (own && new Date(date * 86_400_000).getUTCDay() === 1)
-    addLedger(state, { amount: usd(-upkeep(state, own)), kind: 'academy', label: `${own.name} upkeep` }, { merge: true });
-  if (!rolled) return;
-  renewSponsorships(state, date);
-  if (own) {
-    releaseOlder(state, own, date);
-    recruit(state, own, date);
-  }
+  if (state.academy.own) windUpOwnAcademy(state, date);
+  if (rolled) renewSponsorships(state, date);
 }
 
 export const nextIntake = (date: GameDate): GameDate => {

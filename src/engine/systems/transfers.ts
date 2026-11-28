@@ -176,7 +176,7 @@ export function aiTransferWeek(state: GameState, date: GameDate, round?: MarketR
   // Index the market once: players by natural position with their level.
   const byPos = new Map<Position, { p: Player; ovr: number; tier: number }[]>(POSITIONS.map((pos) => [pos, []]));
   const userTargets = new Set(state.deals.filter((d) => d.stage === 'agreed').map((d) => d.playerId)); // agreed deals are binding
-  const represented = new Set([...(state.scout?.represented ?? []), ...(state.academy?.own?.players ?? [])]); // free agents you act for, and your academy's kids
+  const represented = new Set(state.scout?.represented ?? []); // free agents you act for
   for (const p of Object.values(state.players)) {
     if (userTargets.has(p.id) || represented.has(p.id)) continue;
     // Clubs don't sell a player they only just signed.

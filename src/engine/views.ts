@@ -1671,12 +1671,6 @@ export interface TournamentView {
   standouts: TournamentPlayerView[];
 }
 
-export interface AcademyKidView extends PlayerRow {
-  /** Old enough to place at a club. */
-  placeable: boolean;
-  traits: TraitView[];
-}
-
 export interface AcademyView {
   unlocked: boolean;
   unlockReputation: number;
@@ -1686,20 +1680,4 @@ export interface AcademyView {
   /** Clubs you could sponsor (those you work with or know well), with the price and whether they'd say yes. */
   candidates: { club: ClubBadge; fee: USD; trust: number; ok: boolean; reason?: string }[];
   nextIntake: GameDate;
-  own?: {
-    name: string;
-    country: string;
-    city: string;
-    level: 1 | 2 | 3;
-    capacity: number;
-    upkeepWeekly: USD;
-    upgrade?: { level: 2 | 3; cost: USD };
-    earned: USD;
-    placeAge: number;
-    sellOnPct: number;
-    kids: AcademyKidView[];
-    graduates: { id: PlayerId; name: string; club?: ClubBadge; sellOnPaid: boolean }[];
-  };
-  /** Where you could build one (countries where your agency has a base). */
-  sites: { id: CountryId; name: string; cost: USD; ok: boolean; reason?: string }[];
 }

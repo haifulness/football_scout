@@ -42,7 +42,7 @@ export const UNLOCKS: { key: UnlockKey; reputation: number; label: string; body:
     key: 'academy',
     reputation: 45,
     label: 'Academies',
-    body: "Clubs will take your money for their academy now: sponsor one and see its best kids first. With an agency you can open your own. See Agency › Academy.",
+    body: "Clubs will take your money for their academy now: sponsor one and see its best kids first. See Agency › Academy.",
     link: 'academy',
   },
 ];

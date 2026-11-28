@@ -36,3 +36,14 @@ and 344), `index.ts`, `views.ts`, `ui/screens/academy-screen.tsx`, nav in `app.t
 - `academy.test.ts`: keep the sponsor tests and delete the own-academy ones.
 - New wind-up test: a save with an academy of 6 kids loads, the kids are at clubs and in the pool, the refund is
   paid once, and a second load does nothing.
+
+## Done 2026-11-28
+- Built as planned. The screen stays "Academy" (sponsorships only) under Agency.
+- Wind-up runs from `academyTick` on the first day played after loading (no load hook exists without a schema bump):
+  - each kid joins the smallest squad at the lowest level in the academy's country, its city first, on a 3-year
+    youth contract, and stays in your pool;
+  - half the build and upgrade cost is refunded as an "academy" ledger line, with a news item.
+- `paySellOn` stays, so sell-on shares on graduates placed earlier still pay once. The kids' `academyTraining` is
+  cleared and no longer read.
+- Browser check on a staged old save with 5 kids: on the first day, "Tmp Academy closes" ($39k back, 5 kids at
+  clubs); the Academy screen shows sponsorships only; no console errors. Suite: 350 passing.

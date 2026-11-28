@@ -107,6 +107,6 @@ export interface Player {
   settling?: { since: GameDate; until: GameDate; start: number; visited?: GameDate };
   /** A big international tournament: fame raises his price and how well he is known, fading over a year. */
   fame?: { boost: number; since: GameDate };
-  /** In your academy: how fast he grows without first-team football (see systems/academy.ts). */
+  /** Older saves: training speed in your own academy, since removed. Cleared when it winds up; otherwise ignored. */
   academyTraining?: number;
 }

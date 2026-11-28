@@ -1,7 +1,6 @@
 import { REFUSAL_SIGNOFF, refusedUntil } from './club-asks';
 import { learnFromRefusal } from './club-read';
 import { afterNo, coldUntil, hitFactor, positionFatigue } from './pitch-pressure';
-import { onGraduate } from './academy';
 import { STYLE_SIGNOFF, styleFit } from './styles';
 import { characterOf, hasTrait } from './character';
 import { addDays, ageOn, formatDate, isTransferWindow, type GameDate } from '../core/calendar';
@@ -619,7 +618,6 @@ function completeDeal(state: GameState, deal: Deal, date: GameDate) {
     earnings: emptyEarnings(),
   };
   state.placements.push(placement);
-  onGraduate(state, p, placement);
   settleSigningBonuses(state);
   onSigningCompleted(state, buyer.id);
   onDealSecured(state, deal);

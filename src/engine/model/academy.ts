@@ -10,7 +10,7 @@ export interface Sponsorship {
   fee: USD;
 }
 
-/** Your own academy (agency only): kids you recruit, train, and place. */
+/** Older saves: your own academy, since removed. Wound up on the first day played (see `windUpOwnAcademy`). */
 export interface OwnAcademy {
   name: string;
   countryId: CountryId;
@@ -28,5 +28,6 @@ export interface OwnAcademy {
 
 export interface AcademyState {
   sponsorships: Sponsorship[];
+  /** Older saves only. */
   own?: OwnAcademy;
 }

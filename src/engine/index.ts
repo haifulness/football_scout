@@ -34,22 +34,13 @@ import { ROUND_LABEL, groupTable } from './systems/tournaments';
 import { analysisCheck, askCoach, askCoachCheck, askPlayer, askPlayerCheck, buyInsider, dataCost, insiderCheck, insidePlayers, sendAnalyst, swapCheck, swapRivals, swapWithRival, toggleData } from './systems/club-asks';
 import { pressLeads, readLevel, seenAverage, seenNeeds, studyClub, studyDays, studyResult, tierOf } from './systems/club-read';
 import {
-  CAPACITY,
-  PLACE_AGE,
-  SELL_ON_PCT,
   SPONSOR_REP,
   isSponsor,
   maxSponsorships,
   nextIntake,
-  openAcademy,
-  openCheck,
-  placeCheck,
   sponsorAcademy,
   sponsorCheck,
   stopSponsoring,
-  upgradeAcademy,
-  upgradeCost,
-  upkeep,
 } from './systems/academy';
 import { STYLE_INFO, fitLabel, styleAttrs, styleFit, styleOf, type ClubStyle } from './systems/styles';
 import { START_MORALE, latestVerdict, moodOf, placementForm, visitCheck } from './systems/placement-stories';
@@ -138,7 +129,6 @@ import { careerSummary, retire, type CareerSummary } from './systems/career-end'
 import { SCENARIOS, scenarioProgress } from './systems/scenarios';
 import {
   AGENCY_REP,
-  agencyCountries,
   FOUNDING_COST,
   MAX_OFFICES,
   agencyCheck,
@@ -654,7 +644,6 @@ export class Engine {
     const e = sc.employment;
     const known = new Set<ClubId>([...(e.mode === 'freelance' ? e.clients : [e.clubId]), ...a.sponsorships.map((x) => x.clubId)]);
     for (const c of Object.values(s.clubs)) if ((sc.relationships[c.headCoachId] ?? 0) >= 25) known.add(c.id);
-    const own = a.own;
     return {
       unlocked: isUnlocked(s, 'academy'),
       unlockReputation: SPONSOR_REP,
@@ -670,34 +659,6 @@ export class Engine {
         .sort((x, y) => y.trust - x.trust)
         .slice(0, 12),
       nextIntake: nextIntake(s.date),
-      own: own && {
-        name: own.name,
-        country: s.countries[own.countryId]!.name,
-        city: s.cities[own.cityId]!.name,
-        level: own.level,
-        capacity: CAPACITY[own.level],
-        upkeepWeekly: upkeep(s, own),
-        upgrade: own.level < 3 ? { level: (own.level + 1) as 2 | 3, cost: upgradeCost(s, (own.level + 1) as 2 | 3) } : undefined,
-        earned: own.earned,
-        placeAge: PLACE_AGE,
-        sellOnPct: SELL_ON_PCT,
-        kids: own.players
-          .map((id) => s.players[id])
-          .filter((p): p is Player => !!p)
-          .map((p) => ({ ...this.playerRow(p), placeable: placeCheck(s, p).ok, traits: knownTraits(s, p).map(traitView) }))
-          .sort((x, y) => (y.potential?.[1] ?? 0) - (x.potential?.[1] ?? 0)),
-        graduates: own.graduates.map((id) => {
-          const p = s.players[id];
-          const pl = s.placements.find((x) => x.playerId === id);
-          return { id, name: p ? `${p.firstName} ${p.lastName}` : 'Retired', club: p?.clubId ? badge(s.clubs[p.clubId]!) : undefined, sellOnPaid: !!pl?.sellOnPaid };
-        }),
-      },
-      sites: s.agency
-        ? [...agencyCountries(s)].map((id) => {
-            const c = openCheck(s, id);
-            return { id, name: s.countries[id]!.name, cost: c.cost, ok: c.ok, reason: c.reason };
-          })
-        : [],
     };
   }
 
@@ -709,16 +670,6 @@ export class Engine {
   stopSponsoring(clubId: ClubId): void {
     this.assertActive();
     stopSponsoring(this.s, clubId);
-  }
-
-  openAcademy(countryId: CountryId): void {
-    this.assertActive();
-    openAcademy(this.s, countryId);
-  }
-
-  upgradeAcademy(): void {
-    this.assertActive();
-    upgradeAcademy(this.s);
   }
 
   openOffice(countryId: CountryId): void {
@@ -2119,8 +2070,8 @@ export class Engine {
     add({ key: `tax-${s.season.year}`, kind: 'work', start: taxDay(s.season.year), label: `Tax bill${tax.bill ? `, about ${formatUSD(tax.bill)} so far` : ''}`, detail: `${Math.round(tax.rate * 100)}% of the season's profit`, link: { screen: 'finances' } });
     if (s.scout?.employment.mode === 'freelance' && s.scout.employment.clients.length)
       add({ key: `reviews-${nextReview(s.date)}`, kind: 'work', start: nextReview(s.date), label: 'Clients review your year', detail: 'Each client looks back at your last year, and at any rival who brought them players', link: { screen: 'career' } });
-    if (s.academy && (s.academy.own || s.academy.sponsorships.length))
-      add({ key: `intake-${s.season.year}`, kind: 'work', start: nextIntake(s.date), label: 'Academy intake', detail: s.academy.own ? 'New kids arrive; 19-year-olds leave' : 'Sponsored intakes scouted for you', link: { screen: 'academy' } });
+    if (s.academy?.sponsorships.length)
+      add({ key: `intake-${s.season.year}`, kind: 'work', start: nextIntake(s.date), label: 'Academy intake', detail: 'Sponsored intakes scouted for you', link: { screen: 'academy' } });
     const from = addDays(s.date, -45);
     const to = addDays(s.date, 400);
     return {
