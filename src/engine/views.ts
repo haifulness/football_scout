@@ -947,7 +947,8 @@ export interface PlacementView {
   fee: USD;
   bonus: USD;
   prospect: boolean;
-  earnings: { appearance: number; goals: number; assists: number; tackles: number; cleanSheets: number; captain: number };
+  /** Match bonuses by kind: playing, goals and assists, keeping them out. */
+  earnings: { appearance: number; goals: number; cleanSheets: number };
   matchTotal: USD;
   active: boolean;
   endReason?: string;

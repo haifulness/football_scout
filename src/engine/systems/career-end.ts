@@ -1,4 +1,5 @@
-import { CAREER_START, type GameDate } from '../core/calendar';
+import { earningsTotal } from '../model/deal';
+import { CAREER_START, toParts, type GameDate } from '../core/calendar';
 import type { PlayerId } from '../core/ids';
 import { formatUSD } from '../core/money';
 import type { TrophyKind } from '../model/goals';
@@ -14,9 +15,14 @@ import { addNews } from './season';
  * career gets a summary and a final score, which the host keeps in a hall of fame.
  */
 
-/** A placed or discovered player who became this good counts as a star you found. */
+/** A placed or discovered player who became this good (at his best since you found him) counts as a star you found. */
 export const STAR_OVR = 80;
-const TROPHY_POINTS: Record<TrophyKind, number> = { 'scout-world': 60, 'scout-country': 25, signing: 15, 'clean-sweep': 10 };
+/** A clean sweep stays on the shelf but scores nothing: the goals it rewards already paid money and reputation. */
+const TROPHY_POINTS: Record<TrophyKind, number> = { 'scout-world': 60, 'scout-country': 25, signing: 15, 'clean-sweep': 0 };
+const seasonOf = (d: GameDate) => {
+  const { year, month } = toParts(d);
+  return month >= 7 ? year : year - 1;
+};
 const BANKRUPT_FACTOR = 0.75;
 
 export interface ScoreLine {
@@ -69,14 +75,20 @@ export function careerSummary(state: GameState): CareerSummary {
       else spent += v;
     }
 
-  // Everyone you placed or were first to reveal, judged on how good they are now.
-  const found = new Map<PlayerId, 'placed' | 'discovered'>();
-  for (const f of state.prodigyFinds ?? []) found.set(f.playerId, 'discovered');
-  for (const pl of state.placements) found.set(pl.playerId, 'placed');
+  // Everyone you placed or were first to reveal, judged at their best since you found them (ageing doesn't take a star away).
+  const found = new Map<PlayerId, { how: 'placed' | 'discovered'; on: GameDate }>();
+  for (const f of state.prodigyFinds ?? []) found.set(f.playerId, { how: 'discovered', on: f.date });
+  for (const pl of state.placements) {
+    const prev = found.get(pl.playerId);
+    found.set(pl.playerId, { how: 'placed', on: prev && prev.on < pl.signedOn ? prev.on : pl.signedOn });
+  }
   const judged = [...found.entries()]
-    .map(([id, how]) => {
+    .map(([id, { how, on }]) => {
       const p = state.players[id];
-      return p ? { playerId: id, name: `${p.firstName} ${p.lastName}`, ovr: ovrAt(p, p.naturalPosition), how } : undefined;
+      if (!p) return undefined;
+      const since = seasonOf(on);
+      const ovr = Math.max(ovrAt(p, p.naturalPosition), ...p.history.filter((h) => h.season >= since).map((h) => h.ovr));
+      return { playerId: id, name: `${p.firstName} ${p.lastName}`, ovr, how };
     })
     .filter((x): x is NonNullable<typeof x> => !!x)
     .sort((a, b) => b.ovr - a.ovr);
@@ -86,28 +98,26 @@ export function careerSummary(state: GameState): CareerSummary {
   for (const t of state.trophies ?? []) trophies[t.kind]++;
   const record = trackRecord(state);
   const placementEarnings = state.placements.reduce((n, pl) => {
-    const e = pl.earnings;
-    return n + (pl.bonusPaid ? pl.bonus : 0) + e.appearance + e.goals + e.assists + e.tackles + e.cleanSheets + e.captain;
+    return n + (pl.bonusPaid ? pl.bonus : 0) + earningsTotal(pl.earnings);
   }, 0);
 
   const breakdown: ScoreLine[] = [
     (() => {
       const start = scout.startReputation ?? 5;
       const gained = Math.max(0, scout.reputation - start);
-      return { label: 'Reputation', points: gained * 3, detail: `${scout.reputation}, up ${gained} from ${start} × 3` };
+      return { label: 'Reputation', points: gained * 3, detail: `How well known you became: ${scout.reputation}, up ${gained} from ${start} × 3` };
     })(),
-    { label: 'Earnings', points: Math.round(40 * Math.log2(1 + earned / 10_000)), detail: `${formatUSD(earned)} earned over your career` },
-    { label: 'Placements', points: state.placements.length * 5, detail: `${state.placements.length} × 5` },
-    { label: 'Stars you found', points: stars.length * 20, detail: `${stars.length} reached ${STAR_OVR}+ × 20` },
+    { label: 'Earnings', points: Math.round(40 * Math.log2(1 + earned / 10_000)), detail: `Every dollar your work brought in: ${formatUSD(earned)}` },
+    { label: 'Stars you found', points: stars.length * 20, detail: `Players you placed or discovered who reached ${STAR_OVR}+: ${stars.length} × 20` },
     {
       label: 'Trophies',
       points: (Object.keys(trophies) as TrophyKind[]).reduce((n, k) => n + trophies[k] * TROPHY_POINTS[k], 0),
-      detail: `${(state.trophies ?? []).length} won`,
+      detail: `Scout of the Year ${TROPHY_POINTS['scout-country']} (world ${TROPHY_POINTS['scout-world']}), Signing of the Season ${TROPHY_POINTS.signing}: ${(state.trophies ?? []).length} won`,
     },
     {
       label: 'Report accuracy',
       points: record.accuracy === undefined ? 0 : Math.round(record.accuracy * 50),
-      detail: record.accuracy === undefined ? 'not enough checked reports' : `${Math.round(record.accuracy * 100)}% × 50`,
+      detail: record.accuracy === undefined ? 'How right your reports were: not enough checked yet' : `How right your reports were: ${Math.round(record.accuracy * 100)}% × 50`,
     },
   ];
   const kind = state.careerOver ? (state.careerOver.kind ?? 'bankrupt') : 'active';

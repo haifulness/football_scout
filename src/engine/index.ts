@@ -108,6 +108,7 @@ import {
 import { REMOTE_PITCH_TRUST, clubPositionalAverage, competition, defaultPitchPosition, formationPositions, pitch, pitchFee, remotePitchCheck, repitchCheck, repitchMessage, signOffProbability, type PitchArgs, playerChance, wageCeiling } from './systems/deals';
 import { canAfford, wageRoom, freeAgentWage, offeredWage, transferFee, brokeredWage } from './systems/transfers';
 import type { Deal, Official, Placement } from './model/deal';
+import { earningsByKind, earningsTotal } from './model/deal';
 import type { Mission } from './model/mission';
 import type { Position } from './model/player';
 import { BACKGROUNDS, completeSearch, createCareer, estimateSearch, startSearch, videoCheck, videoGain, watchVideo, ScoutingError } from './systems/scouting';
@@ -937,7 +938,7 @@ export class Engine {
   private placementView(pl: Placement): PlacementView {
     const s = this.s;
     const p = s.players[pl.playerId];
-    const e = pl.earnings ?? { appearance: 0, goals: 0, assists: 0, tackles: 0, cleanSheets: 0, captain: 0 };
+    const e = earningsByKind(pl.earnings);
     return {
       id: pl.id,
       player: p
@@ -1248,7 +1249,7 @@ export class Engine {
       (e.mode === 'fulltime' ? (e.clubId === id ? 'employer' : 'none') : e.clients.includes(id) ? 'client' : mClients.includes(id) ? 'mentor' : 'none') as
         'employer' | 'client' | 'mentor' | 'none';
     const mentor = mentorOf(s);
-    const earned = (s.placements ?? []).reduce((n, p) => n + p.bonus + Object.values(p.earnings ?? {}).reduce((a, b) => a + b, 0), 0);
+    const earned = (s.placements ?? []).reduce((n, p) => n + p.bonus + earningsTotal(p.earnings), 0);
     const verdicts = s.placements.map(latestVerdict);
     return {
       players: [...s.placements].reverse().map((pl) => this.placementView(pl)),

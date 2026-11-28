@@ -23,32 +23,29 @@ export const SIGNING_FLOOR: Record<Mode, Record<ClubTier, number>> = {
   fulltime: { 5: 1_000, 4: 2_800, 3: 3_500, 2: 7_000, 1: 17_500 },
   freelance: { 5: 1_500, 4: 4_000, 3: 5_000, 2: 10_000, 1: 25_000 },
 };
-/** Per-match base values at a tier-3 club for a full-time scout. */
-export const MATCH_BASE = { appearance: 50, goal: 150, assist: 100, tackleMatch: 75, cleanSheet: 150, captain: 75 };
+/**
+ * Per-match base values at a tier-3 club for a full-time scout. Three kinds: playing (a captain earns a quarter more),
+ * goals and assists (any position), and keeping them out (a goalkeeper's clean sheet; a defender's clean sheet or a
+ * good day's tackling, not both).
+ */
+export const MATCH_BASE = { appearance: 50, goal: 150, assist: 100, cleanSheet: 150, defending: 50 };
+export const CAPTAIN_EXTRA = 0.25;
 export const MATCH_TIER_MULT: Record<ClubTier, number> = { 5: 0.25, 4: 0.5, 3: 1, 2: 2, 1: 5 };
 export const MODE_MULT: Record<Mode, number> = { fulltime: 1, freelance: 2 };
 /** Match bonuses fade the longer he has been at the club: full in his first year, then 60%, then 30%. */
 export const BONUS_TAPER = [1, 0.6, 0.3] as const;
 export const bonusTaper = (signedOn: GameDate, date: GameDate) => BONUS_TAPER[Math.min(BONUS_TAPER.length - 1, Math.floor((date - signedOn) / 365))]!;
 
-const ATTACKING = new Set<Position>(['ST', 'LW', 'RW', 'AM']);
 const CENTRAL_DEFENSIVE = new Set<Position>(['CB', 'DM']);
 const WIDE_DEFENSIVE = new Set<Position>(['LB', 'RB', 'LWB', 'RWB']);
 
-/** Tackles needed in a match for the tackle bonus (double it for +50%). */
+/** Tackles a defender needs in a match for the defending bonus. */
 export function tackleThreshold(pos: Position): number | undefined {
   if (CENTRAL_DEFENSIVE.has(pos)) return 3;
   if (WIDE_DEFENSIVE.has(pos)) return 2;
   return undefined;
 }
 
-/** What a position earns you beyond appearances and captaincy. */
-export function bonusCategory(pos: Position): 'attacking' | 'defensive' | 'goalkeeping' | 'none' {
-  if (ATTACKING.has(pos)) return 'attacking';
-  if (tackleThreshold(pos)) return 'defensive';
-  if (pos === 'GK') return 'goalkeeping';
-  return 'none';
-}
 
 /** One-off signing bonus: a share of the fee (or market value for free agents), higher the more he beats the average. */
 /** Share of the signing bonus an open pitch (no scouting agreement) earns. */
@@ -73,7 +70,9 @@ export function taperedFee(fee: number): number {
   return a + b * 0.25 + c * 0.06;
 }
 
-/** Stacked per-match bonuses for one player's match line. */
+const plural = (n: number, one: string) => (n === 1 ? one : `${n} ${one.toLowerCase()}s`);
+
+/** Per-match bonuses for one player's match line: playing, goals and assists, keeping them out. */
 export function matchPayout(line: PlayerMatchLine, tier: ClubTier, mode: Mode): { items: PayoutEvent['items']; total: USD } {
   const m = MATCH_TIER_MULT[tier] * MODE_MULT[mode];
   const items: PayoutEvent['items'] = [];
@@ -81,19 +80,22 @@ export function matchPayout(line: PlayerMatchLine, tier: ClubTier, mode: Mode): 
     const a = usd(amount * m);
     if (a > 0) items.push({ kind, label, amount: a });
   };
-  add('appearance', line.started ? 'Appearance' : 'Appearance (sub)', MATCH_BASE.appearance);
-  const cat = bonusCategory(line.position);
-  if (cat === 'attacking') {
-    if (line.goals) add('goals', line.goals === 1 ? 'Goal' : `${line.goals} goals`, MATCH_BASE.goal * line.goals);
-    if (line.assists) add('assists', line.assists === 1 ? 'Assist' : `${line.assists} assists`, MATCH_BASE.assist * line.assists);
-  } else if (cat === 'defensive') {
-    const t = tackleThreshold(line.position)!;
-    if (line.tackles >= t)
-      add('tackles', `${line.tackles} tackles${line.tackles >= t * 2 ? ' (dominant)' : ''}`, MATCH_BASE.tackleMatch * (line.tackles >= t * 2 ? 1.5 : 1));
-  } else if (cat === 'goalkeeping' && line.cleanSheet) {
-    add('cleanSheets', 'Clean sheet', MATCH_BASE.cleanSheet);
+  add(
+    'appearance',
+    `Appearance${line.started ? '' : ' (sub)'}${line.captain ? ' as captain' : ''}`,
+    MATCH_BASE.appearance * (line.captain ? 1 + CAPTAIN_EXTRA : 1),
+  );
+  if (line.goals || line.assists) {
+    const label = [line.goals ? plural(line.goals, 'Goal') : '', line.assists ? plural(line.assists, 'Assist') : ''].filter(Boolean).join(', ');
+    add('goals', label.charAt(0).toUpperCase() + label.slice(1), MATCH_BASE.goal * line.goals + MATCH_BASE.assist * line.assists);
   }
-  if (line.captain) add('captain', 'Captain', MATCH_BASE.captain);
+  if (line.position === 'GK') {
+    if (line.cleanSheet) add('cleanSheets', 'Clean sheet', MATCH_BASE.cleanSheet);
+  } else {
+    const t = tackleThreshold(line.position);
+    if (t !== undefined && (line.cleanSheet || line.tackles >= t))
+      add('cleanSheets', line.cleanSheet ? 'Clean sheet' : `${line.tackles} tackles`, MATCH_BASE.defending);
+  }
   return { items, total: usd(items.reduce((s, i) => s + i.amount, 0)) };
 }
 
@@ -114,7 +116,8 @@ export function payMatchBonuses(state: GameState, lines: PlayerMatchLine[], fixt
     const items = full.items.map((it) => ({ ...it, amount: usd(Math.round(it.amount * taper)) }));
     const total = usd(items.reduce((n, it) => n + it.amount, 0));
     if (!total) continue;
-    for (const it of items) pl.earnings[it.kind] += it.amount;
+    pl.earnings ??= emptyEarnings();
+    for (const it of items) pl.earnings[it.kind] = (pl.earnings[it.kind] ?? 0) + it.amount;
     const p = state.players[line.playerId]!;
     const home = fixture.homeId === club.id;
     const opponentId = home ? fixture.awayId : fixture.homeId;

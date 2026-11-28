@@ -1,3 +1,4 @@
+import { earningsTotal } from '../model/deal';
 import { makeDate } from '../core/calendar';
 import type { GameState } from '../model/world-state';
 import type { ReviewPlayer, SeasonReview } from '../model/review';
@@ -41,7 +42,7 @@ export function writeSeasonReview(state: GameState, year: number): SeasonReview 
       goals: p.stats.goals,
       assists: p.stats.assists,
       rating: p.stats.apps ? Math.round((p.stats.ratingSum / p.stats.apps) * 10) / 10 : 0,
-      earned: pl.bonus + e.appearance + e.goals + e.assists + e.tackles + e.cleanSheets + e.captain,
+      earned: pl.bonus + earningsTotal(e),
     });
   }
   players.sort((a, b) => b.rating - a.rating || b.apps - a.apps);

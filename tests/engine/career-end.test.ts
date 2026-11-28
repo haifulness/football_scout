@@ -54,6 +54,22 @@ describe('career end', () => {
     expect(() => host.retire()).toThrow(/already over/);
   }, 120_000);
 
+  it('counts each thing once: no placements line, a clean sweep scores nothing, a star stays a star as he ages', async () => {
+    const { s } = await career('Once');
+    const p = Object.values(s.players).find((x) => x.clubId && ovrAt(x, x.naturalPosition) < 70)!;
+    s.placements.push({ id: 0, dealId: 900, playerId: p.id, clubId: p.clubId!, position: p.naturalPosition, signedOn: s.date, expiresOn: addDays(s.date, 700), fee: usd(0), ovrGap: 1, prospect: false, mode: 'freelance', bonus: usd(0), bonusPaid: false, earnings: emptyEarnings() });
+    const season = s.season.year;
+    p.history.push({ ...p.history[0]!, season, ovr: STAR_OVR + 2 });
+    p.history.push({ ...p.history[0]!, season: season - 3, ovr: 95 }); // before you found him: doesn't count
+    s.trophies = [{ id: 1, kind: 'clean-sweep', season, date: s.date, label: 'Clean sweep' } as never];
+    const sum = careerSummary(s);
+    expect(sum.breakdown.map((l) => l.label)).not.toContain('Placements');
+    expect(sum.stars.map((x) => x.playerId)).toEqual([p.id]);
+    expect(sum.breakdown.find((l) => l.label === 'Trophies')!.points).toBe(0);
+    p.history = p.history.filter((h) => h.season !== season);
+    expect(careerSummary(s).stars).toEqual([]);
+  }, 120_000);
+
   it('bankruptcy costs a quarter of the score', async () => {
     const { s } = await career('Broke');
     s.scout!.reputation = 40;

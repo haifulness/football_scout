@@ -9,6 +9,7 @@ import type { Position } from '../../src/engine/model/player';
 import type { PlayerMatchLine } from '../../src/engine/model/season';
 import type { GameState } from '../../src/engine/model/world-state';
 import { BANKRUPTCY_DAYS, matchPayout, signingBonus } from '../../src/engine/systems/payouts';
+import { earningsByKind, earningsTotal } from '../../src/engine/model/deal';
 import { createCareer } from '../../src/engine/systems/scouting';
 import { executeTransfer } from '../../src/engine/systems/transfers';
 import { advanceDays } from '../../src/engine/tick';
@@ -31,26 +32,37 @@ const line = (o: Partial<PlayerMatchLine> & { position: Position }): PlayerMatch
 const total = (l: PlayerMatchLine, tier: 1 | 2 | 3 | 4 | 5, mode: 'freelance' | 'fulltime') => matchPayout(l, tier, mode).total;
 
 describe('match bonuses', () => {
-  it('stack for a scoring captain, scaled by tier and doubled for freelancers', () => {
-    // tier 1 (×5) freelance (×2) = ×10: app 50 + 2 goals 300 + assist 100 + captain 75 = 525 → 5,250
-    expect(total(line({ position: 'ST', goals: 2, assists: 1, captain: true }), 1, 'freelance')).toBe(5250);
-    expect(total(line({ position: 'ST', goals: 2, assists: 1, captain: true }), 1, 'fulltime')).toBe(2625);
+  it('come in three kinds, scaled by tier and doubled for freelancers', () => {
+    // tier 1 (×5) freelance (×2) = ×10: appearance as captain 62.5 + goals and assist 400 = 462.5 → 4,625
+    const { items } = matchPayout(line({ position: 'ST', goals: 2, assists: 1, captain: true }), 1, 'freelance');
+    expect(items.map((i) => [i.kind, i.label, i.amount])).toEqual([
+      ['appearance', 'Appearance as captain', 625],
+      ['goals', '2 goals, Assist', 4000],
+    ]);
+    expect(total(line({ position: 'ST', goals: 2, assists: 1, captain: true }), 1, 'fulltime')).toBe(2313);
     expect(total(line({ position: 'ST', goals: 1 }), 5, 'fulltime')).toBe(51); // 50 × 0.25 and 150 × 0.25, each rounded to whole dollars
   });
 
-  it('pays tackle bonuses only past the threshold: 3 for centre-backs and DMs, 2 for full-backs', () => {
-    expect(total(line({ position: 'CB', tackles: 2 }), 3, 'fulltime')).toBe(50);
-    expect(total(line({ position: 'CB', tackles: 3 }), 3, 'fulltime')).toBe(125);
-    expect(total(line({ position: 'DM', tackles: 6 }), 3, 'fulltime')).toBe(50 + 113); // +50% when dominant
-    expect(total(line({ position: 'LB', tackles: 2 }), 3, 'fulltime')).toBe(125);
-    expect(total(line({ position: 'RWB', tackles: 4 }), 3, 'fulltime')).toBe(50 + 113);
+  it('pay goals and assists at any position', () => {
+    expect(total(line({ position: 'CM', goals: 1 }), 3, 'fulltime')).toBe(200);
+    expect(total(line({ position: 'CB', assists: 1 }), 3, 'fulltime')).toBe(150);
   });
 
-  it('gives each position one bonus category', () => {
+  it('pay a defender for a clean sheet or a good day tackling, not both', () => {
+    expect(total(line({ position: 'CB', tackles: 2 }), 3, 'fulltime')).toBe(50);
+    expect(total(line({ position: 'CB', tackles: 3 }), 3, 'fulltime')).toBe(100);
+    expect(total(line({ position: 'LB', tackles: 2 }), 3, 'fulltime')).toBe(100);
+    expect(total(line({ position: 'CB', cleanSheet: true }), 3, 'fulltime')).toBe(100);
+    expect(total(line({ position: 'DM', cleanSheet: true, tackles: 6 }), 3, 'fulltime')).toBe(100);
     expect(total(line({ position: 'GK', cleanSheet: true }), 3, 'fulltime')).toBe(200);
-    expect(total(line({ position: 'CB', goals: 1, cleanSheet: true }), 3, 'fulltime')).toBe(50); // defenders aren't paid for goals or clean sheets
-    expect(total(line({ position: 'CM', goals: 1, tackles: 5 }), 3, 'fulltime')).toBe(50); // central midfielders: appearance + captain only
-    expect(total(line({ position: 'LW', tackles: 5, assists: 2 }), 3, 'fulltime')).toBe(250);
+    expect(total(line({ position: 'CM', cleanSheet: true, tackles: 5 }), 3, 'fulltime')).toBe(50); // midfielders: playing and goals only
+  });
+
+  it("fold an older save's assists, tackles and captaincy into the three kinds", () => {
+    const old = { appearance: 100, goals: 300, assists: 200, tackles: 75, cleanSheets: 150, captain: 25 };
+    expect(earningsByKind(old)).toEqual({ appearance: 125, goals: 500, cleanSheets: 225 });
+    expect(earningsTotal(old)).toBe(850);
+    expect(earningsTotal(undefined)).toBe(0);
   });
 
   it('pays whole dollars', () => {

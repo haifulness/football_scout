@@ -122,18 +122,31 @@ export interface Placement {
   sellOnPaid?: boolean;
 }
 
+/** Match bonuses a placement has earned you, by kind. */
 export interface PlacementEarnings {
+  /** Playing (captains earn a quarter more). */
   appearance: number;
+  /** Goals and assists. */
   goals: number;
-  assists: number;
-  tackles: number;
+  /** Keeping them out: clean sheets, and a defender's tackling. */
   cleanSheets: number;
-  captain: number;
+  /** Older saves kept assists, tackles and captaincy apart. */
+  assists?: number;
+  tackles?: number;
+  captain?: number;
 }
 
-export const emptyEarnings = (): PlacementEarnings => ({ appearance: 0, goals: 0, assists: 0, tackles: 0, cleanSheets: 0, captain: 0 });
+export const emptyEarnings = (): PlacementEarnings => ({ appearance: 0, goals: 0, cleanSheets: 0 });
 
-export type PayoutKind = keyof PlacementEarnings;
+/** The three kinds, with an older save's assists, tackles and captaincy folded in. */
+export function earningsByKind(e: PlacementEarnings | undefined): Record<PayoutKind, number> {
+  if (!e) return { appearance: 0, goals: 0, cleanSheets: 0 };
+  return { appearance: e.appearance + (e.captain ?? 0), goals: e.goals + (e.assists ?? 0), cleanSheets: e.cleanSheets + (e.tackles ?? 0) };
+}
+
+export const earningsTotal = (e: PlacementEarnings | undefined) => Object.values(earningsByKind(e)).reduce((a, b) => a + b, 0);
+
+export type PayoutKind = 'appearance' | 'goals' | 'cleanSheets';
 
 /** Bonuses one placed player earned you in one match (drives the matchday ticker). */
 export interface PayoutEvent {

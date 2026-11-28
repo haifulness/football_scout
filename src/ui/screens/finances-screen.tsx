@@ -347,11 +347,8 @@ function PlacementsPanel({ placements }: { placements: FinancesView['placements'
 
 const EARN_LABEL: Record<string, string> = {
   appearance: 'Apps',
-  goals: 'Goals',
-  assists: 'Assists',
-  tackles: 'Tackles',
-  cleanSheets: 'Clean sheets',
-  captain: 'Captain',
+  goals: 'Goals & assists',
+  cleanSheets: 'Defending',
 };
 
 function LedgerPanel({ ledger }: { ledger: FinancesView['ledger'] }) {

@@ -58,3 +58,18 @@ One signing is counted in reputation, earnings, placements, possibly stars, and 
 - `career-end.test.ts`: no placements line; the star counts at peak after decline; clean sweep scores 0.
   `legacy.test.ts:65` still passes (TrophyKind unchanged).
 - Balance on the three seeds, both modes: match-bonus income within 10%.
+
+## Done 2026-11-28
+- **Match bonuses:** appearance (+25% as captain), goals and assists at any position, and defending (GK clean sheet
+  150; a defender's clean sheet or tackling, 50, not both).
+  - Tuned on 150 days of real match lines in one world (about 300k lines). Against the old six kinds: defenders
+    exactly even at 50, goalkeepers −6% (no captain line), attackers −4%, midfielders +32% (they now earn goals),
+    all +2.8%.
+  - Old placements keep their assists, tackles and captain totals; `earningsByKind` folds them into the three kinds
+    for every screen and total. `payMatchBonuses` now guards a placement with no earnings.
+- **Career score:** no Placements line; a clean sweep scores 0 (the trophy stays); a star counts at his best OVR
+  since you found him (season history), so ageing doesn't take one away. Each line says what it counts.
+- Balance: every seed within 3% of before (freelance 4242 $180k, 77 $429k, 913 $155k; job $111k, $155k, $250k); no
+  new losing season.
+- Browser check: a staged save with old-format earnings shows "Apps $125 · Goals & assists $500" on Finances. Suite:
+  352 passing.
