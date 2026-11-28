@@ -46,3 +46,10 @@ open pitches and reputation.
 - `tests/engine/mentor.test.ts`: drop the offer and grudge cases, and keep the term and cut cases. Grep the rivals,
   nemesis and deals tests for `grudge` and `mentorOffer`.
 - A save with a live campaign and a pending mentor offer loads cleanly.
+
+## Done 2026-11-28
+- Built as planned. `mentorTick` stays only to release you when your mentor stops freelancing.
+- Leaving a mentor inside a year still costs 8 rapport with his clubs' coaches (his side of the story); he no longer
+  holds a grudge (no extra poaching, tips or rumours).
+- An old save's live campaign is simply ignored: no ticks, so no more weekly charges.
+- The bot uses neither feature, so no balance run. Suite: 351 passing (campaign tests and the offer test removed).

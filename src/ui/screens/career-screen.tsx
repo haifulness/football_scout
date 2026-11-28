@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { formatDate } from '../../engine/core/calendar';
 import type { ClubId } from '../../engine/core/ids';
 import { formatUSD } from '../../engine/core/money';
-import type { CareerView, MentorOfferView, MentorView, OfferView } from '../../engine/views';
+import type { CareerView, MentorView, OfferView } from '../../engine/views';
 import { Portrait } from '../visuals/portrait';
 import { Loading, Money, Panel, StatTile, useCultureLookup } from '../components/ui';
 import { Crest } from '../visuals/crest';
@@ -11,7 +11,6 @@ import { ClubLink } from '../components/club-link';
 import { SeasonReviewsPanel } from '../components/season-review';
 import { TrackRecordPanel } from '../components/report-panel';
 import { RetirePanel } from '../components/career-end';
-import { CampaignPanel } from '../components/campaign-panel';
 import { YourPlayersPanel } from '../components/your-players';
 import { engine } from '../store/engine-client';
 import { useEngineQuery, useGame } from '../store/game-store';
@@ -48,10 +47,8 @@ export function CareerScreen() {
         </StatTile>
       </div>
 
-      {c.mentorOffer && <MentorOfferCard o={c.mentorOffer} />}
       {c.offers.length > 0 && <OffersPanel offers={c.offers} career={c} />}
       {c.mentor && <MentorPanel m={c.mentor} />}
-      <CampaignPanel />
       <YourPlayersPanel c={c} />
 
       <SeasonReviewsPanel />
@@ -93,48 +90,6 @@ export function CareerScreen() {
       </div>
       <RetirePanel />
     </div>
-  );
-}
-
-function MentorOfferCard({ o }: { o: MentorOfferView }) {
-  const { careerAction } = useGame();
-  const cultureOf = useCultureLookup();
-  const [error, setError] = useState<string>();
-  const act = (fn: () => Promise<unknown>) => careerAction(fn).catch((e) => setError(e instanceof Error ? e.message : 'That did not work.'));
-  return (
-    <motion.section initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="panel border-sky-400/30 bg-sky-500/[0.05] p-4">
-      <div className="flex items-start gap-3">
-        <Portrait seed={o.portraitSeed} culture={cultureOf(o.nationalityId)} size={44} age={50} className="rounded-md" />
-        <div className="min-w-0 flex-1">
-          <div className="panel-title text-[11px] text-sky-300">
-            An offer · {o.daysLeft === 0 ? 'answer today' : `${o.daysLeft} day${o.daysLeft === 1 ? '' : 's'} to answer`}
-          </div>
-          <h3 className="font-display text-xl font-bold uppercase leading-tight">{o.name} wants you on his team</h3>
-          <p className="mt-1 text-sm text-mist-300">
-            One of the best-known scouts in the country (reputation {o.reputation}). Work under him and his clubs take your calls: you can pitch to them, they
-            treat you as known, phone pitches open sooner, and he passes you briefs he can't take. He keeps {o.cutPct}% of everything you earn. Leave inside a
-            year and he'll come after your players.
-          </p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {o.clients.map((cl) => (
-              <span key={cl.id} className="inline-flex items-center gap-1.5 rounded-md bg-white/[0.04] px-2 py-1 text-[12px]">
-                <Crest club={cl} size={16} />
-                {cl.name}
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
-      <div className="mt-3 flex gap-2">
-        <button className="btn-primary flex-1 text-xs" onClick={() => void act(() => engine.acceptMentorOffer())}>
-          Join him
-        </button>
-        <button className="btn-ghost flex-1 text-xs" onClick={() => void act(() => engine.declineMentorOffer())}>
-          Stay on my own
-        </button>
-      </div>
-      {error && <div className="pt-2 text-sm text-alert-400">{error}</div>}
-    </motion.section>
   );
 }
 
@@ -180,7 +135,7 @@ function MentorPanel({ m }: { m: MentorView }) {
           <div className="flex flex-wrap items-center gap-2 text-[12px]">
             <span className={m.earlyLeave ? 'text-alert-400' : 'text-mist-300'}>
               {m.earlyLeave
-                ? `It's not a year yet (that's ${formatDate(m.termEndsOn)}). He'll take it badly, talk you down at his clubs and go after your players.`
+                ? `It's not a year yet (that's ${formatDate(m.termEndsOn)}). His clubs will hear his side of it and think less of you.`
                 : 'You part on good terms, and his clubs will still take your call in person.'}
             </span>
             <button

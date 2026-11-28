@@ -165,33 +165,6 @@ export interface BoardAskView {
   candidates: { id: StaffId; name: string; age: number; relationship: number; lastClub?: string; formation?: string }[];
 }
 
-export interface CampaignRunView {
-  country: { id: CountryId; name: string };
-  startedOn: GameDate;
-  endsOn: GameDate;
-  weeklyCost: USD;
-  spent: USD;
-  invites: number;
-  endedOn?: GameDate;
-  weeksLeft: number;
-}
-
-/** Profile campaigns: what's running, what it costs where. */
-export interface CampaignView {
-  active?: CampaignRunView;
-  last?: CampaignRunView;
-  /** Markets you could target, cheapest first, with your home market first. */
-  markets: { id: CountryId; name: string; weeklyCost: USD; home: boolean }[];
-  weeks: [number, number];
-  /** Flops cost this many times as much while one runs. */
-  spotlight: number;
-  /** Briefs and player questions come this much more often, in percent. */
-  boostPct: number;
-  /** Why you can't run one, if you can't. */
-  blocked?: string;
-}
-
-/** A player asking whether to join a club. */
 export interface ConsultationView {
   id: number;
   player: { id: PlayerId; name: string; portraitSeed: number; nationalityId: CountryId; age: number; position: Position; rapport: number };
@@ -1107,8 +1080,6 @@ export interface CareerView {
   offers: OfferView[];
   /** The scout you work under. */
   mentor?: MentorView;
-  /** An established scout offering to take you on. */
-  mentorOffer?: MentorOfferView;
   clubs: {
     club: ClubBadge & { cityName: string };
     trust: number;
@@ -1133,7 +1104,7 @@ export interface MentorView {
   since: GameDate;
   /** Stay until this date and you part on good terms. */
   termEndsOn: GameDate;
-  /** Leaving now makes him a rival. */
+  /** Leaving now costs you rapport at his clubs. */
   earlyLeave: boolean;
   cutPct: number;
   /** What he has taken so far. */
@@ -1142,17 +1113,6 @@ export interface MentorView {
   phoneTrust: number;
   normalPhoneTrust: number;
   standingFloor: number;
-}
-
-export interface MentorOfferView {
-  name: string;
-  portraitSeed: number;
-  nationalityId: CountryId;
-  reputation: number;
-  clients: ClubBadge[];
-  cutPct: number;
-  expiresOn: GameDate;
-  daysLeft: number;
 }
 
 export interface MissionView {

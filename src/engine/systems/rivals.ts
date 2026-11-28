@@ -163,7 +163,7 @@ function chaseYours(state: GameState, r: RivalScout, clubs: Club[], rng: Rng, ch
   const tipped = r.tippedUntil !== undefined && date < r.tippedUntil;
   const style = rivalStyle(state, r);
   const keen = style === 'shark' ? 0.15 : style === 'spotter' ? 0.1 : 0;
-  if (!rng.chance(0.1 + r.skill * 0.015 + keen + (r.grudge ? 0.35 : 0) + (isNemesis(state, r) ? 0.3 : 0) + (tipped ? 0.3 : 0))) return false;
+  if (!rng.chance(0.1 + r.skill * 0.015 + keen + (isNemesis(state, r) ? 0.3 : 0) + (tipped ? 0.3 : 0))) return false;
   const deals = state.deals.filter((d) => OPEN_USER.has(d.stage)).map((d) => d.playerId);
   let pool = rng.shuffle((Object.keys(state.pool) as PlayerId[]).filter((id) => !deals.includes(id)));
   // The talent spotter looks at your youngsters and prodigies first.
@@ -252,7 +252,7 @@ function clientsInReach(state: GameState, r: RivalScout): Club[] {
 function poachClient(state: GameState, r: RivalScout, rng: Rng, chased: Set<PlayerId>, protectedIds: Set<PlayerId>, yours: Set<PlayerId>, date: GameDate): boolean {
   if (r.id === state.scout?.mentor?.rivalId) return false;
   const targets = clientsInReach(state, r);
-  if (!targets.length || !rng.chance(POACH_CHANCE + (r.grudge ? 0.2 : 0) + (isNemesis(state, r) ? 0.25 : 0))) return false;
+  if (!targets.length || !rng.chance(POACH_CHANCE + (isNemesis(state, r) ? 0.25 : 0))) return false;
   const club = rng.pick(targets);
   const need = squadNeeds(club.formation, club.squad.map((id) => state.players[id]!)).find((n) => n.severity >= 0.2 && n.position !== 'GK');
   if (!need) return false;

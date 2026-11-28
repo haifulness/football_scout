@@ -1,7 +1,6 @@
 import { hitBriefFactor } from './pitch-pressure';
 import { styleAttrs, styleOf } from './styles';
 import { addDays, ageOn, formatDate, toParts, type GameDate } from '../core/calendar';
-import { CAMPAIGN_BOOST, SPOTLIGHT, inSpotlight } from './campaigns';
 import { mentorClients, mentorOf } from './mentor';
 import { rivalName } from './rivals';
 import type { ClubId } from '../core/ids';
@@ -444,16 +443,14 @@ export function missionTick(state: GameState, date: GameDate) {
       m.status = 'expired';
       m.resolvedOn = date;
       const club = state.clubs[m.clubId]!;
-      // Say so: an offer shouldn't vanish without a word. In the spotlight, ignoring a club is noticed.
-      const noticed = work.has(m.clubId) && inSpotlight(state);
-      if (noticed) adjustRelationships(state, club, -2);
+      // Say so: an offer shouldn't vanish without a word.
       if (work.has(m.clubId))
         addNews(state, {
           date,
           kind: 'career',
           link: 'missions',
           title: `Brief lapsed: ${club.name}`,
-          body: `You didn't answer ${club.name}'s ${m.position} brief in time, so they took it elsewhere.${noticed ? ' With your campaign running, they noticed: your standing there slips.' : ''}`,
+          body: `You didn't answer ${club.name}'s ${m.position} brief in time, so they took it elsewhere.`,
           clubIds: [club.id],
           countryId: club.countryId,
         });
@@ -474,10 +471,8 @@ export function missionTick(state: GameState, date: GameDate) {
       const club = state.clubs[m.clubId]!;
       const r = clubRecord(scout, club.id);
       scout.clubRecord[club.id] = { ...r, missionsFailed: (r.missionsFailed ?? 0) + 1 };
-      // In the spotlight a flop lands harder.
-      const hard = inSpotlight(state) ? SPOTLIGHT : 1;
-      adjustRelationships(state, club, -Math.round(6 * hard));
-      scout.reputation = clamp(scout.reputation - Math.round(1 * hard), 0, 100);
+      adjustRelationships(state, club, -6);
+      scout.reputation = clamp(scout.reputation - 1, 0, 100);
       addNews(state, {
         date,
         kind: 'career',
@@ -505,9 +500,8 @@ export function missionTick(state: GameState, date: GameDate) {
     const quietDays = Number.isFinite(last) ? date - last : 90;
     // Briefs from your mentor's clubs come through him, and only the ones he can't take.
     const passed = scout.employment.mode === 'freelance' && !scout.employment.clients.includes(clubId);
-    const boost = inSpotlight(state) ? CAMPAIGN_BOOST : 1;
     // A club that likes your names asks more often; one tired of them, less.
-    if (!rng.chance(clamp(((fulltime ? 0.5 : 0.3) + quietDays / 150) * boost * hitBriefFactor(state, clubId), 0, 1) * (passed ? 0.5 : 1))) continue;
+    if (!rng.chance(clamp(((fulltime ? 0.5 : 0.3) + quietDays / 150) * hitBriefFactor(state, clubId), 0, 1) * (passed ? 0.5 : 1))) continue;
     // A club at its wage limit can't take on a new player, so it doesn't ask for one.
     if (!hasWageRoomForSigning(state, club)) continue;
     const m = makeMission(state, club, rng);

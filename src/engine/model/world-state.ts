@@ -90,8 +90,8 @@ export interface GameState {
   presidents?: Record<StaffId, President>;
   /** Presidents asking you who should coach their club next. */
   boardAsks?: BoardAsk[];
-  /** Your profile campaign: the running one, or the last one. */
-  campaign?: import('./campaign').Campaign;
+  /** Older saves: a profile campaign, since removed. Ignored (no more weekly charges). */
+  campaign?: unknown;
   /** Players asking your advice about a club (recent ones kept for the record). */
   consultations?: import('./consultation').Consultation[];
   /** This summer's international tournament and the last couple. */

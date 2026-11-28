@@ -1,4 +1,3 @@
-import { addDays, type GameDate } from '../core/calendar';
 import type { ClubId } from '../core/ids';
 import { usd } from '../core/money';
 import { Rng, clamp } from '../core/rng';
@@ -12,7 +11,7 @@ import { addNews } from './season';
 /**
  * Working under a big-name scout: a freelance rival takes you on as his junior. His clients take your calls
  * (you can pitch to them and they know you), phone pitches open sooner, and he passes you briefs from his
- * clubs. He takes a share of everything you earn. Leave inside a year and he goes after your players.
+ * clubs. He takes a share of everything you earn. Leave inside a year and his clubs hear his side of it.
  */
 
 /** His share of your commissions. */
@@ -23,7 +22,6 @@ export const MENTOR_STANDING = 20;
 export const MENTOR_PHONE_TRUST = 45;
 /** Stay this long and you part on good terms. */
 export const MENTOR_TERM_DAYS = 365;
-const OFFER_DAYS = 21;
 /** Money he takes a share of. */
 const COMMISSION = new Set<LedgerKind>(['signing-bonus', 'match-bonus', 'mission-reward', 'sale-commission']);
 
@@ -46,7 +44,7 @@ export function pickMentor(state: GameState): RivalScout | undefined {
   if (!sc) return undefined;
   const yours = new Set(sc.employment.mode === 'freelance' ? sc.employment.clients : []);
   const home = (r: RivalScout) => r.employment.mode === 'freelance' && r.employment.clients.some((id) => state.clubs[id]?.countryId === sc.homeCountry);
-  const r = state.rivals.filter((x) => home(x) && !x.grudge && !x.pursuit?.rumoured).sort((a, b) => b.reputation - a.reputation)[0];
+  const r = state.rivals.filter((x) => home(x) && !x.pursuit?.rumoured).sort((a, b) => b.reputation - a.reputation)[0];
   if (!r || r.employment.mode !== 'freelance') return undefined;
   const emp = r.employment;
   // A big name: well known, with a few clubs that matter.
@@ -69,8 +67,6 @@ export function joinMentor(state: GameState, rivalId: number) {
   const r = state.rivals.find((x) => x.id === rivalId);
   if (!r || r.employment.mode !== 'freelance') throw new ScoutingError('He is no longer taking anyone on.');
   sc.mentor = { rivalId, since: state.date, taken: usd(0) };
-  sc.mentorOffer = undefined;
-  sc.mentorDone = true;
   r.pursuit = undefined; // he won't chase what you are working on
   const clubs = r.employment.clients.map((id) => state.clubs[id]!.name).join(', ');
   addNews(state, {
@@ -83,19 +79,7 @@ export function joinMentor(state: GameState, rivalId: number) {
   });
 }
 
-export function acceptMentorOffer(state: GameState) {
-  const offer = state.scout?.mentorOffer;
-  if (!offer) throw new ScoutingError('That offer has gone.');
-  joinMentor(state, offer.rivalId);
-}
-
-export function declineMentorOffer(state: GameState) {
-  const sc = state.scout!;
-  sc.mentorOffer = undefined;
-  sc.mentorDone = true;
-}
-
-/** End the arrangement. Inside a year (unless he ended it) he takes it badly. Returns what happened, in words. */
+/** End the arrangement. Inside a year (unless he ended it) his clubs think less of you. Returns what happened, in words. */
 export function leaveMentor(state: GameState, why: 'quit' | 'job' | 'his-move' = 'quit'): string {
   const sc = state.scout!;
   const m = sc.mentor;
@@ -117,13 +101,12 @@ export function leaveMentor(state: GameState, why: 'quit' | 'job' | 'his-move' =
       mi.status = 'expired';
       mi.resolvedOn = state.date;
     }
-  if (early) r.grudge = true;
   const name = rivalName(r);
   const message =
     why === 'his-move'
       ? `${name} has moved on, so you are on your own again. His old clubs remember you kindly.`
       : early
-        ? `${name} won't forget this. You left inside a year: his clubs hear his side of it, and he'll be after your players.`
+        ? `You left ${name} inside a year, and his clubs hear his side of it.`
         : `You and ${name} part on good terms. His clubs will still take your call in person.`;
   addNews(state, {
     date: state.date,
@@ -148,32 +131,10 @@ export function mentorCut(state: GameState, entry: Omit<LedgerEntry, 'date'>): O
   return { amount: usd(-cut), kind: 'mentor-cut', label: `${rivalName(r)}'s ${Math.round(MENTOR_CUT * 100)}% share` };
 }
 
-/** Mondays: offers come and go; a mentor who stops freelancing lets you go. */
-export function mentorTick(state: GameState, date: GameDate) {
+/** Mondays: a mentor who stops freelancing lets you go. */
+export function mentorTick(state: GameState) {
   const sc = state.scout;
-  if (!sc || state.careerOver) return;
+  if (!sc?.mentor || state.careerOver) return;
   const r = mentorOf(state);
-  if (sc.mentor && (!r || r.employment.mode !== 'freelance')) leaveMentor(state, 'his-move');
-  if (sc.mentorOffer && date > sc.mentorOffer.expiresOn) {
-    const who = state.rivals.find((x) => x.id === sc.mentorOffer!.rivalId);
-    sc.mentorOffer = undefined;
-    sc.mentorDone = true;
-    if (who)
-      addNews(state, { date, kind: 'career', link: 'career', title: `${rivalName(who)} takes on someone else`, body: `You didn't answer his offer in time.` });
-  }
-  if (sc.mentor || sc.mentorOffer || sc.mentorDone || sc.employment.mode !== 'freelance' || sc.reputation >= 30) return;
-  const days = date - (sc.startedOn ?? date);
-  if (days < 14 || days > 180) return;
-  if (!Rng.derive(state.seed, `mentor-offer:${date}`).chance(0.15)) return;
-  const pick = pickMentor(state);
-  if (!pick || pick.employment.mode !== 'freelance' || !pick.employment.clients.length) return;
-  sc.mentorOffer = { rivalId: pick.id, expiresOn: addDays(date, OFFER_DAYS) };
-  addNews(state, {
-    date,
-    kind: 'career',
-    link: 'career',
-    title: `${rivalName(pick)} offers to take you on`,
-    body: `One of the best-known scouts in the country has heard of you. Work under him and his clubs take your calls, but he keeps ${Math.round(MENTOR_CUT * 100)}% of what you earn. Answer in Career.`,
-    clubIds: pick.employment.clients,
-  });
+  if (!r || r.employment.mode !== 'freelance') leaveMentor(state, 'his-move');
 }

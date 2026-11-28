@@ -38,7 +38,7 @@ function pickNemesis(state: GameState): RivalScout | undefined {
   const scout = state.scout!;
   const target = scout.reputation + LEAD;
   return state.rivals
-    .filter((r) => r.employment.mode === 'freelance' && r.nationality === scout.homeCountry && r.id !== scout.mentor?.rivalId && !r.grudge)
+    .filter((r) => r.employment.mode === 'freelance' && r.nationality === scout.homeCountry && r.id !== scout.mentor?.rivalId)
     .sort((a, b) => Math.abs(a.reputation - target) - Math.abs(b.reputation - target))[0];
 }
 
@@ -172,7 +172,7 @@ function spreadRumour(state: GameState, r: RivalScout, rng: Rng, date: GameDate)
   });
 }
 
-/** Monthly: the nemesis appears, keeps pace with you, and (with others who hold a grudge) plays dirty. */
+/** Monthly: the nemesis appears, keeps pace with you, and plays dirty. */
 export function nemesisTick(state: GameState, date: GameDate) {
   const scout = state.scout;
   if (!scout || state.careerOver) return;
@@ -204,6 +204,5 @@ export function nemesisTick(state: GameState, date: GameDate) {
     const rng = Rng.derive(state.seed, `smears:${date}`);
     const nemesis = nemesisOf(state);
     if (nemesis && rng.chance(0.2)) spreadRumour(state, nemesis, rng, date);
-    for (const r of state.rivals) if (r.grudge && r !== nemesis && rng.chance(0.2)) spreadRumour(state, r, rng, date);
   }
 }

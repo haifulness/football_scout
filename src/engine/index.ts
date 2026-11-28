@@ -1,7 +1,6 @@
 import { clamp } from './core/rng';
 import { WINDOW_BONUS } from './systems/window-plan';
 import { ATTRIBUTE_LABEL } from './model/player';
-import { CAMPAIGN_BOOST, CAMPAIGN_WEEKS, SPOTLIGHT, activeCampaign, campaignCost, startCampaign, stopCampaign } from './systems/campaigns';
 import { answerConsultation, finderFee } from './systems/consultations';
 import type { ConsultationAnswer } from './model/consultation';
 import {
@@ -9,8 +8,6 @@ import {
   MENTOR_PHONE_TRUST,
   MENTOR_STANDING,
   MENTOR_TERM_DAYS,
-  acceptMentorOffer,
-  declineMentorOffer,
   leaveMentor,
   mentorClients,
   mentorOf,
@@ -172,8 +169,6 @@ import type {
   AdvanceSummary,
   BoardAskView,
   ConsultationView,
-  CampaignRunView,
-  CampaignView,
   BoardPreview,
   ClubBadge,
   ClubRow,
@@ -1301,7 +1296,6 @@ export class Engine {
       (e.mode === 'fulltime' ? (e.clubId === id ? 'employer' : 'none') : e.clients.includes(id) ? 'client' : mClients.includes(id) ? 'mentor' : 'none') as
         'employer' | 'client' | 'mentor' | 'none';
     const mentor = mentorOf(s);
-    const offerBy = sc.mentorOffer && s.rivals.find((r) => r.id === sc.mentorOffer!.rivalId);
     const earned = (s.placements ?? []).reduce((n, p) => n + p.bonus + Object.values(p.earnings ?? {}).reduce((a, b) => a + b, 0), 0);
     const verdicts = s.placements.map(latestVerdict);
     return {
@@ -1419,19 +1413,6 @@ export class Engine {
               standingFloor: MENTOR_STANDING,
             }
           : undefined,
-      mentorOffer:
-        offerBy && sc.mentorOffer
-          ? {
-              name: rivalName(offerBy),
-              portraitSeed: offerBy.portraitSeed,
-              nationalityId: offerBy.nationality,
-              reputation: Math.round(offerBy.reputation),
-              clients: (offerBy.employment.mode === 'freelance' ? offerBy.employment.clients : []).map((id) => badge(s.clubs[id]!)),
-              cutPct: Math.round(MENTOR_CUT * 100),
-              expiresOn: sc.mentorOffer.expiresOn,
-              daysLeft: Math.max(0, sc.mentorOffer.expiresOn - s.date),
-            }
-          : undefined,
       clubs: [...known]
         .map((id) => {
           const r = clubRecord(sc, id);
@@ -1468,17 +1449,7 @@ export class Engine {
     declineOffer(this.s, offerId);
   }
 
-  acceptMentorOffer(): CareerView {
-    this.assertActive();
-    acceptMentorOffer(this.s);
-    return this.getCareer();
-  }
-
-  declineMentorOffer(): void {
-    declineMentorOffer(this.s);
-  }
-
-  /** Go it alone. Inside a year he takes it badly. */
+  /** Go it alone. Inside a year his clubs think less of you. */
   leaveMentor(): { message: string } {
     this.assertActive();
     return { message: leaveMentor(this.s) };
@@ -2048,7 +2019,7 @@ export class Engine {
   /** Home: what needs you, what is running, what is coming up, and how the season is going. */
   /**
    * Everything with a date on it, from a month back to a year ahead: transfer windows, the league season,
-   * scouting events, and your own deadlines (briefs, selling requests, offers, deals, hunts, staff, campaigns).
+   * scouting events, and your own deadlines (briefs, selling requests, offers, deals, hunts, staff).
    */
   getCalendar(): CalendarView {
     const s = this.s;
@@ -2100,7 +2071,6 @@ export class Engine {
     }
     for (const o of s.offers)
       add({ key: `of${o.id}`, kind: 'answer', start: o.expiresOn, label: `Job offer from ${club(o.clubId)} expires`, link: { screen: 'career' } });
-    if (s.scout?.mentorOffer) add({ key: 'mentor-offer', kind: 'answer', start: s.scout.mentorOffer.expiresOn, label: 'Mentor offer expires', link: { screen: 'career' } });
     for (const c of s.consultations ?? []) {
       if (!c.answer && !c.lapsed) add({ key: `co${c.id}`, kind: 'answer', start: c.answerBy, label: `${who(c.playerId)} wants your advice`, link: { screen: 'inbox' } });
       else if (c.answer && c.checkOn !== undefined && !c.resolvedOn)
@@ -2113,7 +2083,6 @@ export class Engine {
       add({ key: `hu${h.id}`, kind: 'work', start: h.expiresOn, label: `Hunt goes cold: ${h.position}, ${h.age}`, link: { screen: 'hunts' } });
     for (const a of s.assistants)
       if (a.task) add({ key: `as${a.id}`, kind: 'work', start: a.task.endsOn, label: `${a.firstName} ${a.lastName} reports back`, link: { screen: 'staff' } });
-    if (s.campaign && !s.campaign.endedOn) add({ key: 'campaign', kind: 'work', start: s.campaign.startedOn, end: s.campaign.endsOn, label: 'Profile campaign', link: { screen: 'career' } });
     const job = s.scout?.employment;
     if (job?.mode === 'fulltime') add({ key: 'contract', kind: 'work', start: job.leavingOn ?? job.until, label: job.leavingOn ? `You leave ${club(job.clubId)}` : `Your contract at ${club(job.clubId)} ends`, link: { screen: 'career' } });
 
@@ -2277,16 +2246,6 @@ export class Engine {
         tone: 'action',
         title: `${plural(scout.pendingOffers, 'job offer')} on the table`,
         detail: 'Clubs want to hire you full-time.',
-        link: { screen: 'career' },
-      });
-    const mo = sc.mentorOffer && s.rivals.find((r) => r.id === sc.mentorOffer!.rivalId);
-    if (mo)
-      needsYou.push({
-        key: 'mentor-offer',
-        kind: 'offer',
-        tone: 'action',
-        title: `${rivalName(mo)} offers to take you on`,
-        detail: `His clubs would take your calls; he'd keep ${Math.round(MENTOR_CUT * 100)}% of what you earn.`,
         link: { screen: 'career' },
       });
     if (scout.rivalThreats)
@@ -3099,46 +3058,6 @@ export class Engine {
 
   recallJob(assistantId: number) {
     recallJob(this.s, assistantId);
-  }
-
-  getCampaign(): CampaignView {
-    const s = this.s;
-    const sc = s.scout!;
-    const run = (c: NonNullable<typeof s.campaign>): CampaignRunView => ({
-      country: { id: c.countryId, name: s.countries[c.countryId]!.name },
-      startedOn: c.startedOn,
-      endsOn: c.endsOn,
-      weeklyCost: c.weeklyCost,
-      spent: c.spent,
-      invites: c.invites,
-      endedOn: c.endedOn,
-      weeksLeft: Math.max(0, Math.ceil((c.endsOn - s.date) / 7)),
-    });
-    const withClubs = new Set(Object.values(s.clubs).map((c) => c.countryId));
-    const active = activeCampaign(s);
-    return {
-      active: active && run(active),
-      last: !active && s.campaign ? run(s.campaign) : undefined,
-      markets: Object.values(s.countries)
-        .filter((c) => withClubs.has(c.id))
-        .map((c) => ({ id: c.id, name: c.name, weeklyCost: campaignCost(s, c.id), home: c.id === sc.homeCountry }))
-        .sort((a, b) => Number(b.home) - Number(a.home) || a.name.localeCompare(b.name)),
-      weeks: CAMPAIGN_WEEKS,
-      spotlight: SPOTLIGHT,
-      boostPct: Math.round((CAMPAIGN_BOOST - 1) * 100),
-      blocked: sc.employment.mode !== 'freelance' ? 'Your club does your publicity: campaigns are for freelancers.' : undefined,
-    };
-  }
-
-  startCampaign(countryId: CountryId, weeks: number): CampaignView {
-    this.assertActive();
-    startCampaign(this.s, countryId, weeks);
-    return this.getCampaign();
-  }
-
-  stopCampaign(): CampaignView {
-    stopCampaign(this.s);
-    return this.getCampaign();
   }
 
   /** Players waiting on your advice about a club. */

@@ -62,9 +62,9 @@ export interface Scout {
   unlocks?: ('assistants' | 'mandates' | 'representation' | 'agency' | 'academy')[];
   /** You work under an established scout (freelance only). */
   mentor?: Mentorship;
-  /** An established scout offers to take you on. */
+  /** Older saves: a mid-career mentor offer, since removed. Ignored. */
   mentorOffer?: { rivalId: number; expiresOn: GameDate };
-  /** You have had (or turned down) a mentor: no more offers. */
+  /** Older saves: no more mentor offers. Ignored. */
   mentorDone?: boolean;
   /** When each freelance client took you on (their first review waits a while). */
   clientSince?: Record<ClubId, GameDate>;

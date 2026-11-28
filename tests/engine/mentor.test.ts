@@ -5,7 +5,7 @@ import { Engine } from '../../src/engine/index';
 import type { GameState } from '../../src/engine/model/world-state';
 import { canWorkWith, clubTrust } from '../../src/engine/systems/employment';
 import { remotePitchCheck } from '../../src/engine/systems/deals';
-import { MENTOR_CUT, MENTOR_STANDING, MENTOR_TERM_DAYS, leaveMentor, mentorClients, mentorOf, mentorTick } from '../../src/engine/systems/mentor';
+import { MENTOR_CUT, MENTOR_STANDING, MENTOR_TERM_DAYS, leaveMentor, mentorClients, mentorOf } from '../../src/engine/systems/mentor';
 import { addLedger } from '../../src/engine/systems/scouting';
 
 const eng = 'eng' as CountryId;
@@ -54,27 +54,18 @@ describe('working under a big-name scout', () => {
     expect(remotePitchCheck(w, id).ok).toBe(true);
   });
 
-  it('leaving inside a year makes him a rival; staying the year parts on good terms', () => {
+  it('leaving inside a year costs rapport at his clubs; staying the year parts on good terms', () => {
     const w = career(true);
-    const r = mentorOf(w)!;
     const coach = w.clubs[mentorClients(w)[0]!]!.headCoachId;
     w.scout!.relationships[coach] = 30;
-    expect(leaveMentor(w)).toMatch(/won't forget/);
-    expect(r.grudge).toBe(true);
+    expect(leaveMentor(w)).toMatch(/his side of it/);
     expect(w.scout!.relationships[coach]).toBe(22);
     expect(w.scout!.mentor).toBeUndefined();
 
     const w2 = career(true);
-    const r2 = mentorOf(w2)!;
     w2.date = (w2.date + MENTOR_TERM_DAYS) as typeof w2.date;
     expect(leaveMentor(w2)).toMatch(/good terms/);
-    expect(r2.grudge).toBeUndefined();
+    expect(w2.scout!.mentor).toBeUndefined();
   });
 
-  it('a new freelancer may get an offer early on, once', () => {
-    const w = career(false);
-    expect(w.scout!.mentor).toBeUndefined();
-    for (let d = 0; d < 180 && !w.scout!.mentorOffer; d += 7) mentorTick(w, (w.date + d) as typeof w.date);
-    expect(w.scout!.mentorOffer).toBeDefined();
-  });
 });

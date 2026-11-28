@@ -34,7 +34,7 @@ export interface RivalScout {
   /** Between chases. */
   restUntil?: GameDate;
   record: { signings: number; steals: number; failed: number };
-  /** You left him early: he goes after your players. */
+  /** Older saves: you left him early as his junior. Ignored. */
   grudge?: boolean;
   /** You swapped reads with him: he knows what you're after until then. */
   tippedUntil?: GameDate;
