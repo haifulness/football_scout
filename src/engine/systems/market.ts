@@ -22,7 +22,7 @@ import { addNews } from './season';
 import { positionalAverage } from './squad-needs';
 
 /**
- * The freelance market (PLAN §3.10, §3.16):
+ * The freelance market:
  * - Selling mandates: a client (or, full-time, your employer) wants a player sold. You may pitch him to any
  *   club; the buyer's normal gate and sign-off apply; you earn a commission.
  * - Representation: you act for a free agent. You may pitch him to any club,

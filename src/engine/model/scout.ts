@@ -6,7 +6,7 @@ import type { AttributeKey, Position } from './player';
 export type Background = 'ex-pro' | 'analyst' | 'agent-assistant' | 'youth-coach';
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
-/** Scout skills, 1–20. They improve with use in later phases. */
+/** Scout skills, 1–20. */
 export interface ScoutSkills {
   /** Narrows stat ranges when you watch players. */
   judgingAbility: number;
@@ -16,7 +16,7 @@ export interface ScoutSkills {
   network: number;
   /** Cheaper, faster, more accurate searches and video work. */
   dataAnalysis: number;
-  /** Persuasion in meetings (later phases). */
+  /** Persuasion in meetings and negotiations. */
   negotiation: number;
 }
 
@@ -107,7 +107,7 @@ export interface Mentorship {
 }
 
 export interface CareerSetup {
-  /** A preset start with its own goal (phase 22); absent for a free career. */
+  /** A preset start with its own goal; absent for a free career. */
   scenario?: import('./scenario').ScenarioId;
   name: string;
   nationality: CountryId;

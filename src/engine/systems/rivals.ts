@@ -18,7 +18,7 @@ import { isNemesis, nemesisScored } from './nemesis';
 import { canAfford, executeTransfer, offeredWage, transferFee } from './transfers';
 
 /**
- * Rival scouts (PLAN §3.15): AI scouts who chase players for their clubs,
+ * Rival scouts: AI scouts who chase players for their clubs,
  * sometimes the same ones you are working on. The first deal to complete wins.
  * Rumours in the news hint at their chases; they also compete for jobs and clients.
  */

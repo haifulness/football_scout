@@ -11,9 +11,9 @@ import { addLedger } from './scouting';
 import { addNews } from './season';
 
 /**
- * How the scout gets paid (PLAN §3.9a). All amounts are whole USD and scale
+ * How the scout gets paid. All amounts are whole USD and scale
  * with the tier of the club the player plays for. Freelancers earn more per
- * deal than full-time scouts, who get a salary instead (employment, phase 8).
+ * deal than full-time scouts, who get a salary instead.
  */
 
 type Mode = Placement['mode'];

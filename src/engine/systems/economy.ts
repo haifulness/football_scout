@@ -3,8 +3,8 @@ import { roundPrice, usd, type USD } from '../core/money';
 import type { ClubTier } from '../model/club';
 
 /**
- * World money scale. Every fee, wage and budget comes from these bands
- * (PLAN §3.9a), multiplied by the country's wealth index.
+ * World money scale. Every fee, wage and budget comes from these bands,
+ * multiplied by the country's wealth index.
  */
 interface Band {
   min: number;

@@ -31,7 +31,7 @@ import { positionalAverage, squadNeeds } from './squad-needs';
 import { brokeredWage, canAfford, executeTransfer, transferFee } from './transfers';
 
 /**
- * Recommending a player (PLAN §3.8):
+ * Recommending a player:
  * 1. You pitch him in person to the Head Coach.
  * 2. Club-level gate: he must beat the club's average at that position (young
  *    prospects can pass on potential), and the club must be able to afford him.

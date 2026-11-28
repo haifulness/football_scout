@@ -14,7 +14,7 @@ import { agencyLog } from './agency-log';
 import { rivalBrokers, seedRivalAgencies } from './rival-agencies';
 
 /**
- * Your own agency (phase 19): late-game business. Offices replace the client-slot
+ * Your own agency: late-game business. Offices replace the client-slot
  * and staff caps, cost rent, and make their country feel like home (no hotels,
  * cheaper and better-connected searches). Assistants placed in an office broker
  * some of the transfers into its country, and the agency keeps a cut.
@@ -191,7 +191,12 @@ export function agencyOnSignings(state: GameState, signings: AiSigning[], date: 
     const staff = club && staffBy.get(club.countryId);
     if (!club || !staff) continue;
     // A rival agency with a base there may get to it first.
-    if (rivalBrokers(state, club.countryId, rng, date)) continue;
+    const rival = rivalBrokers(state, club.countryId, rng, date);
+    if (rival) {
+      const p = state.players[s.playerId];
+      agencyLog(state, { kind: 'rival', text: `${rival.name} brokered ${p ? `${p.firstName} ${p.lastName}'s move` : 'a signing'} to ${club.name} before your staff got a look.` });
+      continue;
+    }
     for (const a of staff) {
       const leads = a.leads ?? 0;
       if (!rng.chance(0.005 + 0.003 * a.skill + LEAD_CHANCE * leads)) continue;

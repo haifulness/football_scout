@@ -10,7 +10,7 @@ import { promotionSpots } from './standings';
 import { usd } from '../core/money';
 
 /**
- * Scenarios (phase 22): short, focused starts with their own goal and time limit.
+ * Scenarios: short, focused starts with their own goal and time limit.
  * Winning or losing ends the career; its score (with a bonus for winning early)
  * goes into the hall of fame.
  */

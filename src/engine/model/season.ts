@@ -30,7 +30,7 @@ export interface Fixture {
   result?: MatchResult;
 }
 
-/** One player's contribution to one match. Payout logic (later phases) consumes these. */
+/** One player's contribution to one match. Payouts and missions consume these. */
 export interface PlayerMatchLine {
   playerId: PlayerId;
   clubId: ClubId;

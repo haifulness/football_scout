@@ -25,7 +25,7 @@ import { assignJuniorScout, releaseJuniorScouts } from './assistants';
 import { learn } from './knowledge';
 
 /**
- * Careers (PLAN §3.10, §3.12). Freelancers pitch only to their client clubs and
+ * Careers. Freelancers pitch only to their client clubs and
  * earn bigger cuts; full-time scouts pitch only to their employer, draw a salary
  * and have most expenses covered. Trust with each club decides who wants you.
  */
@@ -36,7 +36,6 @@ export function clubRecord(scout: Scout, clubId: ClubId): ClubRecord {
   return scout.clubRecord[clubId] ?? { signings: 0, weakPitches: 0 };
 }
 
-/** 0–100: your relationship with the Head Coach, plus your track record there. */
 /** Your standing with a club, 0–100, in words. */
 export function standingLabel(v: number): string {
   return v >= 80 ? 'Inner circle' : v >= 60 ? 'Trusted' : v >= 40 ? 'Respected' : v >= 20 ? 'Known' : v >= 8 ? 'On the radar' : 'Unknown';

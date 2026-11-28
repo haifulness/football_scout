@@ -14,7 +14,7 @@ import { addLedger } from './scouting';
 import { addNews } from './season';
 
 /**
- * Goals, awards and specialties (PLAN §5a, phase 18): three objectives each
+ * Goals, awards and specialties: three objectives each
  * season, a Scout of the Year vote and Signing of the Season at each rollover,
  * and specialty labels earned from where your placements cluster.
  */

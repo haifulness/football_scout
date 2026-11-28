@@ -31,12 +31,13 @@ export interface AgencyDeal {
 /** One line of what the agency did (newest first on the agency screen). */
 export interface AgencyLogEntry {
   date: GameDate;
-  kind: 'brief' | 'lead' | 'deal' | 'pitch';
+  /** 'rival': a rival agency brokered a signing before your staff could. */
+  kind: 'brief' | 'lead' | 'deal' | 'pitch' | 'rival';
   assistantId?: number;
   text: string;
 }
 
-/** Your own scouting agency (late game, PLAN phase 19). */
+/** Your own scouting agency (late game). */
 export interface Agency {
   name: string;
   /** Up to 4 letters, shown on the logo. */

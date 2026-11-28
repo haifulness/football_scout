@@ -60,7 +60,7 @@ export interface AdvanceOptions {
   stopAtDeadline?: boolean;
 }
 
-/** Hook for later phases (payouts, missions) that react to every player's match line. */
+/** Hook for systems (payouts, missions) that react to every player's match line. */
 export type MatchListener = (lines: PlayerMatchLine[], date: GameDate) => void;
 
 /**

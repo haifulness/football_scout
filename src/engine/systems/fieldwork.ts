@@ -16,7 +16,7 @@ import { ScoutingError, addLedger } from './scouting';
 /**
  * Fieldwork: things you can only do in person. Watching a match live is the
  * only way past the video cap. Meetings build the relationships that sign-offs
- * (next phase) depend on, and bigger clubs are harder to win over.
+ * depend on, and bigger clubs are harder to win over.
  */
 
 // ── Live scouting ───────────────────────────────────────────────────────

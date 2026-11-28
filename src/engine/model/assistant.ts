@@ -40,7 +40,7 @@ export interface AssistantJob {
   weeklyExpenses: USD;
 }
 
-/** A scout you employ (PLAN §3.13). */
+/** A scout you employ. */
 export interface Assistant {
   id: number;
   firstName: string;

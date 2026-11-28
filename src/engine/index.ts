@@ -134,10 +134,8 @@ import {
   REPORT_MIN_KNOWLEDGE,
   REVIEW_DAYS,
   trackRecord,
-  writeReport,
   fileReportOnPitch,
   reportFromEstimate,
-  type ReportArgs,
 } from './systems/reports';
 import { careerSummary, retire, type CareerSummary } from './systems/career-end';
 import { SCENARIOS, scenarioProgress } from './systems/scenarios';
@@ -432,11 +430,6 @@ export class Engine {
       existing: existing && this.reportView(existing),
       verdicts: (Object.keys(VERDICT_LABEL) as Verdict[]).map((key) => ({ key, label: VERDICT_LABEL[key] })),
     };
-  }
-
-  writeReport(args: ReportArgs): ReportView {
-    this.assertActive();
-    return this.reportView(writeReport(this.s, args));
   }
 
   getTrackRecord(): TrackRecordView {

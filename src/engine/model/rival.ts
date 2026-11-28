@@ -19,7 +19,7 @@ export interface RivalPursuit {
 
 export type RivalEmployment = { mode: 'fulltime'; clubId: ClubId } | { mode: 'freelance'; clients: ClubId[] };
 
-/** An AI scout competing with you for players, jobs and clients (PLAN §3.15). */
+/** An AI scout competing with you for players, jobs and clients. */
 export interface RivalScout {
   id: number;
   firstName: string;

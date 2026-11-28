@@ -724,7 +724,7 @@ function NeedsRead({ club }: { club: ClubView }) {
           <button
             className="btn-ghost px-2.5 py-1 text-[11px]"
             disabled={!r.asks.coach.ok || advancing}
-            title={r.asks.coach.reason ?? 'He may tell you exactly. If he says no, he remembers: a worse relationship, and warier of your pitches for a few months.'}
+            title={r.asks.coach.reason ?? 'He may tell you exactly. If he says no, he remembers: less rapport with you, and warier of your pitches for a few months.'}
             onClick={() => void askCoach(club.id).then((x) => setMsg(x.message), (e) => setMsg(e instanceof Error ? e.message : 'That did not work.'))}
           >
             The coach, {r.asks.coach.name} · {formatUSD(r.asks.coach.cost)} · {Math.round(r.asks.coach.chance * 100)}% he talks

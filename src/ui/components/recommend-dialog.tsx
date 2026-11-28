@@ -725,7 +725,7 @@ function PitchView({
         onMeet={() => {
           setError(undefined);
           meet({ kind: 'official', id: preview.coach.id as StaffId })
-            .then((r) => setMeetNote(`Standing ${r.before} → ${r.after}`))
+            .then((r) => setMeetNote(`Rapport with the coach ${r.before} → ${r.after}`))
             .catch((e) => setError(e instanceof Error ? e.message : 'The meeting fell through.'));
         }}
         onTravel={() => {

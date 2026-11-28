@@ -24,3 +24,9 @@ Known fixes:
 ## Tests
 - Unit: a rival-agency broker writes one agency log entry.
 - Full suite and `tsc -b --noEmit`.
+
+## Done
+- The UI already used "standing" for clubs and "rapport" for players; two strings changed (the coach meeting note
+  and the ask-the-coach tooltip). The hit-rate wording changed in phase 1.
+- Plan and phase references were removed from every engine header (about 20 files), not only the two named here.
+- Rival-agency deals log as `kind: 'rival'` (⚔️, in red) on the agency screen.

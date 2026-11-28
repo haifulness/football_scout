@@ -13,7 +13,7 @@ import { bestXI } from './squad-needs';
 /**
  * Statistical match engine: no 2D pitch, but every match produces a believable
  * score plus per-player goals, assists, tackles, clean sheets, minutes, captaincy
- * and ratings. Those per-player lines drive scout bonuses in later phases.
+ * and ratings. Those per-player lines drive scout bonuses.
  */
 
 const BASE_GOALS = 1.12;

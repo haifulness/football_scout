@@ -18,7 +18,7 @@ import { staffCapacity } from './agency';
 import { jobWeek, officeWeek } from './delegation';
 
 /**
- * Assistant scouts (PLAN §3.13): staff who scan an area for you and feed
+ * Assistant scouts: staff who scan an area for you and feed
  * players into your pool, with their own (imperfect) rating of each.
  * They cost a weekly wage plus task expenses, and improve with work.
  */

@@ -7,7 +7,7 @@ import { ScoutingError, addLedger, coverFor } from './scouting';
 import { hasBase } from './agency';
 
 /**
- * Travel. Trips cost money and days by distance band (PLAN §3.9a):
+ * Travel. Trips cost money and days by distance band:
  * same region $50–200 · same country $150–500 · same continent $400–1.2k ·
  * intercontinental $1.2k–4k, scaled by how expensive the two countries are.
  * Every night away from your home city costs a hotel.

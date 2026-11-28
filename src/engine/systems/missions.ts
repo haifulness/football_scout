@@ -25,7 +25,7 @@ import { addNews } from './season';
 import { squadNeeds } from './squad-needs';
 
 /**
- * Missions (PLAN §3.11): your employer or clients ask for a specific player
+ * Missions: your employer or clients ask for a specific player
  * profile by a deadline. Accepting is optional; failing an accepted one costs
  * trust. It succeeds when a matching player signs (or agrees terms) for the
  * club in time.

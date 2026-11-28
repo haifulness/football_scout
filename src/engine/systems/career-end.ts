@@ -10,7 +10,7 @@ import { ScoutingError } from './scouting';
 import { addNews } from './season';
 
 /**
- * Career end (phase 21): retire whenever you like, or go bankrupt. Either way the
+ * Career end: retire whenever you like, or go bankrupt. Either way the
  * career gets a summary and a final score, which the host keeps in a hall of fame.
  */
 

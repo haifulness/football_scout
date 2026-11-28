@@ -51,6 +51,23 @@ describe('rival agencies', () => {
     expect(contested.mine).toBeLessThan(alone.mine);
   });
 
+  it('show in your agency log when they take a deal', () => {
+    const { s, hire } = setup();
+    hire(100, 14);
+    for (const a of s.rivalAgencies!) a.strength = 20;
+    const signings = Object.values(s.players)
+      .filter((p) => p.clubId && s.clubs[p.clubId]!.countryId === eng)
+      .slice(0, 400)
+      .map((p) => ({ playerId: p.id, clubId: p.clubId!, fee: usd(500_000) }));
+    agencyOnSignings(s, signings as never, s.date, 'test');
+    const taken = s.rivalAgencies!.reduce((n, a) => n + a.brokered, 0);
+    const lines = (s.agency!.log ?? []).filter((l) => l.kind === 'rival');
+    expect(taken).toBeGreaterThan(0);
+    expect(lines.length).toBeGreaterThan(0);
+    expect(lines.length).toBeLessThanOrEqual(taken);
+    expect(lines[0]!.text).toMatch(/before your staff got a look/);
+  });
+
   it('follow you abroad', () => {
     const { s } = setup();
     const office = openOffice(s, 'esp' as CountryId);

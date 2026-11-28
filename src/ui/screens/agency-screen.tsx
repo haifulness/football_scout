@@ -303,7 +303,7 @@ function BaseCard({ b, free }: { b: AgencyBaseView; free: AgencyStaffView[] }) {
   );
 }
 
-const LOG_ICON: Record<'brief' | 'lead' | 'deal' | 'pitch', string> = { brief: '📋', lead: '🤝', deal: '💰', pitch: '🎯' };
+const LOG_ICON: Record<'brief' | 'lead' | 'deal' | 'pitch' | 'rival', string> = { brief: '📋', lead: '🤝', deal: '💰', pitch: '🎯', rival: '⚔️' };
 
 function Activity({ v }: { v: AgencyView }) {
   const ag = v.agency!;
@@ -323,7 +323,7 @@ function Activity({ v }: { v: AgencyView }) {
             <li key={i} className="flex items-start gap-2 border-b border-white/[0.04] px-4 py-1.5 text-sm last:border-0">
               <span className="num w-24 shrink-0 text-[12px] text-mist-400">{formatDate(e.date)}</span>
               <span aria-hidden>{LOG_ICON[e.kind]}</span>
-              <span className={`min-w-0 ${e.kind === 'deal' ? 'text-grass-300' : ''}`}>{e.text}</span>
+              <span className={`min-w-0 ${e.kind === 'deal' ? 'text-grass-300' : e.kind === 'rival' ? 'text-alert-400' : ''}`}>{e.text}</span>
             </li>
           ))}
         </ul>

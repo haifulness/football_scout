@@ -745,7 +745,7 @@ export interface AgencyView {
     unplaced: AgencyStaffView[];
     deals: { date: GameDate; playerId: PlayerId; playerName: string; club: ClubBadge; by: string; fee: USD; cut: USD }[];
     /** What the staff have been doing, newest first. */
-    log: { date: GameDate; kind: 'brief' | 'lead' | 'deal' | 'pitch'; text: string }[];
+    log: { date: GameDate; kind: 'brief' | 'lead' | 'deal' | 'pitch' | 'rival'; text: string }[];
     /** Briefs you've accepted that nobody is working: neither you (no open deal) nor staff. */
     untouchedBriefs: number;
     /** Active briefs staff are handling. */
