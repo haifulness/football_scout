@@ -56,7 +56,7 @@ export interface Scout {
   lastMet: Record<string, GameDate>;
   /** Coaches who have stopped taking your pitches, until then. */
   coldUntil?: Record<string, GameDate>;
-  /** How straight you deal, 0–100 (absent: 50). Hidden: honest clubs trust you faster, shady offers come less often. */
+  /** Older saves: the hidden integrity score from the dilemma cards, since removed. Ignored. */
   integrity?: number;
   /** Systems you have unlocked (announced once; never closed again). */
   unlocks?: ('assistants' | 'mandates' | 'representation' | 'agency' | 'academy')[];

@@ -28,6 +28,18 @@ describe('club standing', () => {
     expect(r.after).toBeGreaterThan(r.before);
   });
 
+  it('ignores the integrity score an older save may still carry', () => {
+    const e = new Engine();
+    e.generate(11223);
+    e.createCareer({ name: 'Jo', nationality: eng, homeCountry: eng, background: 'analyst', difficulty: 'easy' });
+    const w = (e as unknown as { state: GameState }).state;
+    const club = Object.values(w.clubs).find((c) => c.countryId === eng && c.tier === 4)!;
+    w.scout!.relationships[club.headCoachId] = 40;
+    const fresh = clubTrust(w, club.id);
+    w.scout!.integrity = 20;
+    expect(clubTrust(w, club.id)).toBe(fresh);
+  });
+
   it('an agreement needs a minimum standing, said in those words', () => {
     const e = new Engine();
     e.generate(11223);

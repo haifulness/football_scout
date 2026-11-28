@@ -76,7 +76,6 @@ describe('dirty tricks', () => {
     const club = Object.values(s.clubs).find((c) => c.countryId === eng && c.tier === 4)!;
     if (s.scout!.employment.mode === 'freelance') s.scout!.employment.clients.push(club.id);
     s.scout!.relationships[club.headCoachId] = 50;
-    s.scout!.integrity = 0; // rumours stick to a scout with a shady name
     const trust = clubTrust(s, club.id);
     let d = makeDate(2026, 9, 15);
     for (let i = 0; i < 24 && !s.scout!.smears?.[club.id]; i++, d = addDays(d, 30)) {

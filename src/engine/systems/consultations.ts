@@ -171,7 +171,6 @@ function judge(state: GameState, c: Consultation) {
     effect = `He trusts you more (rapport +${gain})${c.moved ? ' and tells people who gave him the advice (reputation +1)' : ''}.`;
   } else if (c.finder && c.moved) {
     rapport(-25);
-    sc.integrity = clamp((sc.integrity ?? 50) - 6, 0, 100);
     effect = `You sent him to your own club and it hasn't worked. He feels used (rapport −25).`;
   } else {
     rapport(-15);

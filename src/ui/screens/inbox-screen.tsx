@@ -1,4 +1,3 @@
-import { DilemmaCards } from '../components/dilemma-cards';
 import { alpha } from '../theme/color';
 import { BoardAskCards } from '../components/board-ask-cards';
 import { ConsultationCards } from '../components/consultation-cards';
@@ -55,7 +54,6 @@ export function InboxScreen() {
       </header>
       <BoardAskCards />
       <ConsultationCards />
-      <DilemmaCards />
       <NewsFeed news={news} kinds={INBOX_KINDS} newFrom={newFrom} empty="No messages yet. Deals, offers and missions will land here." />
     </div>
   );

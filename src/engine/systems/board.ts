@@ -87,9 +87,8 @@ export function boardStanding(state: GameState, clubId: ClubId): number {
   if (!scout || !club || !pres) return 0;
   const rel = scout.relationships[pres.id] ?? 0;
   const r = clubRecord(scout, clubId);
-  const integrity = ((scout.integrity ?? 50) - 50) / 6.25;
   const employer = scout.employment.mode === 'fulltime' && scout.employment.clubId === clubId ? 10 : 0;
-  return Math.round(clamp(rel + Math.min(20, r.signings * 4) + integrity + employer, 0, 100));
+  return Math.round(clamp(rel + Math.min(20, r.signings * 4) + employer, 0, 100));
 }
 
 export function relateToBoard(state: GameState, clubId: ClubId, delta: number) {

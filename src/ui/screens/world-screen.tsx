@@ -6,7 +6,6 @@ import { formatDate } from '../../engine/core/calendar';
 import { formatUSD } from '../../engine/core/money';
 import type { CountrySummary, HomeItem, HomeLink, HomeView } from '../../engine/views';
 import { GettingStarted } from '../components/getting-started';
-import { DilemmaCards } from '../components/dilemma-cards';
 import { BoardAskCards } from '../components/board-ask-cards';
 import { ConsultationCards } from '../components/consultation-cards';
 import { Money, StatTile, StrengthPips } from '../components/ui';
@@ -36,7 +35,6 @@ export function WorldScreen() {
       <GettingStarted />
       <BoardAskCards />
       <ConsultationCards />
-      <DilemmaCards />
       {home && scout && <SeasonStrip home={home} money={scout.money} />}
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
@@ -210,7 +208,6 @@ const ICON: Record<HomeItem['kind'], string> = {
   report: '✎',
   coach: '☺',
   event: '⚑',
-  dilemma: '⚖',
   settling: '⌂',
   placed: '☹',
 };

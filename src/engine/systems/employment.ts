@@ -48,7 +48,7 @@ export const AGREEMENT_MIN_STANDING = 8;
 export interface StandingParts {
   coach: number;
   accuracy: number;
-  /** Signings, briefs, sales, verdicts, weak pitches, smears, sponsorship, employer and integrity. */
+  /** Signings, briefs, sales, verdicts, weak pitches, smears, sponsorship and employer. */
   record: number;
 }
 
@@ -62,16 +62,14 @@ export function clubTrustParts(state: GameState, clubId: ClubId): StandingParts 
   const missions = Math.min(20, (r.missionsDone ?? 0) * 6) - Math.min(20, (r.missionsFailed ?? 0) * 8) + Math.min(12, (r.sales ?? 0) * 4);
   // How the players you brought turned out.
   const verdicts = Math.min(16, (r.hits ?? 0) * HIT_TRUST) - Math.min(20, (r.flops ?? 0) * FLOP_TRUST);
-  // A reputation for straight dealing (integrity) moves trust up to ±8.
-  const integrity = ((scout.integrity ?? 50) - 50) / 6.25;
   const record =
-    -smearPenalty(state, clubId) + Math.min(40, r.signings * 8) - Math.min(15, r.weakPitches * 3) + missions + verdicts + sponsorTrust(state, clubId) + employer + integrity;
+    -smearPenalty(state, clubId) + Math.min(40, r.signings * 8) - Math.min(15, r.weakPitches * 3) + missions + verdicts + sponsorTrust(state, clubId) + employer;
   return { coach: rel * 0.7, accuracy: accuracyTrust(state), record };
 }
 
 /**
  * Your standing with a club (shown to the player as one number): mostly how well the Head Coach knows you,
- * plus your record there (signings, briefs, weak pitches), report accuracy and integrity.
+ * plus your record there (signings, briefs, weak pitches) and report accuracy.
  */
 export function clubTrust(state: GameState, clubId: ClubId): number {
   const parts = clubTrustParts(state, clubId);

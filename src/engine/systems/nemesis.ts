@@ -155,8 +155,7 @@ function spreadRumour(state: GameState, r: RivalScout, rng: Rng, date: GameDate)
   const scout = state.scout!;
   const targets = smearTargets(state);
   if (!targets.length) return;
-  // Straight dealing makes a rumour harder to believe.
-  const sticks = clamp(0.45 + (50 - (scout.integrity ?? 50)) / 100, 0.1, 0.85);
+  const sticks = 0.45;
   const clubId = targets[0] && rng.chance(0.7) ? targets[0] : rng.pick(targets);
   const club = state.clubs[clubId]!;
   if (!rng.chance(sticks)) return;

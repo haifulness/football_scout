@@ -40,7 +40,6 @@ import { boardTick } from './systems/board';
 import { mentorTick } from './systems/mentor';
 import { consultationTick } from './systems/consultations';
 import { campaignTick } from './systems/campaigns';
-import { dilemmaTick } from './systems/dilemmas';
 import { unlockTick } from './systems/unlocks';
 import { isInboxItem } from './model/season';
 
@@ -155,7 +154,6 @@ function playDay(state: GameState, date: GameDate, onMatch?: MatchListener): { m
     eventsTick(state, date);
     ensurePredictions(state);
     boardTick(state, date);
-    dilemmaTick(state, date);
     consultationTick(state, date);
     overheadsTick(state, date);
     tournamentTick(state, date);

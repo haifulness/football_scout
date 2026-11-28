@@ -1,7 +1,6 @@
 import type { ScoutingEvent } from './event';
 import type { Prediction } from './prediction';
 import type { BoardAsk, President } from './president';
-import type { Dilemma } from './dilemma';
 import type { Assistant, AssistantCandidate } from './assistant';
 import type { DeadlineDay, ReviewBaseline, SeasonReview } from './review';
 import type { Hunt } from './hunt';
@@ -115,8 +114,8 @@ export interface GameState {
     }[];
   };
   clubReads?: Record<ClubId, { level: number; date: GameDate; pos?: Partial<Record<import('./player').Position, number>>; stale?: string; misread?: { pos: import('./player').Position; severity: number } }>;
-  /** Choices put to you (recent ones kept for the record). */
-  dilemmas?: Dilemma[];
+  /** Older saves: the dilemma cards, since removed. Ignored. */
+  dilemmas?: unknown[];
   /** Your season reviews, newest last (kept for the last 20 seasons). */
   seasonReviews: SeasonReview[];
   /** Season whose review you haven't opened yet. */

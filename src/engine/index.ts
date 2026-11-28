@@ -160,7 +160,6 @@ import { SPECIALTY_RULES, matchingSpecialties, objectiveProgress, specialtyProgr
 import type { Objective } from './model/goals';
 import { VERDICT_LABEL, type ScoutReport, type Verdict } from './model/report';
 import { huntAction, huntOptions, huntPlace, type HuntMethod } from './systems/hunts';
-import { dilemmaText, resolveDilemma } from './systems/dilemmas';
 import { isUnlocked, nextUnlock } from './systems/unlocks';
 import { buildTouchline, ensurePredictions } from './systems/newspaper';
 import { patienceNoes, coachNoes, coldUntil, hitRate, pitchPressure } from './systems/pitch-pressure';
@@ -215,7 +214,6 @@ import type {
   TournamentPlayerView,
   AcademyView,
   ScoutingEventView,
-  DilemmaView,
   MarketView,
   DiscoveryView,
   PayoutView,
@@ -1071,38 +1069,6 @@ export class Engine {
     const r = attendEvent(this.s, id);
     const advance = this.summarize(this.spend(r.days));
     return { event: this.getEvents().find((e) => e.id === id)!, advance };
-  }
-
-  // ── Dilemmas ──
-
-  /** Open choices first, then the last few you settled. */
-  getDilemmas(): DilemmaView[] {
-    const s = this.s;
-    const all = s.dilemmas ?? [];
-    const open = all.filter((d) => !d.resolvedOn);
-    const settled = all.filter((d) => d.resolvedOn && !d.lapsed).slice(-3).reverse();
-    return [...open, ...settled].map((d) => {
-      const t = dilemmaText(s, d);
-      const p = d.playerId ? s.players[d.playerId] : undefined;
-      return {
-        id: d.id,
-        kind: d.kind,
-        title: t.title,
-        body: t.body,
-        choices: t.choices,
-        daysLeft: d.resolvedOn ? undefined : Math.max(0, d.expiresOn - s.date),
-        club: d.clubId ? badge(s.clubs[d.clubId]!) : undefined,
-        player: p && { id: p.id, name: `${p.firstName} ${p.lastName}` },
-        choice: d.choice ? t.choices.find((c) => c.key === d.choice)?.label : undefined,
-        outcome: d.outcome,
-        lapsed: d.lapsed,
-      };
-    });
-  }
-
-  resolveDilemma(id: number, choice: string): { outcome: string } {
-    this.assertActive();
-    return resolveDilemma(this.s, id, choice);
   }
 
   addAllToPool(playerIds: PlayerId[]): void {

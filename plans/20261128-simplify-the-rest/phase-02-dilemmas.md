@@ -36,3 +36,9 @@ any palette token used only by dilemmas (violet).
 ## Risk
 A save with high integrity loses up to 8 standing at every club. That's within the noise of one signing (+8), so
 nothing is needed beyond a line in the changelog.
+
+## Done 2026-11-28
+- Built as planned. The two other integrity writers already had a direct cost (being caught with an insider:
+  coach −6; bad finder advice: rapport −25), so they just lost the integrity line rather than gaining a new cost.
+- New test: an older save's integrity doesn't move standing. Suite: 354 passing. The inbox loads on a save that had
+  an open dilemma.

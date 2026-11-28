@@ -188,7 +188,6 @@ export function buyInsider(state: GameState, clubId: ClubId): string {
     r.misread = { pos, severity: roll(state, `insider-sev:${clubId}`) < 0.5 ? 0.7 : 0 };
   }
   if (roll(state, `insider-caught:${clubId}`) < INSIDER_CAUGHT) {
-    scout.integrity = clamp((scout.integrity ?? 50) - 4, 0, 100);
     scout.relationships[club.headCoachId] = clamp((scout.relationships[club.headCoachId] ?? 0) - 6, 0, 100);
     return `You get your tip, but ${club.name} find out who's been paying their staff. The coach is not pleased, and word gets around.`;
   }

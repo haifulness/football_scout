@@ -1575,7 +1575,7 @@ export interface HomeLink {
 
 export interface HomeItem {
   key: string;
-  kind: 'deal' | 'mission' | 'hunt' | 'assistant' | 'offer' | 'mandate' | 'inbox' | 'rival' | 'debt' | 'clients' | 'report' | 'coach' | 'event' | 'dilemma' | 'settling' | 'placed';
+  kind: 'deal' | 'mission' | 'hunt' | 'assistant' | 'offer' | 'mandate' | 'inbox' | 'rival' | 'debt' | 'clients' | 'report' | 'coach' | 'event' | 'settling' | 'placed';
   /** urgent: act now or lose something; action: waiting on you; info: worth knowing. */
   tone: 'urgent' | 'action' | 'info';
   title: string;
@@ -1627,22 +1627,6 @@ export interface ScoutingEventView {
   attendDays: number;
   /** After you attend: who you saw, and whether they're in your pool. */
   seen?: (PlayerRow & { inPool: boolean })[];
-}
-
-export interface DilemmaView {
-  id: number;
-  kind: 'agent-cut' | 'inflate-report' | 'talk-down' | 'family-fee';
-  title: string;
-  body: string;
-  choices: { key: string; label: string; hint: string }[];
-  /** Days left to answer (open ones). */
-  daysLeft?: number;
-  club?: ClubBadge;
-  player?: { id: PlayerId; name: string };
-  /** Settled: what you chose and what came of it (or that it lapsed). */
-  choice?: string;
-  outcome?: string;
-  lapsed?: boolean;
 }
 
 export interface TraitView {
