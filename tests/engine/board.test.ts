@@ -61,7 +61,7 @@ describe('the next coach', () => {
     const { e, w } = career();
     const club = someClub(w);
     const pres = presidentOf(w, club)!;
-    w.scout!.relationships[pres.id] = 60;
+    w.scout!.relationships[pres.id] = 70; // 49 in the boardroom: rapport counts 70%, as with the coach
     // A coach out of work whom you know.
     const other = someClub(w, (c) => c.id !== club.id);
     const known = w.officials[other.headCoachId]!;

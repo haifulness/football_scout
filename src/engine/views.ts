@@ -141,6 +141,8 @@ export interface PresidentView {
   policyLine: string;
   /** Your standing in the boardroom, 0–100. */
   standing: number;
+  /** Why, biggest first: the president's rapport and your record at the club. */
+  reasons: StandingReasonView[];
   /** Fees above this go to the board. */
   feeThreshold: USD;
 }
@@ -1005,9 +1007,17 @@ export interface FinancesView {
   overheads: { livingWeekly: USD; taxRate: number; taxProfit: number; taxEstimate: USD; taxDay: GameDate };
 }
 
+/** One line of a standing: what it is and how much it adds or takes away. */
+export interface StandingReasonView {
+  label: string;
+  value: number;
+}
+
 export interface ClubWorkView {
   status: 'employer' | 'client' | 'none';
   trust: number;
+  /** Why the standing is what it is, biggest first. */
+  reasons: StandingReasonView[];
   canPropose: boolean;
   proposeReason?: string;
   signings: number;

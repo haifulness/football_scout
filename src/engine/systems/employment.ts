@@ -44,12 +44,25 @@ export function standingLabel(v: number): string {
 /** Below this standing a club won't discuss an agreement: they don't know you yet. */
 export const AGREEMENT_MIN_STANDING = 8;
 
+/** One line of a club's standing: what it is and how much it adds (or takes away). */
+export interface StandingReason {
+  label: string;
+  value: number;
+}
+
 /** The parts of a club's standing: the Head Coach's relationship (70% of it), report accuracy, and your record there. */
 export interface StandingParts {
   coach: number;
   accuracy: number;
   /** Signings, briefs, sales, verdicts, weak pitches, smears, sponsorship and employer. */
   record: number;
+  /** The record, line by line (non-zero lines only). Sums to `record`. */
+  recordLines: StandingReason[];
+}
+
+/** Biggest first; the lines that move the number most. */
+export function byWeight(lines: StandingReason[]): StandingReason[] {
+  return lines.filter((l) => Math.round(l.value) !== 0).sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
 }
 
 export function clubTrustParts(state: GameState, clubId: ClubId): StandingParts | undefined {
@@ -59,12 +72,30 @@ export function clubTrustParts(state: GameState, clubId: ClubId): StandingParts 
   const rel = scout.relationships[club.headCoachId] ?? 0;
   const r = clubRecord(scout, clubId);
   const employer = scout.employment.mode === 'fulltime' && scout.employment.clubId === clubId ? 10 : 0;
-  const missions = Math.min(20, (r.missionsDone ?? 0) * 6) - Math.min(20, (r.missionsFailed ?? 0) * 8) + Math.min(12, (r.sales ?? 0) * 4);
-  // How the players you brought turned out.
-  const verdicts = Math.min(16, (r.hits ?? 0) * HIT_TRUST) - Math.min(20, (r.flops ?? 0) * FLOP_TRUST);
-  const record =
-    -smearPenalty(state, clubId) + Math.min(40, r.signings * 8) - Math.min(15, r.weakPitches * 3) + missions + verdicts + sponsorTrust(state, clubId) + employer;
-  return { coach: rel * 0.7, accuracy: accuracyTrust(state), record };
+  const recordLines: StandingReason[] = [
+    { label: 'Signings here', value: Math.min(40, r.signings * 8) },
+    { label: 'Briefs delivered', value: Math.min(20, (r.missionsDone ?? 0) * 6) },
+    { label: 'Briefs failed', value: -Math.min(20, (r.missionsFailed ?? 0) * 8) },
+    { label: 'Sales', value: Math.min(12, (r.sales ?? 0) * 4) },
+    // How the players you brought turned out.
+    { label: 'Players who made it', value: Math.min(16, (r.hits ?? 0) * HIT_TRUST) },
+    { label: 'Flops', value: -Math.min(20, (r.flops ?? 0) * FLOP_TRUST) },
+    { label: 'Weak pitches', value: -Math.min(15, r.weakPitches * 3) },
+    { label: 'Rumours', value: -smearPenalty(state, clubId) },
+    { label: 'Sponsorship', value: sponsorTrust(state, clubId) },
+    { label: 'Your employer', value: employer },
+  ].filter((l) => l.value !== 0);
+  const record = recordLines.reduce((n, l) => n + l.value, 0);
+  return { coach: rel * 0.7, accuracy: accuracyTrust(state), record, recordLines };
+}
+
+/** Why your standing with a club is what it is: the coach, your accuracy and your record, biggest first. */
+export function standingReasons(state: GameState, clubId: ClubId): StandingReason[] {
+  const parts = clubTrustParts(state, clubId);
+  if (!parts) return [];
+  const lines = byWeight([{ label: "Coach's rapport", value: parts.coach }, { label: 'Report accuracy', value: parts.accuracy }, ...parts.recordLines]);
+  const floor = clubTrust(state, clubId) - Math.round(clamp(parts.coach + parts.accuracy + parts.record, 0, 100));
+  return floor > 0 ? [...lines, { label: 'Your mentor', value: floor }] : lines;
 }
 
 /**

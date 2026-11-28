@@ -10,7 +10,7 @@ import type { Player } from '../model/player';
 import type { BoardAsk, BoardPolicy, President } from '../model/president';
 import type { GameState } from '../model/world-state';
 import { announceChange, replaceCoach, type CoachChange } from './coaching';
-import { clubRecord } from './employment';
+import { byWeight, clubTrustParts, type StandingReason } from './employment';
 import { addNews } from './season';
 
 /**
@@ -79,16 +79,21 @@ export function ensurePresidents(state: GameState) {
   }
 }
 
-/** Your standing in the boardroom: your relationship with the president, your track record at the club, your name. */
-export function boardStanding(state: GameState, clubId: ClubId): number {
+/**
+ * Your standing in the boardroom: the same record at the club as the coach sees (signings, briefs, sales, how your
+ * players turned out), with the president's rapport in place of the coach's.
+ */
+export function boardReasons(state: GameState, clubId: ClubId): StandingReason[] {
   const scout = state.scout;
   const club = state.clubs[clubId];
   const pres = club && presidentOf(state, club);
-  if (!scout || !club || !pres) return 0;
-  const rel = scout.relationships[pres.id] ?? 0;
-  const r = clubRecord(scout, clubId);
-  const employer = scout.employment.mode === 'fulltime' && scout.employment.clubId === clubId ? 10 : 0;
-  return Math.round(clamp(rel + Math.min(20, r.signings * 4) + employer, 0, 100));
+  const parts = clubTrustParts(state, clubId);
+  if (!scout || !club || !pres || !parts) return [];
+  return byWeight([{ label: "President's rapport", value: (scout.relationships[pres.id] ?? 0) * 0.7 }, ...parts.recordLines]);
+}
+
+export function boardStanding(state: GameState, clubId: ClubId): number {
+  return Math.round(clamp(boardReasons(state, clubId).reduce((n, l) => n + l.value, 0), 0, 100));
 }
 
 export function relateToBoard(state: GameState, clubId: ClubId, delta: number) {
@@ -335,6 +340,7 @@ export function presidentView(state: GameState, club: Club) {
     policyLabel: POLICY_LABEL[pres.policy],
     policyLine: `The board ${POLICY_LINE[pres.policy]}.`,
     standing: state.scout ? boardStanding(state, club.id) : 0,
+    reasons: state.scout ? boardReasons(state, club.id).map((r) => ({ label: r.label, value: Math.round(r.value) })) : [],
     feeThreshold: Math.round(Math.max(club.transferBudget, 0) * BOARD_FEE_SHARE) as USD,
   };
 }

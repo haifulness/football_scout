@@ -4,7 +4,7 @@ import type { ClubId } from '../../engine/core/ids';
 import type { Position } from '../../engine/model/player';
 import { formatDate } from '../../engine/core/calendar';
 import { formatUSD } from '../../engine/core/money';
-import type { ClubView, OfficialView, PlayerRow } from '../../engine/views';
+import type { ClubView, OfficialView, PlayerRow, StandingReasonView } from '../../engine/views';
 import { FormationPitch } from '../components/formation-pitch';
 import { FixtureRow } from '../components/match';
 import { MeetingControls } from '../components/scouting-panel';
@@ -330,6 +330,7 @@ function OfficialCard({ official, club }: { official: OfficialView; club: ClubVi
               meet({ kind: 'official', id: official.id }).catch((e) => setError(e instanceof Error ? e.message : 'The meeting fell through.'));
             }}
           />
+          {club.work && <StandingReasons reasons={club.work.reasons} />}
           {club.work?.status === 'none' && club.work.canPropose && official.meeting.inPlace && official.meeting.allowed && (
             <button
               className="btn-ghost mt-2 w-full border-flood-400/40 py-1.5 text-xs text-flood-300"
@@ -650,6 +651,28 @@ function RecommendHere({ clubId }: { clubId: ClubView['id'] }) {
 }
 
 /** The president: never pitched to, but his money decides big signings and his patience decides the coach. */
+/** Why a standing is what it is: the three lines that move it most, the rest on request. */
+function StandingReasons({ reasons }: { reasons: StandingReasonView[] }) {
+  const [all, setAll] = useState(false);
+  if (!reasons.length) return null;
+  const shown = all ? reasons : reasons.slice(0, 3);
+  return (
+    <div className="mt-1.5 flex flex-wrap items-center gap-1 text-[11px]">
+      {shown.map((r) => (
+        <span key={r.label} className={`chip ${r.value > 0 ? 'text-good-300' : 'text-alert-400'}`}>
+          {r.label} {r.value > 0 ? '+' : '−'}
+          {Math.abs(r.value)}
+        </span>
+      ))}
+      {reasons.length > 3 && (
+        <button className="text-mist-400 hover:text-mist-200" onClick={() => setAll(!all)}>
+          {all ? 'fewer' : `+${reasons.length - 3} more`}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function PresidentCard({ club }: { club: ClubView }) {
   const p = club.president!;
   const scout = useGame((s) => s.scout);
@@ -675,8 +698,9 @@ function PresidentCard({ club }: { club: ClubView }) {
           Board standing <b className="num text-mist-100">{p.standing}</b>
           <span className="text-mist-400">
             {' '}
-            · {p.standing >= 45 ? 'he asks your advice when the coach goes' : 'built by signings that work and his end-of-season review'}
+            · {p.standing >= 45 ? 'he asks your advice when the coach goes' : 'at 45 he asks your advice when the coach goes'}
           </span>
+          <StandingReasons reasons={p.reasons} />
         </div>
       )}
     </Panel>

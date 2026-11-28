@@ -43,3 +43,14 @@ bar at :250/:317, president card :675).
   `signoff-terms.test.ts:37-40`) should only change for the integrity term removed in phase 2. Anything else
   changing is a bug.
 - Balance on the three seeds, both modes.
+
+## Done 2026-11-28
+- `clubTrustParts` now returns `recordLines`, and `standingReasons` adds the coach and accuracy lines (plus a "Your
+  mentor" line when the mentor floor lifts the number). The club page shows the top 3 under the coach's standing
+  bar and on the president card, with "+N more".
+- Board standing = president rapport ×0.7 + the same record lines. The ask gate stays at 45: over a grid of rapport
+  0–100 × signings 0–6, 45 keeps the old yes/no in all but 16 of 147 cases (the best gate, 44, mismatches 15). A
+  president you know only through rapport now needs 65 (was 45); a record of signings counts for more.
+- `board.test.ts` set the president's rapport to 60 with no record; raised to 70 (49 in the boardroom).
+- Balance unchanged in job mode (4242 $111k, 77 $155k, 913 $248k). Freelance 4242 and 913 unchanged; 77 $438k (path
+  drift on that seed; $713k after phase 1, $380k before this plan).

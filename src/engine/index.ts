@@ -105,6 +105,7 @@ import {
   agreementCheck,
   clubRecord,
   clubTrust,
+  standingReasons,
   standingLabel,
   AGREEMENT_MIN_STANDING,
   declineOffer,
@@ -3755,7 +3756,7 @@ export class Engine {
     const e = s.scout!.employment;
     const status = e.mode === 'fulltime' ? (e.clubId === clubId ? 'employer' : 'none') : e.clients.includes(clubId) ? 'client' : 'none';
     const check = agreementCheck(s, clubId);
-    return { status, trust: clubTrust(s, clubId), canPropose: check.ok, proposeReason: check.reason, signings: clubRecord(s.scout!, clubId).signings };
+    return { status, trust: clubTrust(s, clubId), reasons: standingReasons(s, clubId).map((r) => ({ label: r.label, value: Math.round(r.value) })), canPropose: check.ok, proposeReason: check.reason, signings: clubRecord(s.scout!, clubId).signings };
   }
 
   private official(o: ClubOfficial): OfficialView {
