@@ -167,6 +167,7 @@ import { attendCheck, attendEvent, ensureSeasonEvents, eventEnd, eventLabel, eve
 import { closeDeadline, DEADLINE_ACTION_HOURS, DEADLINE_FEE_PREMIUM, passDeadlineHours } from './systems/deadline';
 import type {
   AdvanceSummary,
+  AssistantView,
   BoardAskView,
   ConsultationView,
   BoardPreview,
@@ -1793,6 +1794,33 @@ export class Engine {
 
   // ── Staff ──
 
+  /** What an idle staffer can be sent out to do (besides scanning a region), and the bases he can work from. */
+  private sendOutOptions(a: (typeof this.s.assistants)[number]): NonNullable<AssistantView['sendOut']> {
+    const s = this.s;
+    const e = s.scout!.employment;
+    const playerName = (id: string) => {
+      const p = s.players[id as keyof typeof s.players];
+      return p ? `${p.firstName} ${p.lastName}` : 'a player';
+    };
+    const briefs = [
+      ...s.missions
+        .filter((m) => m.status === 'active' && !s.assistants.some((x) => x.job?.missionId === m.id))
+        .map((m) => ({ kind: 'brief' as const, id: m.id, label: `${m.position} for ${s.clubs[m.clubId]!.name}`, ...delegateCheck(s, a, m) })),
+      ...s.mandates
+        .filter((m) => m.status === 'active' && !s.assistants.some((x) => x.job?.mandateId === m.id))
+        .map((m) => ({ kind: 'sale' as const, id: m.id, label: `Sell ${playerName(m.playerId)} for ${s.clubs[m.clubId]!.name}`, ...delegateSaleCheck(s, a, m) })),
+    ];
+    const clubs = (e.mode === 'fulltime' ? [e.clubId] : e.clients).map((id) => ({ id, name: s.clubs[id]!.name, ...analysisCheck(s, a.id) }));
+    const bases =
+      s.agency && a.clubPaid === undefined
+        ? [
+            { id: HQ, label: 'Headquarters' },
+            ...s.agency.offices.map((o) => ({ id: o.id, label: s.countries[o.countryId]!.name })),
+          ]
+        : [];
+    return { briefs, clubs, bases, cutPct: Math.round(STAFF_CUT * 100) };
+  }
+
   getStaff(): StaffView {
     const s = this.s;
     const sc = s.scout!;
@@ -1829,6 +1857,7 @@ export class Engine {
             a.officeId === undefined
               ? undefined
               : { id: a.officeId, label: a.officeId === HQ ? 'Headquarters' : (s.countries[officeCountry(s, a.officeId)!]?.name ?? '') },
+          sendOut: a.task || a.job || a.analysis || a.officeId !== undefined ? undefined : this.sendOutOptions(a),
           task: t && {
             area: describeArea(s, t),
             scope: t.location.scope,

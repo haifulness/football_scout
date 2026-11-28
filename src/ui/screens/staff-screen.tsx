@@ -135,8 +135,11 @@ function AssistantCard({ a, i, maxWeeks }: { a: AssistantView; i: number; maxWee
   const cultureOf = useCultureLookup();
   const { act, error } = useAct();
   const [assigning, setAssigning] = useState(false);
+  const [sending, setSending] = useState(false);
   const [confirmFire, setConfirmFire] = useState(false);
   const t = a.task;
+  const atBase = a.office && !a.job;
+  const out = t || a.job || a.analysis;
   const elapsed = t ? 1 - t.daysLeft / (t.weeks * 7) : 0;
   return (
     <motion.div
@@ -160,9 +163,17 @@ function AssistantCard({ a, i, maxWeeks }: { a: AssistantView; i: number; maxWee
           </div>
         </div>
         <span
-          className={`rounded-md px-2 py-0.5 text-[11px] font-bold uppercase ${a.job || a.office || a.analysis ? 'bg-violet-500/15 text-violet-300' : t ? 'bg-grass-500/15 text-grass-300' : 'bg-flood-500/15 text-flood-300'}`}
+          className={`rounded-md px-2 py-0.5 text-[11px] font-bold uppercase ${atBase ? 'bg-violet-500/15 text-violet-300' : out ? 'bg-grass-500/15 text-grass-300' : 'bg-flood-500/15 text-flood-300'}`}
         >
-          {a.job ? (a.office ? `On a brief · ${a.office.label}` : 'On a brief') : a.office ? `Office · ${a.office.label}` : a.analysis ? `Studying ${a.analysis.club}` : t ? 'On task' : 'Idle'}
+          {atBase
+            ? `At base · ${a.office!.label}`
+            : a.job
+              ? `Out · ${a.job.kind === 'sale' ? 'selling' : 'brief'} for ${a.job.club.name}`
+              : a.analysis
+                ? `Out · studying ${a.analysis.club}`
+                : t
+                  ? `Out · scanning ${t.area}`
+                  : 'Idle'}
         </span>
       </div>
 
@@ -228,9 +239,21 @@ function AssistantCard({ a, i, maxWeeks }: { a: AssistantView; i: number; maxWee
         </div>
       )}
 
-      <AnimatePresence>{assigning && <TaskForm a={a} maxWeeks={maxWeeks} onDone={() => setAssigning(false)} />}</AnimatePresence>
+      <AnimatePresence>
+        {assigning && <TaskForm a={a} maxWeeks={maxWeeks} onDone={() => setAssigning(false)} />}
+        {sending && a.sendOut && (
+          <SendOut
+            a={a}
+            onScan={() => {
+              setSending(false);
+              setAssigning(true);
+            }}
+            onDone={() => setSending(false)}
+          />
+        )}
+      </AnimatePresence>
 
-      {!assigning && (
+      {!assigning && !sending && (
         <div className="mt-3 flex flex-wrap gap-2">
           {a.job ? (
             <button className="btn-ghost flex-1 text-xs" onClick={() => void act(() => engine.recallJob(a.id))}>
@@ -240,11 +263,18 @@ function AssistantCard({ a, i, maxWeeks }: { a: AssistantView; i: number; maxWee
             <button className="btn-ghost flex-1 text-xs" onClick={() => void act(() => engine.placeAssistant(a.id, null))}>
               Back to field work
             </button>
-          ) : (
+          ) : t ? (
             <button className="btn-primary flex-1 text-xs" onClick={() => setAssigning(true)}>
-              {t ? 'New task' : 'Assign a task'}
+              New task
             </button>
-          )}
+          ) : a.sendOut ? (
+            <>
+              <button className="btn-primary flex-1 text-xs" onClick={() => setSending(true)}>
+                Send out
+              </button>
+              {a.sendOut.bases.length > 0 && <PlaceAtBase a={a} bases={a.sendOut.bases} />}
+            </>
+          ) : null}
           {t && (
             <button className="btn-ghost text-xs" onClick={() => void act(() => engine.recallAssistant(a.id))}>
               Recall
@@ -268,6 +298,84 @@ function AssistantCard({ a, i, maxWeeks }: { a: AssistantView; i: number; maxWee
       )}
       {error && <div className="mt-2 text-[12px] text-alert-400">{error}</div>}
     </motion.div>
+  );
+}
+
+/** Out in the field: scan a region for players, work one of your briefs or sales, or study a client's needs. */
+function SendOut({ a, onScan, onDone }: { a: AssistantView; onScan: () => void; onDone: () => void }) {
+  const { act, error } = useAct();
+  const o = a.sendOut!;
+  const pick = (fn: () => Promise<unknown>) =>
+    void act(async () => {
+      await fn();
+      onDone();
+    });
+  const row = (key: string, label: string, ok: boolean, reason: string | undefined, fn: () => Promise<unknown>) => (
+    <button
+      key={key}
+      disabled={!ok}
+      title={reason}
+      onClick={() => pick(fn)}
+      className="rounded-md border border-white/10 px-2 py-1 text-left text-[12px] hover:border-grass-300/50 disabled:cursor-not-allowed disabled:opacity-40"
+    >
+      {label}
+    </button>
+  );
+  return (
+    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mt-3 overflow-hidden">
+      <div className="flex flex-col gap-3 rounded-lg border border-white/[0.06] bg-black/20 p-3 text-[12px]">
+        <div>
+          <div className="mb-1 font-semibold text-mist-200">Scan a region</div>
+          <div className="mb-1.5 text-mist-400">He watches games in an area for a few weeks and adds the players he likes to your pool.</div>
+          <button className="btn-ghost px-2 py-1 text-xs" onClick={onScan}>
+            Choose an area…
+          </button>
+        </div>
+        {o.briefs.length > 0 && (
+          <div>
+            <div className="mb-1 font-semibold text-mist-200">Work one of your briefs or sales</div>
+            <div className="mb-1.5 text-mist-400">He shortlists and pitches under your name, for {o.cutPct}% of what it earns. A weak pitch costs your standing.</div>
+            <div className="flex flex-wrap gap-1.5">
+              {o.briefs.map((b) =>
+                row(`${b.kind}${b.id}`, b.label, b.ok, b.reason, () => (b.kind === 'sale' ? engine.delegateMandate(a.id, b.id) : engine.delegateMission(a.id, b.id))),
+              )}
+            </div>
+            {!o.briefs.some((b) => b.ok) && <div className="mt-1 text-[11px] text-mist-500">{o.briefs[0]?.reason}</div>}
+          </div>
+        )}
+        {o.clubs.length > 0 && (
+          <div>
+            <div className="mb-1 font-semibold text-mist-200">Study a club</div>
+            <div className="mb-1.5 text-mist-400">Two weeks with their games and their people: a read on what they need. A sharper eye gives a sharper read.</div>
+            <div className="flex flex-wrap gap-1.5">{o.clubs.map((c) => row(c.id, c.name, c.ok, c.reason, () => engine.sendAnalyst(c.id, a.id)))}</div>
+          </div>
+        )}
+        <button className="btn-ghost self-start px-2 py-1 text-xs text-mist-400" onClick={onDone}>
+          Cancel
+        </button>
+        {error && <div className="text-[12px] text-alert-400">{error}</div>}
+      </div>
+    </motion.div>
+  );
+}
+
+/** At a base: he picks up briefs in its country on his own and lines up deals for the agency. */
+function PlaceAtBase({ a, bases }: { a: AssistantView; bases: { id: number; label: string }[] }) {
+  const { act } = useAct();
+  return (
+    <select
+      className="rounded-lg border border-white/10 bg-night-950/70 px-2 py-1 text-xs text-mist-200"
+      value=""
+      title="At a base he picks up briefs in its country on his own and lines up deals for the agency"
+      onChange={(e) => e.target.value !== '' && void act(() => engine.placeAssistant(a.id, Number(e.target.value)))}
+    >
+      <option value="">Place at a base…</option>
+      {bases.map((b) => (
+        <option key={b.id} value={b.id}>
+          {b.label}
+        </option>
+      ))}
+    </select>
   );
 }
 

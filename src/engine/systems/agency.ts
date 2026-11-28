@@ -150,6 +150,8 @@ export function placeAssistant(state: GameState, assistantId: number, officeId: 
   if (officeId !== null && officeId !== HQ && !agency.offices.some((o) => o.id === officeId)) throw new ScoutingError('No such office.');
   if (officeId !== null && a.task) throw new ScoutingError(`${name(a)} is out on a task. Recall him first.`);
   if (officeId !== null && a.job) throw new ScoutingError(`${name(a)} is handling one of your briefs or sales. Take it back first.`);
+  if (officeId !== null && a.analysis) throw new ScoutingError(`${name(a)} is studying a club. Let him finish first.`);
+  if (officeId !== null && a.clubPaid !== undefined) throw new ScoutingError(`${name(a)} works for your club, not your agency.`);
   a.officeId = officeId ?? undefined;
 }
 
@@ -178,7 +180,7 @@ export function agencyOnSignings(state: GameState, signings: AiSigning[], date: 
   if (!agency || !state.scout || !signings.length) return;
   const staffBy = new Map<CountryId, typeof state.assistants>();
   for (const a of state.assistants) {
-    if (a.officeId === undefined || a.job) continue; // on one of your briefs, not brokering
+    if (a.officeId === undefined || a.job || a.clubPaid !== undefined) continue; // on one of your briefs, or the club's scout: not brokering
     const c = officeCountry(state, a.officeId);
     if (!c) continue;
     staffBy.set(c, [...(staffBy.get(c) ?? []), a]);

@@ -41,3 +41,15 @@ task), `systems/delegation.ts` (exclusivity checks), `systems/agency.ts` (`place
 - `agency-office.test.ts`: a club-paid scout can't be placed, and isn't counted by `agencyOnSignings`.
 - `delegation.test.ts` unchanged.
 - `tests/sim/balance.sim.ts` ("staffed offices pay for themselves") still passes.
+
+## Done 2026-11-28
+- Built the two modes in the screen, not the engine: the engine keeps `task`, `job`, `analysis` and `officeId`
+  (folding `analysis` into `task` would only move code around), and the staff view gains `sendOut` for idle staff:
+  the briefs and sales he can take, the clients he can study, and the agency bases.
+- The idle staff card has **Send out** (scan a region, work a brief or sale, study a club) and **Place at a base**.
+  The status reads "Out · scanning…/brief for…/studying…" or "At base · …". The shortcuts on the club page and
+  briefs stay.
+- Fix: the club's junior scout can't be placed at an agency base and is skipped when the agency brokers deals (an
+  older save may already have placed him). `placeAssistant` also refuses a staffer who is studying a club.
+- Browser check on a staged save: handed a brief from the card ("Out · brief for Plymouth Athletic") and placed the
+  other staffer in Spain ("At base · Spain"), no console errors. Suite: 352 passing.

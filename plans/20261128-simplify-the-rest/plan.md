@@ -1,6 +1,6 @@
 # Simplify: the rest of the audit
 
-Status: phases 1–4 done 2026-11-28
+Status: phases 1–5 done 2026-11-28
 
 Follow-up to [the clear wins](../20261127-simplify-clear-wins/plan.md). This plan covers the audit's remaining items:
 the client being judged twice, club standing, and the side features table. Every phase removes or merges

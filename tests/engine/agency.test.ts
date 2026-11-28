@@ -106,6 +106,20 @@ describe('your agency', () => {
     expect(w.agency!.brokered).toBe(n);
   });
 
+  it("the club's junior scout can't work at an agency base or broker its deals", () => {
+    const w = founded();
+    openOffice(w, esp);
+    refreshMarket(w, w.date);
+    const a = hireAssistant(w, w.assistantMarket[0]!.id);
+    a.clubPaid = Object.values(w.clubs).find((c) => c.countryId === eng)!.id;
+    expect(() => placeAssistant(w, a.id, w.agency!.offices[0]!.id)).toThrow(/your club/);
+    a.officeId = w.agency!.offices[0]!.id; // an older save could have placed him
+    const spanish = Object.values(w.clubs).filter((c) => c.countryId === esp);
+    const players = Object.values(w.players).filter((p) => p.clubId && w.clubs[p.clubId]!.countryId !== esp);
+    agencyOnSignings(w, Array.from({ length: 200 }, (_, i) => ({ playerId: players[i]!.id, clubId: spanish[i % spanish.length]!.id, fee: usd(500_000) })), w.date, 't');
+    expect(w.agency!.brokered).toBe(0);
+  });
+
   it('rules out a club job while you run it', () => {
     const w = founded();
     const club = Object.values(w.clubs).find((c) => c.countryId === eng && c.tier === 3)!;

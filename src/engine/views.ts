@@ -1327,6 +1327,16 @@ export interface AssistantView {
   analysis?: { club: string; until: GameDate };
   /** A rival agency wants him: match by then or he goes. */
   offer?: { agency: string; wage: USD; until: GameDate };
+  /**
+   * Idle: where he can go. Out in the field (scan a region, work one of your briefs or sales, study a client's
+   * needs) or at one of your agency's bases.
+   */
+  sendOut?: {
+    briefs: { kind: 'brief' | 'sale'; id: number; label: string; ok: boolean; reason?: string }[];
+    clubs: { id: ClubId; name: string; ok: boolean; reason?: string }[];
+    bases: { id: number; label: string }[];
+    cutPct: number;
+  };
   /** On your employer's staff: the club's name (it pays him). */
   clubPaid?: string;
   task?: AssistantTaskView;
